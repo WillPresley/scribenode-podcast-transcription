@@ -131,31 +131,32 @@ interface TranscribeJob {
 
 const jobs = new Map<string, TranscribeJob>();
 
-// Preseed sample jobs with far-future createdAt so they don't get cleared by garbage collection
-jobs.set("sample-sarah", {
-  id: "sample-sarah",
-  filename: "Interview_Sarah_Drabner_Final.mp3",
-  fileSize: 43200000,
-  status: "completed",
-  progress: 100,
-  createdAt: Date.now() + 1000 * 365 * 24 * 3600 * 1000, // 1000 years in future
-  modelUsed: "gemini-3.6-flash",
-  transcript: `[00:12] SPEAKER A: Welcome to the Product Mindset podcast. Today we're diving deep into the architecture of modern SaaS applications and how engineering teams can leverage AI models to automate workflows. I'm joined today by Sarah Drabner, VP of Product Engineering. Welcome, Sarah.
+// Preseed sample jobs with far-future createdAt so they don't get cleared
+const sampleJobsList: TranscribeJob[] = [
+  {
+    id: "sample-sarah",
+    filename: "Interview_Sarah_Drabner_Final.mp3",
+    fileSize: 43200000,
+    status: "completed",
+    progress: 100,
+    createdAt: Date.now() + 1000 * 365 * 24 * 3600 * 1000,
+    modelUsed: "gemini-3.6-flash",
+    transcript: `[00:12] SPEAKER A: Welcome to the Product Mindset podcast. Today we're diving deep into the architecture of modern SaaS applications and how engineering teams can leverage AI models to automate workflows. I'm joined today by Sarah Drabner, VP of Product Engineering. Welcome, Sarah.
 
 [00:34] SPEAKER B: Thanks for having me! It's fascinating because the barrier to entry has never been lower, but the barrier to excellence has never been higher. When we talk about building with APIs, specifically Gemini 3.6 Flash, it completely changes how we approach multimodal processing of large audio, video, and text streams.
 
 [01:15] SPEAKER A: Absolutely. We've seen teams struggle with latency and cost. How do you balance transcription quality with rapid content generation?
 
 [01:45] SPEAKER B: The key is multi-stage workflows. First, use a highly capable reasoning model like Gemini 3.6 Flash for direct audio-to-text alignment, which maintains speaker identity and captures verbal nuances. Once you have that high-fidelity transcript, you feed it into downstream summarization and chaptering pipelines. That keeps things highly cost-efficient and incredibly fast.`,
-  duration: "45:00",
-  summary: `### Executive Summary
+    duration: "45:00",
+    summary: `### Executive Summary
 In this episode of the Product Mindset podcast, host Speaker A sits down with Sarah Drabner, VP of Product Engineering, to explore the architectural principles of modern, AI-augmented SaaS applications. 
 
 ### Key Themes:
 - **API-First Orchestration**: How teams can leverage multimodal capabilities of foundation models.
 - **Barrier to Excellence**: While building simple wrappers is easier than ever, constructing robust, production-grade applications requires deep engineering discipline.
 - **Workflow Automation**: Transitioning from manual operations to intelligent, automated, and structured pipeline-driven processing.`,
-  key_takeaways: `### Key Takeaways
+    key_takeaways: `### Key Takeaways
 
 1. **Excellence is the New Differentiator**
    The barrier to entry for AI features has dropped to near-zero, but the bar for high-quality, dependable excellence in enterprise applications is higher than ever.
@@ -168,7 +169,7 @@ In this episode of the Product Mindset podcast, host Speaker A sits down with Sa
 
 4. **Efficiency Over Raw Size**
    Optimizing speed and context window efficiency is critical. Models designed for speed, such as Gemini 3.6 Flash, are often superior choices for high-velocity user interfaces and background workers.`,
-  chapters: `### Episode Chapters
+    chapters: `### Episode Chapters
 
 - **[00:00] Introduction to SaaS Architecture**
   Opening remarks on how modern SaaS applications leverage foundation models to automate complex end-user tasks.
@@ -181,7 +182,7 @@ In this episode of the Product Mindset podcast, host Speaker A sits down with Sa
 
 - **[01:45] Sequential Pipeline Engineering**
   Breaking down the architectural pattern of multi-stage pipelines: aligning raw audio files to high-fidelity text first, then downstream processing.`,
-  social_media: `### Listener Share Drafts
+    social_media: `### Listener Share Drafts
 
 #### 🧵 Threads / Bluesky
 API wrappers are easy. AI excellence is hard. 🛠️
@@ -200,31 +201,56 @@ In this episode of the Product Mindset podcast, Sarah Drabner, VP of Product Eng
 2️⃣ Targeted downstream generation (chapters, summaries, takeaways)
 
 Check out the clip and let us know your thoughts on sequential pipelines! 👇`
-});
-
-jobs.set("sample-brief", {
-  id: "sample-brief",
-  filename: "Marketing_Brief_Sync.mp3",
-  fileSize: 12687770, // 12.1MB
-  status: "archived",
-  progress: 100,
-  createdAt: Date.now() + 1000 * 365 * 24 * 3600 * 1000 - 30000,
-  modelUsed: "gemini-3.6-flash",
-  transcript: `[00:01] SPEAKER A: Let's quickly sync on the Q3 marketing campaigns. The podcast adoption rates are looking fantastic. Our automated workflow has processed over one thousand hours.
+  },
+  {
+    id: "sample-brief",
+    filename: "Marketing_Brief_Sync.mp3",
+    fileSize: 12687770, // 12.1MB
+    status: "archived",
+    progress: 100,
+    createdAt: Date.now() + 1000 * 365 * 24 * 3600 * 1000 - 30000,
+    modelUsed: "gemini-3.6-flash",
+    transcript: `[00:01] SPEAKER A: Let's quickly sync on the Q3 marketing campaigns. The podcast adoption rates are looking fantastic. Our automated workflow has processed over one thousand hours.
 
 [00:45] SPEAKER B: Yes, we need to focus on streamlining social asset creation. Creating snippets for LinkedIn and Twitter makes a huge difference in driving engagement back to the core episodes.`,
-  duration: "15:02"
-});
-
-// Cleanup non-sample jobs older than 1 hour to prevent memory bloat
-setInterval(() => {
-  const oneHourAgo = Date.now() - 3600000;
-  for (const [id, job] of jobs.entries()) {
-    if (!id.startsWith("sample-") && job.createdAt < oneHourAgo) {
-      jobs.delete(id);
-    }
+    duration: "15:02"
   }
-}, 3600000);
+];
+
+// Seed initial sample jobs
+for (const sampleJob of sampleJobsList) {
+  jobs.set(sampleJob.id, sampleJob);
+}
+
+// Disk persistence helper routines
+const JOBS_DB_PATH = path.join(UPLOADS_DIR, "jobs.json");
+
+function loadJobsFromDisk() {
+  try {
+    if (fs.existsSync(JOBS_DB_PATH)) {
+      const rawData = fs.readFileSync(JOBS_DB_PATH, "utf-8");
+      const list: TranscribeJob[] = JSON.parse(rawData);
+      for (const j of list) {
+        jobs.set(j.id, j);
+      }
+      console.log(`[Storage] Loaded ${list.length} persisted jobs from ${JOBS_DB_PATH}`);
+    }
+  } catch (err) {
+    console.error("[Storage] Failed to load jobs from disk:", err);
+  }
+}
+
+function saveJobsToDisk() {
+  try {
+    const list = Array.from(jobs.values());
+    fs.writeFileSync(JOBS_DB_PATH, JSON.stringify(list, null, 2), "utf-8");
+  } catch (err) {
+    console.error("[Storage] Failed to save jobs to disk:", err);
+  }
+}
+
+// Initial load on server boot
+loadJobsFromDisk();
 
 const BASE_TRANSCRIPTION_STANDARDS = `# Role & Operational Goal
 You are an expert audio transcriptionist and content editor. Your task is to convert provided audio/video recordings into clean, highly readable, publication-ready Markdown transcripts.
@@ -439,6 +465,7 @@ async function processTranscriptionJob(
     job.transcript = transcript;
     job.modelUsed = model;
     jobs.set(jobId, job);
+    saveJobsToDisk();
 
     // Cleanup file from Gemini cloud files storage to keep it neat
     try {
@@ -453,6 +480,7 @@ async function processTranscriptionJob(
     job.status = 'failed';
     job.error = err.message || "Failed to process the audio file.";
     jobs.set(jobId, job);
+    saveJobsToDisk();
 
     try {
       if (fs.existsSync(tempFilePath)) {
@@ -535,6 +563,7 @@ async function startServer() {
       };
       
       jobs.set(jobId, job);
+      saveJobsToDisk();
       
       // Run background transcription process (uses req.file.path which is the temp multer file)
       processTranscriptionJob(jobId, req.file.path, req.file.mimetype, promptStyle, customPrompt);
@@ -579,6 +608,7 @@ async function startServer() {
     }
     
     jobs.delete(jobId);
+    saveJobsToDisk();
     res.json({ success: true, message: `Job ${jobId} deleted successfully` });
   });
 
@@ -631,6 +661,7 @@ async function startServer() {
         };
 
         jobs.set(jobId, newJob);
+        saveJobsToDisk();
         return res.json({ jobId });
       }
 
@@ -661,6 +692,7 @@ async function startServer() {
       };
 
       jobs.set(jobId, job);
+      saveJobsToDisk();
       processTranscriptionJob(jobId, newFilePath, job.mimeType || 'audio/mp3', promptStyle, customPrompt);
       res.json({ jobId });
 
@@ -684,6 +716,7 @@ async function startServer() {
       return res.status(400).json({ error: "Only completed jobs can be archived or unarchived." });
     }
     jobs.set(jobId, job);
+    saveJobsToDisk();
     res.json(job);
   });
 
@@ -729,6 +762,7 @@ async function startServer() {
       else if (mode === 'social_media') job.social_media = text;
       
       jobs.set(job.id, job);
+      saveJobsToDisk();
 
       res.json({ result: text, modelUsed: model });
     } catch (err: any) {

@@ -51,7 +51,7 @@
 1. **Upload & Ingestion**: Audio files are uploaded to the Express backend via streaming multipart forms.
 2. **Model Cascade Pipeline**: The server routes audio payloads through Gemini 3.6 Flash, automatically failing over to Gemini 3.5 Flash or Flash Lite if rate limits or model changes occur.
 3. **Structuring & Diarization**: The raw transcript is processed into timed segments with identified speaker labels and structured chapters.
-4. **State Persistence**: Processing jobs are stored in local server memory with client-side localStorage synchronization.
+4. **State Persistence**: Processing jobs, transcripts, chapters, and audio files are persisted to `/app/uploads/jobs.json` within the mounted volume (`scribenode_uploads`), preserving all transcript data across container restarts and rebuilds.
 
 ---
 
