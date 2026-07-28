@@ -30,10 +30,45 @@ jobs:
       - name: Build Application
         run: npm run build
 
+  # AUTOMATED CONTAINER PUBLISH: GitHub Container Registry (GHCR)
+  # Automatically builds and publishes a private Docker image to ghcr.io/username/repo-name:latest
+  publish-container:
+    name: Build & Publish Private Docker Image (GHCR)
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   # OPTIONAL DEPLOYMENT JOB: GCP Cloud Run (Private Access)
-  # To enable deployment to GCP Cloud Run with Private Auth:
-  # 1. Add GCP_SA_KEY, GCP_PROJECT_ID secrets in GitHub Repository Settings -> Secrets and variables -> Actions
-  # 2. Add GEMINI_API_KEY secret in GitHub Repository Secrets
   deploy-cloud-run:
     name: Deploy Private Cloud Run Service
     needs: build-and-test
@@ -59,3 +94,4 @@ jobs:
       #       --region us-central1 \
       #       --no-allow-unauthenticated \
       #       --set-env-vars GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}",BASIC_AUTH_USER="${{ secrets.BASIC_AUTH_USER }}",BASIC_AUTH_PASS="${{ secrets.BASIC_AUTH_PASS }}"
+
