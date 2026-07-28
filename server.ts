@@ -519,7 +519,7 @@ async function startServer() {
 
   // API Routes
   app.get("/api/config", (req, res) => {
-    const appTitle = process.env.APP_TITLE || "ScribeNode: Transcription Engine";
+    const appTitle = process.env.APP_TITLE || "ScribeNode – Transcription Engine";
     res.json({ appTitle });
   });
 
@@ -800,7 +800,7 @@ async function startServer() {
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         let html = fs.readFileSync(indexPath, 'utf-8');
-        const appTitle = process.env.APP_TITLE || "ScribeNode: Transcription Engine";
+        const appTitle = process.env.APP_TITLE || "ScribeNode – Transcription Engine";
         html = html.replace(/<title>.*?<\/title>/i, `<title>${appTitle}</title>`);
         res.setHeader('Content-Type', 'text/html');
         return res.send(html);

@@ -75,8 +75,8 @@ APP_URL="http://localhost:3000"
 PORT=3000
 
 # 🏷️ OPTIONAL: Custom Page Title for Browser Tab
-# Default: ScribeNode: Transcription Engine
-APP_TITLE="ScribeNode: Transcription Engine"
+# Default: ScribeNode – Transcription Engine
+APP_TITLE="ScribeNode – Transcription Engine"
 
 # 🔒 OPTIONAL: Private HTTP Basic Authentication
 # Set both variables to password-protect your web application interface.
@@ -116,7 +116,7 @@ services:
       - PORT=${PORT:-3000}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - APP_URL=${APP_URL:-http://localhost:3000}
-      - APP_TITLE=${APP_TITLE:-ScribeNode: Transcription Engine}
+      - APP_TITLE=${APP_TITLE:-ScribeNode – Transcription Engine}
       - BASIC_AUTH_USER=${BASIC_AUTH_USER:-}
       - BASIC_AUTH_PASS=${BASIC_AUTH_PASS:-}
 

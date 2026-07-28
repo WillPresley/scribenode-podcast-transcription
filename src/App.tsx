@@ -566,7 +566,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      document.title = "ScribeNode: Transcription Engine";
+      document.title = "ScribeNode – Transcription Engine";
     }
   };
 
