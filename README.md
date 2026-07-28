@@ -36,16 +36,16 @@
 ## Pipeline & Architecture
 
 ```
-┌─────────────────┐       ┌─────────────────┐       ┌────────────────────────┐
-│  Audio Ingest   │ ───>  │  Express Server │ ───>  │  Gemini Flash AI Engine │
-│  (MP3/WAV/M4A) │       │ (Multer / Stream)│       │  (Clean Verbatim Model)│
-└─────────────────┘       └─────────────────┘       └────────────────────────┘
-                                                                │
-                                                                ▼
-┌─────────────────┐       ┌─────────────────┐       ┌────────────────────────┐
-│ Export & Share  │ <───  │ Interactive UI  │ <───  │ Diarized Transcript    │
-│ (MD / TXT / Copy)│      │  (React / Sync) │       │ + Chapters + Summaries │
-└─────────────────┘       └─────────────────┘       └────────────────────────┘
+┌────────────────────────────┐     ┌────────────────────────────┐     ┌────────────────────────────┐
+│        Audio Ingest        │ ──> │       Express Server       │ ──> │   Gemini Flash AI Engine   │
+│     (MP3 / WAV / M4A)      │     │      (Multer / Stream)     │     │   (Clean Verbatim Model)   │
+└────────────────────────────┘     └────────────────────────────┘     └────────────────────────────┘
+                                                                                    │
+                                                                                    ▼
+┌────────────────────────────┐     ┌────────────────────────────┐     ┌────────────────────────────┐
+│       Export & Share       │ <── │       Interactive UI       │ <── │    Diarized Transcript     │
+│   (MD / TXT / Clipboard)   │     │    (React / Audio Sync)    │     │   + Chapters + Summaries   │
+└────────────────────────────┘     └────────────────────────────┘     └────────────────────────────┘
 ```
 
 1. **Upload & Ingestion**: Audio files are uploaded to the Express backend via streaming multipart forms.
