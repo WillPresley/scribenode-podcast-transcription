@@ -1,6 +1,6 @@
 # ScribeNode — AI Speech & Transcript Engine
 
-[![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.0.7-blue.svg)](package.json)
 [![Node](https://img.shields.io/badge/node-v22%2B-brightgreen.svg)](package.json)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](Dockerfile)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)

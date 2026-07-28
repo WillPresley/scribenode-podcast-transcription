@@ -301,7 +301,7 @@ function getSystemInstruction(style: string): string {
 
 ## 6. Speaker Identification & Layout (Combined Mode)
 1. **HEADER:** Start the document with exactly ONE top-level H1 title line: "# Title of Recording".
-2. **HOSTS / SPEAKERS:** If speakers or hosts are identified in the audio/recording, include "**Hosts:** *Host Name 1, Host Name 2*" on the line immediately following the title line. If no hosts can be identified, omit the Hosts line.
+2. **HOSTS / SPEAKERS:** If speakers or hosts are identified in the audio/recording, include "**Hosts:** *Host Name 1, Host Name 2*" on the line immediately following the title line. **CRITICAL:** Strictly list ONLY proper human names on the Hosts line (e.g., "**Hosts:** *Mike Auzenne, Mark Horstman*"). NEVER include surrounding spoken words, dialogue fragments, transition phrases, spoken numbers, or conversational commentary. If host names cannot be identified with certainty, list consistent speaker labels (e.g., "**Hosts:** *Speaker A, Speaker B*") or omit the Hosts line.
 3. **DIVIDER:** Add a horizontal rule "---" on its own line below the title/hosts header, followed by a blank line.
 4. **NO DUPLICATE HEADERS:** Do NOT add secondary title lines or repeat the header after the "---" line.
 5. **SPEAKER NAME INFERENCE:** Carefully analyze dialogue to infer actual names of speakers (e.g. "[00:12] **Mark Horstman**:"). If names cannot be inferred, use consistent speaker IDs (e.g. "[00:12] **Speaker A**:").

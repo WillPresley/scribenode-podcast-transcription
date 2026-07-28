@@ -97,12 +97,36 @@ const inferPodcastTitle = (filename: string, transcriptText: string): string => 
   }).join(" ") || "Podcast Transcript";
 };
 
-const EXCLUDED_SPEAKER_KEYWORDS = /^(hosts?|summary|transcript|chapter|chapters|takeaway|takeaways|speaker|speakers|intro|outro|section|note|notes|questions?|example|examples|value|effort|part|step|option|overview|theme|themes|agenda|topic|topics|action|items?|link|definition|table|figure|header|heading)$/i;
+const EXCLUDED_SPEAKER_KEYWORDS = /^(hosts?|summary|transcript|chapter|chapters|takeaway|takeaways|speaker|speakers|intro|outro|section|note|notes|questions?|example|examples|value|effort|part|step|option|overview|theme|themes|agenda|topic|topics|action|items?|link|definition|table|figure|header|heading|number|one|two|three|four|five|six|seven|eight|nine|ten|point|points|so|our|my|your|this|that|what|how|why|when|where|is|are|was|were|be|been|have|has|had|do|does|did|a|an|the|and|or|but|if|in|on|at|to|for|with|by|from)$/i;
 
 const inferSpeakers = (transcriptText: string): string[] => {
   const speakersSet = new Set<string>();
   const lines = transcriptText.split('\n');
 
+  // Priority 1: Extract from an explicit Hosts: header line if present
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const hostsMatch = trimmed.match(/^(?:\*\*)?Hosts:(?:\*\*)?\s*\*?(.*?)\*?$/i);
+    if (hostsMatch) {
+      const rawHosts = hostsMatch[1].replace(/[*_`]/g, '').trim();
+      const candidates = rawHosts.split(/,\s*/);
+      for (const cand of candidates) {
+        const clean = cand.trim();
+        if (!clean) continue;
+        const words = clean.split(/\s+/);
+        if (words.length > 4) continue;
+        const hasExcludedWord = words.some(w => EXCLUDED_SPEAKER_KEYWORDS.test(w.replace(/[^a-zA-Z]/g, '')));
+        if (!hasExcludedWord && /^[A-Z]/.test(clean)) {
+          speakersSet.add(clean);
+        }
+      }
+      if (speakersSet.size > 0) {
+        return Array.from(speakersSet);
+      }
+    }
+  }
+
+  // Priority 2: Infer from speaker turn lines
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
@@ -2228,24 +2252,24 @@ export default function App() {
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
                       <Zap className="w-4 h-4 text-amber-500" />
-                      What's New in v1.0.6
+                      What's New in v1.0.7
                     </h3>
                     <ul className="space-y-2.5 border-l-2 border-blue-200 pl-3">
                       <li className="relative">
-                        <span className="font-bold text-slate-900">GitHub Actions & Runner Upgrade:</span>
-                        <p className="text-slate-600 mt-0.5">Upgraded CI/CD workflow to official GitHub Actions v5 stack (`actions/checkout@v5` and `actions/setup-node@v5`) eliminating Node.js 20 deprecation runner warnings.</p>
+                        <span className="font-bold text-slate-900">Hosts Line Extraction & Name Filtering:</span>
+                        <p className="text-slate-600 mt-0.5">Strengthened Gemini transcription instructions and frontend regex parsing to strictly isolate human host names (e.g. `Mike Auzenne, Mark Horstman`) and strip out spoken conversational fragments.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Private Cloud & Docker Deployment:</span>
-                        <p className="text-slate-600 mt-0.5">Added production Dockerfile and optional HTTP Basic Auth middleware for password-protecting private deployments.</p>
+                        <span className="font-bold text-slate-900">Automated Dependabot Tracking:</span>
+                        <p className="text-slate-600 mt-0.5">Added `.github/dependabot.yml` to automatically track weekly security updates for `npm`, `docker` base images, and `github-actions` workflows.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Validated Gemini Flash Model Fallback Stack:</span>
-                        <p className="text-slate-600 mt-0.5">Optimized model cascade sequence across Gemini 3.6 Flash, Gemini 3.5 Flash, Gemini 3.5 Flash Lite, Gemini 3.1 Flash Lite, and Gemini Flash Latest.</p>
+                        <span className="font-bold text-slate-900">Node 22 LTS Alpine Runtime Audit:</span>
+                        <p className="text-slate-600 mt-0.5">Verified production container uses `node:22-alpine` and GitHub Actions uses Node 22 runtime, ensuring modern security patches and LTS support.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Host Header Preservation:</span>
-                        <p className="text-slate-600 mt-0.5">Guaranteed header metadata and host identification rendering across live transcript viewer, exports, and server prompts.</p>
+                        <span className="font-bold text-slate-900">Pipeline & Architecture Diagram:</span>
+                        <p className="text-slate-600 mt-0.5">Refined wide-box ASCII pipeline rendering in documentation and accurate export format specifications (Markdown, TXT, Clipboard).</p>
                       </li>
                     </ul>
                   </div>
