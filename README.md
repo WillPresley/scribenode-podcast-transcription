@@ -1,8 +1,8 @@
 # ScribeNode — AI Speech & Transcript Engine
 
-[![Version](https://img.shields.io/badge/version-1.0.7-blue.svg)](package.json)
-[![Node](https://img.shields.io/badge/node-v22%2B-brightgreen.svg)](package.json)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](Dockerfile)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](package.json)
+[![Node](https://img.shields.io/badge/node-v26%2B-brightgreen.svg)](package.json)
+[![Docker](https://img.shields.io/badge/docker-v1.1.0-blue.svg)](Dockerfile)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **ScribeNode** is a full-stack, high-throughput AI audio transcription and speech intelligence web application. Powered by Google's Gemini Flash AI model suite, ScribeNode transforms raw podcast recordings, meeting audio, interviews, and voice notes into polished clean-verbatim transcripts, structured chapters, executive summaries, and actionable key takeaways.
@@ -25,11 +25,11 @@
 
 | Layer | Technology |
 | :--- | :--- |
-| **Frontend** | React 18, Vite, Tailwind CSS, Lucide React Icons, Motion Animation |
-| **Backend** | Node.js (v22+), Express, Multer File Upload |
+| **Frontend** | React 19, Vite 8, Tailwind CSS v4, Lucide React Icons, Motion v12 |
+| **Backend** | Node.js (v26 / v22+), Express 5, Multer File Upload |
 | **AI Engine** | Google Gen AI SDK (`@google/genai`), Gemini 3.6 Flash / 3.5 Flash |
-| **Bundler & Build** | ESBuild (Node CJS bundling), Vite |
-| **Container & CI/CD** | Docker, Docker Compose, GitHub Actions, GHCR |
+| **Bundler & Build** | ESBuild (Node CJS bundling), Vite 8 |
+| **Container & CI/CD** | Docker (`node:26-alpine`), Docker Compose, GitHub Actions (v7), GHCR |
 
 ---
 
