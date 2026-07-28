@@ -251,7 +251,34 @@ function saveJobsToDisk() {
 
 function printStartupBanner() {
   const VERSION = "1.1.0";
-  const DOCKER_TAG = process.env.DOCKER_TAG || process.env.CONTAINER_TAG || process.env.IMAGE_TAG || process.env.GIT_SHA || process.env.BUILD_TAG || "latest";
+  const tag = process.env.DOCKER_TAG || process.env.CONTAINER_TAG || process.env.IMAGE_TAG || "latest";
+  
+  let rawSha = (process.env.GIT_SHA || process.env.COMMIT_SHA || process.env.GITHUB_SHA || process.env.BUILD_SHA || process.env.IMAGE_SHA || process.env.IMAGE_DIGEST || process.env.SHA || "").trim();
+
+  // Try reading build-info.json if present from dist build
+  if (!rawSha) {
+    try {
+      const buildInfoPath = path.join(process.cwd(), "dist", "build-info.json");
+      if (fs.existsSync(buildInfoPath)) {
+        const info = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
+        if (info.gitSha) rawSha = info.gitSha;
+      }
+    } catch {}
+  }
+
+  // Format hash tag if SHA or image digest is passed via environment at runtime
+  let dockerTagOutput = tag;
+  if (rawSha) {
+    if (rawSha.startsWith("sha256:")) {
+      dockerTagOutput = `${tag} (${rawSha.substring(0, 19)})`;
+    } else if (/^[a-f0-9]{64}$/i.test(rawSha)) {
+      dockerTagOutput = `${tag} (sha256: ${rawSha.substring(0, 12)})`;
+    } else if (/^[a-f0-9]{40}$/i.test(rawSha)) {
+      dockerTagOutput = `${tag} (sha: ${rawSha.substring(0, 8)})`;
+    } else {
+      dockerTagOutput = `${tag} (${rawSha})`;
+    }
+  }
 
   const banner = `
    _____           _ _          _   _           _      
@@ -265,7 +292,7 @@ function printStartupBanner() {
   console.log(`=======================================================`);
   console.log(` ScribeNode - AI Speech & Transcript Engine`);
   console.log(` Version      : v${VERSION}`);
-  console.log(` Docker/Tag   : ${DOCKER_TAG}`);
+  console.log(` Docker/Tag   : ${dockerTagOutput}`);
   console.log(` Environment  : ${process.env.NODE_ENV || 'development'}`);
   console.log(` Node Runtime : ${process.version} (${process.platform} ${process.arch})`);
   console.log(` Server URL   : http://0.0.0.0:${PORT}`);
