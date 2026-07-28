@@ -1,0 +1,61 @@
+name: CI/CD Build and Private Deploy
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    name: Validate Build & Types
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint and Type Check
+        run: npm run lint
+
+      - name: Build Application
+        run: npm run build
+
+  # OPTIONAL DEPLOYMENT JOB: GCP Cloud Run (Private Access)
+  # To enable deployment to GCP Cloud Run with Private Auth:
+  # 1. Add GCP_SA_KEY, GCP_PROJECT_ID secrets in GitHub Repository Settings -> Secrets and variables -> Actions
+  # 2. Add GEMINI_API_KEY secret in GitHub Repository Secrets
+  deploy-cloud-run:
+    name: Deploy Private Cloud Run Service
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Uncomment below steps when GCP credentials are added to GitHub Secrets:
+      # - name: Google Auth
+      #   uses: google-github-actions/auth@v2
+      #   with:
+      #     credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # - name: Set up Cloud SDK
+      #   uses: google-github-actions/setup-gcloud@v2
+
+      # - name: Build & Deploy to Cloud Run (Private Access)
+      #   run: |
+      #     gcloud run deploy private-transcriber-app \
+      #       --source . \
+      #       --region us-central1 \
+      #       --no-allow-unauthenticated \
+      #       --set-env-vars GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}",BASIC_AUTH_USER="${{ secrets.BASIC_AUTH_USER }}",BASIC_AUTH_PASS="${{ secrets.BASIC_AUTH_PASS }}"

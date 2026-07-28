@@ -466,6 +466,29 @@ async function startServer() {
   // Parse json and urlencoded payloads
   app.use(express.json({ limit: '10mb' }));
 
+  // Optional HTTP Basic Auth for private deployment
+  if (process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS) {
+    const authUser = process.env.BASIC_AUTH_USER;
+    const authPass = process.env.BASIC_AUTH_PASS;
+    console.log("[Auth] Basic authentication ENABLED on server.");
+
+    app.use((req, res, next) => {
+      const authHeader = req.headers.authorization;
+      if (authHeader) {
+        const match = authHeader.match(/^Basic\s+(.*)$/i);
+        if (match) {
+          const credentials = Buffer.from(match[1], 'base64').toString('utf-8');
+          const [user, pass] = credentials.split(':');
+          if (user === authUser && pass === authPass) {
+            return next();
+          }
+        }
+      }
+      res.setHeader('WWW-Authenticate', 'Basic realm="Private Audio Transcriber App"');
+      return res.status(401).send('Unauthorized: Password required.');
+    });
+  }
+
   // API Routes
   app.post("/api/transcribe", (req, res, next) => {
     console.log("[API] POST /api/transcribe - Request received, content-type:", req.headers['content-type']);
