@@ -26,6 +26,9 @@ services:
       # Optional: Base URL of your app instance (e.g., http://192.168.1.100:3000 or https://scribe.yourdomain.com)
       - APP_URL=${APP_URL:-http://localhost:3000}
       
+      # Optional: Custom page title for browser tab
+      - APP_TITLE=${APP_TITLE:-ScribeNode: Transcription Engine}
+      
       # Optional: Enable HTTP Basic Auth for private network access
       # If left empty in your .env file, Basic Auth is disabled automatically
       - BASIC_AUTH_USER=${BASIC_AUTH_USER:-}

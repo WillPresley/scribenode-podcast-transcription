@@ -518,6 +518,11 @@ async function startServer() {
   }
 
   // API Routes
+  app.get("/api/config", (req, res) => {
+    const appTitle = process.env.APP_TITLE || "ScribeNode: Transcription Engine";
+    res.json({ appTitle });
+  });
+
   app.post("/api/transcribe", (req, res, next) => {
     console.log("[API] POST /api/transcribe - Request received, content-type:", req.headers['content-type']);
     next();
@@ -790,9 +795,17 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, { index: false }));
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        let html = fs.readFileSync(indexPath, 'utf-8');
+        const appTitle = process.env.APP_TITLE || "ScribeNode: Transcription Engine";
+        html = html.replace(/<title>.*?<\/title>/i, `<title>${appTitle}</title>`);
+        res.setHeader('Content-Type', 'text/html');
+        return res.send(html);
+      }
+      res.sendFile(indexPath);
     });
   }
 

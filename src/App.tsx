@@ -556,9 +556,24 @@ export default function App() {
     }
   };
 
-  // Clear polling and fetch jobs on mount
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch("/api/config");
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.appTitle) {
+          document.title = data.appTitle;
+        }
+      }
+    } catch (err) {
+      document.title = "ScribeNode: Transcription Engine";
+    }
+  };
+
+  // Clear polling and fetch jobs/config on mount
   useEffect(() => {
     fetchJobsList();
+    fetchConfig();
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
