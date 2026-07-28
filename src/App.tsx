@@ -2140,7 +2140,7 @@ export default function App() {
             className="flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800">v1.0.5</span>
+            <span className="font-mono text-xs font-bold text-slate-800">v1.0.6</span>
             <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-2">About & Release Notes</span>
           </button>
         </footer>
@@ -2164,7 +2164,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-lg text-white tracking-tight">Scribe<span className="text-blue-300">Node</span></h2>
                         <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                          v1.0.5
+                          v1.0.6
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -2196,7 +2196,7 @@ export default function App() {
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">FALLBACK MODEL</span>
-                        <span className="text-slate-800 font-semibold">Gemini 3.6 Flash Lite</span>
+                        <span className="text-slate-800 font-semibold">Gemini 3.5 Flash / Lite</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">TRANSCRIPTION STYLE</span>
@@ -2213,24 +2213,24 @@ export default function App() {
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
                       <Zap className="w-4 h-4 text-amber-500" />
-                      What's New in v1.0.5
+                      What's New in v1.0.6
                     </h3>
                     <ul className="space-y-2.5 border-l-2 border-blue-200 pl-3">
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Polished Clean Verbatim Standards:</span>
-                        <p className="text-slate-600 mt-0.5">Engineered strict prompts that eliminate speech disfluencies, filler words (uh, um, like), stutters, and false starts while maintaining domain vocabulary.</p>
+                        <span className="font-bold text-slate-900">GitHub Actions & Runner Upgrade:</span>
+                        <p className="text-slate-600 mt-0.5">Upgraded CI/CD workflow to official GitHub Actions v5 stack (`actions/checkout@v5` and `actions/setup-node@v5`) eliminating Node.js 20 deprecation runner warnings.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Gemini 3.6 Flash Engine Pipeline:</span>
-                        <p className="text-slate-600 mt-0.5">Upgraded processing pipeline to Google's latest Gemini 3.6 Flash and Gemini 3.6 Flash Lite models with high-throughput file stream support.</p>
+                        <span className="font-bold text-slate-900">Private Cloud & Docker Deployment:</span>
+                        <p className="text-slate-600 mt-0.5">Added production Dockerfile and optional HTTP Basic Auth middleware for password-protecting private deployments.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Speaker Name Diarization & Bolding:</span>
-                        <p className="text-slate-600 mt-0.5">Automatic detection of speaker names from context with automatic markdown bold formatting across live previews and exports.</p>
+                        <span className="font-bold text-slate-900">Validated Gemini Flash Model Fallback Stack:</span>
+                        <p className="text-slate-600 mt-0.5">Optimized model cascade sequence across Gemini 3.6 Flash, Gemini 3.5 Flash, Gemini 3.5 Flash Lite, Gemini 3.1 Flash Lite, and Gemini Flash Latest.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Branding & Interactive Inspector:</span>
-                        <p className="text-slate-600 mt-0.5">Unified CamelCase ScribeNode branding, blue waveform-node visual mark, cleaned footer, and interactive release modal.</p>
+                        <span className="font-bold text-slate-900">Host Header Preservation:</span>
+                        <p className="text-slate-600 mt-0.5">Guaranteed header metadata and host identification rendering across live transcript viewer, exports, and server prompts.</p>
                       </li>
                     </ul>
                   </div>
