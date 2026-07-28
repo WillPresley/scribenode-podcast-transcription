@@ -2256,24 +2256,24 @@ export default function App() {
                     </h3>
                     <ul className="space-y-2.5 border-l-2 border-blue-200 pl-3">
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Express 5 Framework Upgrade:</span>
-                        <p className="text-slate-600 mt-0.5">Upgraded backend server architecture to Express 5.2.1 with async route error handling and updated wildcard route handlers (`*all`).</p>
+                        <span className="font-bold text-slate-900">Intelligent Host & Speaker Extraction:</span>
+                        <p className="text-slate-600 mt-0.5">Automatically identifies show hosts and key guests (e.g. "Mike Auzenne, Mark Horstman"), filtering out conversational filler and isolating official speaker names in transcript headers and turn badges.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Frontend & Build Modernization:</span>
-                        <p className="text-slate-600 mt-0.5">Bumped core dependencies to Vite 8.1, React 19.2, Tailwind v4, Motion v12, and TSX 4.23 with zero vulnerability audits.</p>
+                        <span className="font-bold text-slate-900">Refined Diarization & Speaker Turn Tags:</span>
+                        <p className="text-slate-600 mt-0.5">Improved multi-speaker transcript clarity with precise turn-by-turn attribution, formatted timecode stamps, and clean paragraph breaks for long podcasts and interviews.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Container & CI/CD Pipeline (Node 26 Alpine):</span>
-                        <p className="text-slate-600 mt-0.5">Updated Docker runtime to `node:26-alpine` and upgraded GitHub Actions deployment workflows to `v7` (`checkout@v7`, `setup-node@v7`).</p>
+                        <span className="font-bold text-slate-900">Polished Clean Verbatim Engine:</span>
+                        <p className="text-slate-600 mt-0.5">Optimized prompt processing to strip out false starts, stutters, and verbal artifacts while preserving natural tone, technical terms, and critical quotes.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Automated Dependabot Management:</span>
-                        <p className="text-slate-600 mt-0.5">Integrated `.github/dependabot.yml` tracking for npm, Docker, and GitHub Actions with automated package grouping and semver controls.</p>
+                        <span className="font-bold text-slate-900">Transcript Workspace & Multi-Format Exports:</span>
+                        <p className="text-slate-600 mt-0.5">Enhanced search and speaker filtering controls, alongside instant exports to Markdown (.md), plain text (.txt), and one-click clipboard copying.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Enhanced Speaker & Host Diarization:</span>
-                        <p className="text-slate-600 mt-0.5">Fine-tuned Gemini prompt instructions and client regex rules to accurately extract human host names and format clean speaker turns.</p>
+                        <span className="font-bold text-slate-900">High-Performance Core Infrastructure:</span>
+                        <p className="text-slate-600 mt-0.5">Upgraded backend server architecture to Express 5 & Node 26 with Vite 8 and React 19 for faster audio uploads, streamlined background processing, and peak security compliance.</p>
                       </li>
                     </ul>
                   </div>
