@@ -531,7 +531,7 @@ async function startServer() {
   app.post("/api/transcribe", (req, res, next) => {
     console.log("[API] POST /api/transcribe - Request received, content-type:", req.headers['content-type']);
     next();
-  }, upload.single("file"), async (req, res) => {
+  }, upload.single("file") as any, async (req, res) => {
     try {
       console.log("[API] POST /api/transcribe - File parsed successfully:", req.file ? {
         originalname: req.file.originalname,
@@ -801,7 +801,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath, { index: false }));
-    app.get('*', (req, res) => {
+    app.get('*all', (req, res) => {
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         let html = fs.readFileSync(indexPath, 'utf-8');

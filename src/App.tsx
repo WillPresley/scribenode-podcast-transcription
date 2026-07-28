@@ -2179,7 +2179,7 @@ export default function App() {
             className="flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800">v1.0.6</span>
+            <span className="font-mono text-xs font-bold text-slate-800">v1.1.0</span>
             <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-2">About & Release Notes</span>
           </button>
         </footer>
@@ -2203,7 +2203,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-lg text-white tracking-tight">Scribe<span className="text-blue-300">Node</span></h2>
                         <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                          v1.0.6
+                          v1.1.0
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -2234,16 +2234,16 @@ export default function App() {
                         <span className="text-slate-800 font-semibold">Gemini 3.6 Flash</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[10px]">FALLBACK MODEL</span>
-                        <span className="text-slate-800 font-semibold">Gemini 3.5 Flash / Lite</span>
+                        <span className="text-slate-400 block text-[10px]">SERVER FRAMEWORK</span>
+                        <span className="text-slate-800 font-semibold">Express 5.2 / Node 26</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">BUILD ENGINE</span>
+                        <span className="text-slate-800 font-semibold">Vite 8 / React 19</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">TRANSCRIPTION STYLE</span>
                         <span className="text-slate-800 font-semibold">Polished Clean Verbatim</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[10px]">AUDIO PROFILES</span>
-                        <span className="text-slate-800 font-semibold">High / Compact Mono</span>
                       </div>
                     </div>
                   </div>
@@ -2252,24 +2252,28 @@ export default function App() {
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
                       <Zap className="w-4 h-4 text-amber-500" />
-                      What's New in v1.0.7
+                      What's New in v1.1.0
                     </h3>
                     <ul className="space-y-2.5 border-l-2 border-blue-200 pl-3">
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Hosts Line Extraction & Name Filtering:</span>
-                        <p className="text-slate-600 mt-0.5">Strengthened Gemini transcription instructions and frontend regex parsing to strictly isolate human host names (e.g. `Mike Auzenne, Mark Horstman`) and strip out spoken conversational fragments.</p>
+                        <span className="font-bold text-slate-900">Express 5 Framework Upgrade:</span>
+                        <p className="text-slate-600 mt-0.5">Upgraded backend server architecture to Express 5.2.1 with async route error handling and updated wildcard route handlers (`*all`).</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Automated Dependabot Tracking:</span>
-                        <p className="text-slate-600 mt-0.5">Added `.github/dependabot.yml` to automatically track weekly security updates for `npm`, `docker` base images, and `github-actions` workflows.</p>
+                        <span className="font-bold text-slate-900">Frontend & Build Modernization:</span>
+                        <p className="text-slate-600 mt-0.5">Bumped core dependencies to Vite 8.1, React 19.2, Tailwind v4, Motion v12, and TSX 4.23 with zero vulnerability audits.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Node 22 LTS Alpine Runtime Audit:</span>
-                        <p className="text-slate-600 mt-0.5">Verified production container uses `node:22-alpine` and GitHub Actions uses Node 22 runtime, ensuring modern security patches and LTS support.</p>
+                        <span className="font-bold text-slate-900">Container & CI/CD Pipeline (Node 26 Alpine):</span>
+                        <p className="text-slate-600 mt-0.5">Updated Docker runtime to `node:26-alpine` and upgraded GitHub Actions deployment workflows to `v7` (`checkout@v7`, `setup-node@v7`).</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Pipeline & Architecture Diagram:</span>
-                        <p className="text-slate-600 mt-0.5">Refined wide-box ASCII pipeline rendering in documentation and accurate export format specifications (Markdown, TXT, Clipboard).</p>
+                        <span className="font-bold text-slate-900">Automated Dependabot Management:</span>
+                        <p className="text-slate-600 mt-0.5">Integrated `.github/dependabot.yml` tracking for npm, Docker, and GitHub Actions with automated package grouping and semver controls.</p>
+                      </li>
+                      <li className="relative">
+                        <span className="font-bold text-slate-900">Enhanced Speaker & Host Diarization:</span>
+                        <p className="text-slate-600 mt-0.5">Fine-tuned Gemini prompt instructions and client regex rules to accurately extract human host names and format clean speaker turns.</p>
                       </li>
                     </ul>
                   </div>
