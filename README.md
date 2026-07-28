@@ -16,7 +16,7 @@
 - 👥 **Speaker Diarization & Name Detection**: Contextually identifies speaker names and formats dialogue seamlessly with bold speaker labels and timestamps.
 - 📌 **Automated Chaptering & Intelligence**: Generates timestamped chapters, high-level summaries, key bulleted takeaways, and actionable next steps.
 - 🔍 **Interactive Live Viewer & Audio Sync**: Live transcript filtering, full-text search, jump-to-timestamp playback, and text-selection inspection.
-- 📥 **Multi-Format Export Options**: Download transcripts in Markdown (`.md`), Plain Text (`.txt`), Timed Subtitles (`.vtt` & `.srt`), or raw JSON.
+- 📥 **Export & Sharing Options**: Download transcripts and intelligence assets in Markdown (`.md`) or Plain Text (`.txt`), with instant copy-to-clipboard support.
 - 🔒 **Private Homelab & Basic Auth Ready**: Native support for HTTP Basic Authentication and Docker containerization for secure private self-hosting.
 
 ---
@@ -44,7 +44,7 @@
                                                                 ▼
 ┌─────────────────┐       ┌─────────────────┐       ┌────────────────────────┐
 │ Export & Share  │ <───  │ Interactive UI  │ <───  │ Diarized Transcript    │
-│ (MD/VTT/SRT/JSON)│      │  (React / Sync) │       │ + Chapters + Summaries │
+│ (MD / TXT / Copy)│      │  (React / Sync) │       │ + Chapters + Summaries │
 └─────────────────┘       └─────────────────┘       └────────────────────────┘
 ```
 
