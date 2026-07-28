@@ -379,6 +379,11 @@ async function processTranscriptionJob(
       }
     });
 
+    const remoteFileName = uploadResult.name;
+    if (!remoteFileName) {
+      throw new Error("Upload failed: remote file name missing.");
+    }
+
     // Delete the local temp file immediately to save disk space
     try {
       fs.unlinkSync(tempFilePath);
@@ -391,14 +396,14 @@ async function processTranscriptionJob(
     jobs.set(jobId, job);
 
     // 2. Poll the File status
-    console.log(`[Job ${jobId}] Polling status for remote file ${uploadResult.name}...`);
-    let file = await getAIClient().files.get({ name: uploadResult.name });
+    console.log(`[Job ${jobId}] Polling status for remote file ${remoteFileName}...`);
+    let file = await getAIClient().files.get({ name: remoteFileName });
     let attempts = 0;
     const maxAttempts = 150; // Max 5 minutes of polling
     
     while (file.state === 'PROCESSING' && attempts < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
-      file = await getAIClient().files.get({ name: uploadResult.name });
+      file = await getAIClient().files.get({ name: remoteFileName });
       attempts++;
       
       const processingProgress = Math.min(40 + attempts * 2, 65);
@@ -469,8 +474,8 @@ async function processTranscriptionJob(
 
     // Cleanup file from Gemini cloud files storage to keep it neat
     try {
-      await getAIClient().files.delete({ name: uploadResult.name });
-      console.log(`[Job ${jobId}] Deleted file from Gemini remote storage: ${uploadResult.name}`);
+      await getAIClient().files.delete({ name: remoteFileName });
+      console.log(`[Job ${jobId}] Deleted file from Gemini remote storage: ${remoteFileName}`);
     } catch (err) {
       console.warn(`[Job ${jobId}] Could not delete file from Gemini storage:`, err);
     }

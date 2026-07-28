@@ -6,6 +6,16 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    groups:
+      build-and-dev-tools:
+        patterns:
+          - "vite*"
+          - "@vitejs/*"
+          - "esbuild"
+          - "tailwindcss*"
+          - "@tailwindcss/*"
+          - "typescript"
+          - "@types/*"
 
   # Track Dockerfile base image updates
   - package-ecosystem: "docker"
