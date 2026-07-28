@@ -249,6 +249,104 @@ function saveJobsToDisk() {
   }
 }
 
+function printStartupBanner() {
+  const VERSION = "1.1.0";
+  const DOCKER_TAG = process.env.DOCKER_TAG || process.env.CONTAINER_TAG || process.env.IMAGE_TAG || process.env.GIT_SHA || process.env.BUILD_TAG || "latest";
+
+  const banner = `
+  ____            _ _     _   _           _      
+ / ___|  ___ _ __(_) |__ | | | | ___   __| | ___ 
+ \\___ \\ / __| '__| | '_ \\| |_| |/ _ \\ / _\` |/ _ \\
+  ___) | (__| |  | | |_) |  _  | (_) | (_| |  __/
+ |____/ \\___|_|  |_|_.__/|_| |_|\\___/ \\__,_|\\___|
+`;
+  console.log(banner);
+  console.log(`=======================================================`);
+  console.log(` ScribeNode - AI Speech & Transcript Engine`);
+  console.log(` Version      : v${VERSION}`);
+  console.log(` Docker/Tag   : ${DOCKER_TAG}`);
+  console.log(` Environment  : ${process.env.NODE_ENV || 'development'}`);
+  console.log(` Node Runtime : ${process.version} (${process.platform} ${process.arch})`);
+  console.log(` Server URL   : http://0.0.0.0:${PORT}`);
+  console.log(` Uploads Dir  : ${UPLOADS_DIR}`);
+  console.log(` Temp Storage : ${os.tmpdir()}`);
+  console.log(` Gemini API   : ${process.env.GEMINI_API_KEY ? 'Configured [OK]' : 'NOT CONFIGURED [WARNING]'}`);
+  console.log(`=======================================================\n`);
+}
+
+function cleanOrphanedAndTempFiles() {
+  console.log("[Storage GC] Running storage & temp directory cleanup sweep...");
+  let removedCount = 0;
+  let bytesFreed = 0;
+
+  // 1. Clean orphaned upload files in UPLOADS_DIR
+  try {
+    if (fs.existsSync(UPLOADS_DIR)) {
+      const activeFilePaths = new Set<string>();
+      for (const job of jobs.values()) {
+        if (job.localFilePath) {
+          activeFilePaths.add(path.resolve(job.localFilePath));
+        }
+      }
+
+      const files = fs.readdirSync(UPLOADS_DIR);
+      for (const file of files) {
+        if (file === "jobs.json") continue; // Protect jobs database
+        const fullPath = path.resolve(path.join(UPLOADS_DIR, file));
+        if (!activeFilePaths.has(fullPath)) {
+          try {
+            const stats = fs.statSync(fullPath);
+            if (stats.isFile()) {
+              bytesFreed += stats.size;
+              fs.unlinkSync(fullPath);
+              removedCount++;
+              console.log(`[Storage GC] Deleted orphaned upload file: ${file} (${(stats.size / (1024 * 1024)).toFixed(2)} MB)`);
+            }
+          } catch (err) {
+            console.error(`[Storage GC] Error deleting orphaned upload file ${file}:`, err);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[Storage GC] Failed cleaning UPLOADS_DIR:", err);
+  }
+
+  // 2. Clean stale temporary upload files in os.tmpdir() older than 15 minutes
+  try {
+    const tmpDir = os.tmpdir();
+    if (fs.existsSync(tmpDir)) {
+      const now = Date.now();
+      const MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
+      const files = fs.readdirSync(tmpDir);
+
+      for (const file of files) {
+        const fullPath = path.join(tmpDir, file);
+        try {
+          const stats = fs.statSync(fullPath);
+          if (stats.isFile() && (now - stats.mtimeMs) > MAX_AGE_MS) {
+            // Match multer temporary upload files (32 char hex or common temp upload prefixes/extensions)
+            if (/^[a-f0-9]{32}$/i.test(file) || file.startsWith("multer-") || file.endsWith(".audio") || file.endsWith(".tmp")) {
+              bytesFreed += stats.size;
+              fs.unlinkSync(fullPath);
+              removedCount++;
+              console.log(`[Storage GC] Deleted stale temp file: ${file} (${(stats.size / (1024 * 1024)).toFixed(2)} MB)`);
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.error("[Storage GC] Failed cleaning temp dir:", err);
+  }
+
+  if (removedCount > 0) {
+    console.log(`[Storage GC] Sweep completed. Removed ${removedCount} stale/orphaned file(s), freed ${(bytesFreed / (1024 * 1024)).toFixed(2)} MB.`);
+  } else {
+    console.log("[Storage GC] Storage clean. No orphaned or stale temporary files found.");
+  }
+}
+
 // Initial load on server boot
 loadJobsFromDisk();
 
@@ -541,6 +639,9 @@ async function startServer() {
       } : "No file received");
 
       if (!process.env.GEMINI_API_KEY) {
+        if (req.file?.path && fs.existsSync(req.file.path)) {
+          try { fs.unlinkSync(req.file.path); } catch {}
+        }
         return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
       }
 
@@ -581,6 +682,9 @@ async function startServer() {
       res.json({ jobId });
     } catch (err: any) {
       console.error("[API] Transcribe API error inside route handler:", err);
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        try { fs.unlinkSync(req.file.path); } catch {}
+      }
       res.status(500).json({ error: err.message || "Failed to start transcription job" });
     }
   });
@@ -619,6 +723,7 @@ async function startServer() {
     
     jobs.delete(jobId);
     saveJobsToDisk();
+    cleanOrphanedAndTempFiles();
     res.json({ success: true, message: `Job ${jobId} deleted successfully` });
   });
 
@@ -814,8 +919,12 @@ async function startServer() {
     });
   }
 
+  // Run initial storage & temp directory GC sweep and schedule periodic checks
+  cleanOrphanedAndTempFiles();
+  setInterval(cleanOrphanedAndTempFiles, 15 * 60 * 1000);
+
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    printStartupBanner();
   });
 }
 
