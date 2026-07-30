@@ -84,6 +84,10 @@ APP_TITLE="ScribeNode – Transcription Engine"
 BASIC_AUTH_ENABLED="false"
 BASIC_AUTH_USER="admin"
 BASIC_AUTH_PASS="your_secure_password_here"
+
+# 📦 OPTIONAL: Disable Preseeded Example Items
+# Defaults to false. Set to "true" to prevent example audio items from being added on startup.
+DISABLE_DEFAULT_ITEMS="false"
 ```
 
 ---
@@ -121,6 +125,7 @@ services:
       - BASIC_AUTH_ENABLED=${BASIC_AUTH_ENABLED:-false}
       - BASIC_AUTH_USER=${BASIC_AUTH_USER:-}
       - BASIC_AUTH_PASS=${BASIC_AUTH_PASS:-}
+      - DISABLE_DEFAULT_ITEMS=${DISABLE_DEFAULT_ITEMS:-false}
 
     volumes:
       - scribenode_uploads:/app/uploads

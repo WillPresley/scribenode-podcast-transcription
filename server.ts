@@ -217,10 +217,20 @@ Check out the clip and let us know your thoughts on sequential pipelines! 👇`
   }
 ];
 
-// Seed initial sample jobs
-for (const sampleJob of sampleJobsList) {
-  jobs.set(sampleJob.id, sampleJob);
-}
+// Helper to safely clean env var strings (strip surrounding quotes, whitespace)
+const cleanEnvString = (val: string | undefined): string => {
+  if (!val) return "";
+  let s = val.trim();
+  while ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
+  return s;
+};
+
+const isDisableDefaultItems = (): boolean => {
+  const raw = cleanEnvString(process.env.DISABLE_DEFAULT_ITEMS).toLowerCase();
+  return ["true", "1", "yes", "enabled", "on"].includes(raw);
+};
 
 // Disk persistence helper routines
 const JOBS_DB_PATH = path.join(UPLOADS_DIR, "jobs.json");
@@ -246,6 +256,36 @@ function saveJobsToDisk() {
     fs.writeFileSync(JOBS_DB_PATH, JSON.stringify(list, null, 2), "utf-8");
   } catch (err) {
     console.error("[Storage] Failed to save jobs to disk:", err);
+  }
+}
+
+function initializeJobsStorage() {
+  loadJobsFromDisk();
+
+  if (isDisableDefaultItems()) {
+    console.log("[Storage] DISABLE_DEFAULT_ITEMS=true -> Preseeded default items are DISABLED.");
+    let removed = false;
+    for (const sampleJob of sampleJobsList) {
+      if (jobs.has(sampleJob.id)) {
+        jobs.delete(sampleJob.id);
+        removed = true;
+      }
+    }
+    if (removed) {
+      saveJobsToDisk();
+    }
+  } else {
+    let seededNew = false;
+    for (const sampleJob of sampleJobsList) {
+      if (!jobs.has(sampleJob.id)) {
+        jobs.set(sampleJob.id, sampleJob);
+        seededNew = true;
+      }
+    }
+    if (seededNew) {
+      console.log("[Storage] Default sample audio jobs preseeded.");
+      saveJobsToDisk();
+    }
   }
 }
 
@@ -299,6 +339,7 @@ function printStartupBanner() {
   console.log(` Uploads Dir  : ${UPLOADS_DIR}`);
   console.log(` Temp Storage : ${os.tmpdir()}`);
   console.log(` Gemini API   : ${process.env.GEMINI_API_KEY ? 'Configured [OK]' : 'NOT CONFIGURED [WARNING]'}`);
+  console.log(` Preseed Items: ${isDisableDefaultItems() ? 'Disabled (DISABLE_DEFAULT_ITEMS=true)' : 'Enabled (Default)'}`);
   console.log(`=======================================================\n`);
 }
 
@@ -622,18 +663,11 @@ async function processTranscriptionJob(
 }
 
 async function startServer() {
+  // Initialize jobs storage and check preseeded items setting
+  initializeJobsStorage();
+
   // Parse json and urlencoded payloads
   app.use(express.json({ limit: '10mb' }));
-
-  // Helper to safely clean env var strings (strip surrounding quotes, whitespace)
-  const cleanEnvString = (val: string | undefined): string => {
-    if (!val) return "";
-    let s = val.trim();
-    while ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-      s = s.slice(1, -1).trim();
-    }
-    return s;
-  };
 
   // Helper to determine if Basic Auth is genuinely enabled
   const getBasicAuthCredentials = (): { enabled: boolean; user: string; pass: string; reason: string } => {
@@ -733,6 +767,7 @@ async function startServer() {
     res.json({
       appTitle,
       basicAuthEnabled: authState.enabled,
+      disableDefaultItems: isDisableDefaultItems(),
       hasGeminiKey: Boolean(cleanEnvString(process.env.GEMINI_API_KEY))
     });
   });

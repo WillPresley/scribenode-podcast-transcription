@@ -35,6 +35,9 @@ services:
       - BASIC_AUTH_USER=${BASIC_AUTH_USER:-}
       - BASIC_AUTH_PASS=${BASIC_AUTH_PASS:-}
 
+      # Optional: Disable preseeded example items on startup (defaults to false)
+      - DISABLE_DEFAULT_ITEMS=${DISABLE_DEFAULT_ITEMS:-false}
+
     volumes:
       - scribenode_uploads:/app/uploads
 

@@ -546,13 +546,8 @@ export default function App() {
   const latestCompletedJob = jobsList.find(j => (j.status === 'completed' || j.status === 'archived') && j.transcript);
   const activeCount = jobsList.filter(j => j.status === "uploading" || j.status === "processing_audio" || j.status === "transcribing").length;
   const completedCount = jobsList.filter(j => j.status === "completed" || j.status === "archived").length;
-  const previewJob = (selectedPreviewId ? jobsList.find(j => j.id === selectedPreviewId) : null) || latestCompletedJob || {
-    id: "sample-sarah",
-    filename: "Interview_Sarah_Drabner_Final.mp3",
-    status: "completed",
-    transcript: `[00:12] SPEAKER A: Welcome to the Product Mindset podcast. Today we're diving deep into the architecture of modern SaaS applications and how engineering teams can leverage AI models to automate workflows.\n\n[00:34] SPEAKER B: Thanks for having me! It's fascinating because the barrier to entry has never been lower, but the barrier to excellence has never been higher. When we talk about building with APIs, specifically Gemini 3.6 Flash, it completely changes how we approach multimodal processing.`
-  };
-  const parsedLines = getPreviewLines(previewJob.transcript || "");
+  const previewJob = (selectedPreviewId ? jobsList.find(j => j.id === selectedPreviewId) : null) || latestCompletedJob;
+  const parsedLines = previewJob ? getPreviewLines(previewJob.transcript || "") : [];
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   
   // Marketing / Analysis states
@@ -2113,7 +2108,15 @@ export default function App() {
                       </h3>
                       
                       <div className="space-y-4 mt-4 overflow-y-auto max-h-[450px] lg:max-h-[580px] xl:max-h-[680px] pr-2 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
-                        {previewJob.status === "failed" ? (
+                        {!previewJob ? (
+                          <div className="p-8 text-center text-slate-400 font-sans">
+                            <FileAudio className="h-8 w-8 mx-auto mb-3 text-slate-600" />
+                            <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-1">No Active Preview</div>
+                            <p className="text-[11px] text-slate-400 max-w-xs mx-auto leading-relaxed">
+                              Upload an audio file or select a completed transcription job to view its live transcript preview.
+                            </p>
+                          </div>
+                        ) : previewJob.status === "failed" ? (
                           <div className="p-4 bg-red-950/30 border border-red-900/40 rounded-lg text-red-400">
                             <div className="flex items-center gap-2 mb-1.5 font-bold text-xs uppercase tracking-wider">
                               <AlertCircle className="h-4 w-4 shrink-0" />
