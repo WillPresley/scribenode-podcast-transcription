@@ -57,9 +57,11 @@
 
 ## Environment Configuration (`.env`)
 
-To run ScribeNode, create a `.env` file in the root directory (or specify environment variables in Docker Compose).
+To run ScribeNode, configuration values can be provided via a `.env` file or directly passed as environment variables in Docker Compose / container settings.
 
-### `.env` Example
+### `.env` File Reference
+
+Create a `.env` file in the same directory as `docker-compose.yml` or your application root:
 
 ```env
 # 🔑 REQUIRED: Google Gemini API Key
@@ -96,9 +98,35 @@ DISABLE_DEFAULT_ITEMS="false"
 
 ScribeNode is optimized for home lab deployment via Docker Compose using either local compilation or pre-built container images from **GitHub Container Registry (GHCR)**.
 
-### Option A: Using `docker-compose.yml` (Recommended)
+### Configuration Methods: `.env` File vs `docker-compose.yml`
 
-1. Save the following `docker-compose.yml` file to your server directory:
+Docker Compose supports two primary ways to set environment variables for your ScribeNode container:
+
+1. **Recommended Method — Central `.env` File**:
+   - Place a `.env` file alongside `docker-compose.yml`.
+   - The `docker-compose.yml` file uses variable placeholders (e.g., `GEMINI_API_KEY=${GEMINI_API_KEY}`).
+   - **Why this is best**: Keeps sensitive secrets (like API keys and passwords) out of `docker-compose.yml`, making your compose file safe to commit to Git or share.
+
+2. **Alternative Method — Direct Inline Values in `docker-compose.yml`**:
+   - Hardcode literal values directly into `docker-compose.yml` (e.g., `- GEMINI_API_KEY=AIzaSyYourKeyHere`).
+   - **Note**: If you hardcode values directly in `docker-compose.yml`, you do not need a `.env` file, but be careful not to expose API keys publicly.
+
+#### Environment Variable Precedence in Docker Compose
+
+If an environment variable is defined in multiple places, Docker Compose resolves values in the following precedence order (highest priority wins):
+
+1. **Explicit values hardcoded in `docker-compose.yml`**: E.g., `- GEMINI_API_KEY=my_hardcoded_key` overrides everything.
+2. **Host shell environment variables**: E.g., running `export GEMINI_API_KEY="key"` in terminal before `docker compose up`.
+3. **Values in the `.env` file**: Key-value pairs defined in the `.env` file sitting next to `docker-compose.yml`.
+4. **Default fallbacks inside `${VAR:-default}` syntax**: E.g., `${PORT:-3000}` uses `3000` if `PORT` is omitted from both shell and `.env`.
+
+---
+
+### Step-by-Step Docker Compose Deployment
+
+#### 1. Save `docker-compose.yml`
+
+Save the following `docker-compose.yml` file to your deployment directory:
 
 ```yaml
 services:
@@ -116,6 +144,7 @@ services:
     ports:
       - "${PORT:-3000}:${PORT:-3000}"
 
+    # Variable references pass values automatically from your .env file
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
@@ -134,22 +163,25 @@ volumes:
   scribenode_uploads:
 ```
 
-2. Create a `.env` file alongside `docker-compose.yml`:
+#### 2. Create your `.env` file
+
+Create a `.env` file in the same directory:
 
 ```env
 GEMINI_API_KEY=AIzaSyYourActualGeminiApiKeyHere
-PORT=4200
-BASIC_AUTH_USER=admin
-BASIC_AUTH_PASS=my_secure_password_123
+PORT=3000
+APP_TITLE=ScribeNode – Homelab Engine
+BASIC_AUTH_ENABLED=false
+DISABLE_DEFAULT_ITEMS=true
 ```
 
-3. Launch the container:
+#### 3. Launch ScribeNode
 
 ```bash
 docker compose up -d
 ```
 
-Your instance will now be live at `http://your-homelab-ip:4200` protected by HTTP Basic Authentication!
+Your ScribeNode container will automatically read the `.env` file, bind to the configured port, and persist audio jobs to the `scribenode_uploads` volume!
 
 ---
 
