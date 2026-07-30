@@ -15,7 +15,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "lucide-react": "^0.546.0",
+    "lucide-react": "^1.27.0",
     "motion": "^12.43.0",
     "multer": "^2.2.0",
     "react": "^19.2.8",
