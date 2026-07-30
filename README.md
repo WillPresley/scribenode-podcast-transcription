@@ -79,8 +79,9 @@ PORT=3000
 APP_TITLE="ScribeNode – Transcription Engine"
 
 # 🔒 OPTIONAL: Private HTTP Basic Authentication
-# Set both variables to password-protect your web application interface.
-# If omitted or left blank, authentication is disabled.
+# Basic Auth is FULLY DISABLED by default.
+# To explicitly enable password protection, set BASIC_AUTH_ENABLED="true" and configure user/pass:
+BASIC_AUTH_ENABLED="false"
 BASIC_AUTH_USER="admin"
 BASIC_AUTH_PASS="your_secure_password_here"
 ```
@@ -117,6 +118,7 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - APP_URL=${APP_URL:-http://localhost:3000}
       - APP_TITLE=${APP_TITLE:-ScribeNode – Transcription Engine}
+      - BASIC_AUTH_ENABLED=${BASIC_AUTH_ENABLED:-false}
       - BASIC_AUTH_USER=${BASIC_AUTH_USER:-}
       - BASIC_AUTH_PASS=${BASIC_AUTH_PASS:-}
 

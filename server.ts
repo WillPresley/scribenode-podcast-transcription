@@ -625,28 +625,97 @@ async function startServer() {
   // Parse json and urlencoded payloads
   app.use(express.json({ limit: '10mb' }));
 
-  // Optional HTTP Basic Auth for private deployment
-  const rawAuthUser = (process.env.BASIC_AUTH_USER || "").trim();
-  const rawAuthPass = (process.env.BASIC_AUTH_PASS || "").trim();
-  const isAuthEnabled = Boolean(
-    rawAuthUser &&
-    rawAuthPass &&
-    rawAuthUser.toLowerCase() !== "null" &&
-    rawAuthUser.toLowerCase() !== "undefined" &&
-    rawAuthPass.toLowerCase() !== "null" &&
-    rawAuthPass.toLowerCase() !== "undefined"
-  );
+  // Helper to safely clean env var strings (strip surrounding quotes, whitespace)
+  const cleanEnvString = (val: string | undefined): string => {
+    if (!val) return "";
+    let s = val.trim();
+    while ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+      s = s.slice(1, -1).trim();
+    }
+    return s;
+  };
 
-  if (isAuthEnabled) {
-    console.log(`[Auth] Basic authentication ENABLED on server for user "${rawAuthUser}".`);
+  // Helper to determine if Basic Auth is genuinely enabled
+  const getBasicAuthCredentials = (): { enabled: boolean; user: string; pass: string; reason: string } => {
+    const rawEnableFlag = cleanEnvString(process.env.BASIC_AUTH_ENABLED || process.env.ENABLE_BASIC_AUTH).toLowerCase();
+    const rawDisableFlag = cleanEnvString(process.env.DISABLE_BASIC_AUTH).toLowerCase();
+
+    // 1. Explicit disable flag
+    if (["true", "1", "yes", "enabled", "on"].includes(rawDisableFlag)) {
+      return { enabled: false, user: "", pass: "", reason: "DISABLE_BASIC_AUTH is set to true" };
+    }
+
+    // 2. Strict Opt-In requirement: BASIC_AUTH_ENABLED must be explicitly set to 'true'
+    const isExplicitlyEnabled = ["true", "1", "yes", "enabled", "on"].includes(rawEnableFlag);
+    if (!isExplicitlyEnabled) {
+      return {
+        enabled: false,
+        user: "",
+        pass: "",
+        reason: "BASIC_AUTH_ENABLED is not set to 'true' (defaults to FULLY DISABLED)"
+      };
+    }
+
+    // 3. Validate user and password credentials
+    const user = cleanEnvString(process.env.BASIC_AUTH_USER);
+    const pass = cleanEnvString(process.env.BASIC_AUTH_PASS);
+
+    if (!user || !pass) {
+      return {
+        enabled: false,
+        user: "",
+        pass: "",
+        reason: "BASIC_AUTH_ENABLED is 'true', but BASIC_AUTH_USER or BASIC_AUTH_PASS is missing or empty"
+      };
+    }
+
+    const invalidTokens = [
+      "",
+      "null",
+      "undefined",
+      "none",
+      "disabled",
+      "false",
+      "off",
+      "0",
+      "unset",
+      "$basic_auth_user",
+      "${basic_auth_user}",
+      "$basic_auth_pass",
+      "${basic_auth_pass}",
+      "your_secure_password_here"
+    ];
+
+    if (invalidTokens.includes(user.toLowerCase()) || invalidTokens.includes(pass.toLowerCase())) {
+      return {
+        enabled: false,
+        user: "",
+        pass: "",
+        reason: `Placeholder or invalid token detected ("${user}" / "${pass}")`
+      };
+    }
+
+    return { enabled: true, user, pass, reason: "Explicitly enabled via BASIC_AUTH_ENABLED=true" };
+  };
+
+  // Unauthenticated Health Probe Endpoint
+  app.get(["/api/health", "/healthz", "/health"], (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // Optional HTTP Basic Auth for private deployment
+  const authState = getBasicAuthCredentials();
+
+  if (authState.enabled) {
+    console.log(`[Auth] Basic authentication ENABLED for user "${authState.user}".`);
     app.use((req, res, next) => {
       const authHeader = req.headers.authorization;
       if (authHeader) {
         const match = authHeader.match(/^Basic\s+(.*)$/i);
         if (match) {
           const credentials = Buffer.from(match[1], 'base64').toString('utf-8');
-          const [user, pass] = credentials.split(':');
-          if (user === rawAuthUser && pass === rawAuthPass) {
+          const [reqUser, reqPass] = credentials.split(':');
+          if (reqUser === authState.user && reqPass === authState.pass) {
             return next();
           }
         }
@@ -655,13 +724,17 @@ async function startServer() {
       return res.status(401).send('Unauthorized: Password required.');
     });
   } else {
-    console.log("[Auth] Basic authentication DISABLED (no valid BASIC_AUTH_USER & BASIC_AUTH_PASS configured).");
+    console.log(`[Auth] Basic authentication DISABLED (${authState.reason}).`);
   }
 
   // API Routes
   app.get("/api/config", (req, res) => {
     const appTitle = process.env.APP_TITLE || "ScribeNode – Transcription Engine";
-    res.json({ appTitle });
+    res.json({
+      appTitle,
+      basicAuthEnabled: authState.enabled,
+      hasGeminiKey: Boolean(cleanEnvString(process.env.GEMINI_API_KEY))
+    });
   });
 
   app.post("/api/transcribe", (req, res, next) => {

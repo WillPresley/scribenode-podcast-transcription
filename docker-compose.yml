@@ -30,7 +30,8 @@ services:
       - APP_TITLE=${APP_TITLE:-ScribeNode – Transcription Engine}
       
       # Optional: Enable HTTP Basic Auth for private network access
-      # If left empty in your .env file, Basic Auth is disabled automatically
+      # Basic Auth is FULLY DISABLED by default. Set BASIC_AUTH_ENABLED=true in .env to enable.
+      - BASIC_AUTH_ENABLED=${BASIC_AUTH_ENABLED:-false}
       - BASIC_AUTH_USER=${BASIC_AUTH_USER:-}
       - BASIC_AUTH_PASS=${BASIC_AUTH_PASS:-}
 
