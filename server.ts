@@ -626,11 +626,19 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
 
   // Optional HTTP Basic Auth for private deployment
-  if (process.env.BASIC_AUTH_USER && process.env.BASIC_AUTH_PASS) {
-    const authUser = process.env.BASIC_AUTH_USER;
-    const authPass = process.env.BASIC_AUTH_PASS;
-    console.log("[Auth] Basic authentication ENABLED on server.");
+  const rawAuthUser = (process.env.BASIC_AUTH_USER || "").trim();
+  const rawAuthPass = (process.env.BASIC_AUTH_PASS || "").trim();
+  const isAuthEnabled = Boolean(
+    rawAuthUser &&
+    rawAuthPass &&
+    rawAuthUser.toLowerCase() !== "null" &&
+    rawAuthUser.toLowerCase() !== "undefined" &&
+    rawAuthPass.toLowerCase() !== "null" &&
+    rawAuthPass.toLowerCase() !== "undefined"
+  );
 
+  if (isAuthEnabled) {
+    console.log(`[Auth] Basic authentication ENABLED on server for user "${rawAuthUser}".`);
     app.use((req, res, next) => {
       const authHeader = req.headers.authorization;
       if (authHeader) {
@@ -638,7 +646,7 @@ async function startServer() {
         if (match) {
           const credentials = Buffer.from(match[1], 'base64').toString('utf-8');
           const [user, pass] = credentials.split(':');
-          if (user === authUser && pass === authPass) {
+          if (user === rawAuthUser && pass === rawAuthPass) {
             return next();
           }
         }
@@ -646,6 +654,8 @@ async function startServer() {
       res.setHeader('WWW-Authenticate', 'Basic realm="Private Audio Transcriber App"');
       return res.status(401).send('Unauthorized: Password required.');
     });
+  } else {
+    console.log("[Auth] Basic authentication DISABLED (no valid BASIC_AUTH_USER & BASIC_AUTH_PASS configured).");
   }
 
   // API Routes
