@@ -4,18 +4,23 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 3
     groups:
-      build-and-dev-tools:
-        patterns:
-          - "vite*"
-          - "@vitejs/*"
-          - "esbuild"
-          - "tailwindcss*"
-          - "@tailwindcss/*"
-          - "typescript"
-          - "@types/*"
+      # Group all minor and patch dependency updates together into a single PR
+      minor-and-patch-dependencies:
+        applies-to: "version-updates"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group major version bumps separately so breaking changes are isolated
+      major-dependencies:
+        applies-to: "version-updates"
+        update-types:
+          - "major"
     ignore:
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
@@ -24,12 +29,28 @@ updates:
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 2
+    groups:
+      docker-dependencies:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
 
   # Track GitHub Actions workflow action versions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 2
+    groups:
+      actions-dependencies:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
