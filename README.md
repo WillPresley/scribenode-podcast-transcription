@@ -7,6 +7,8 @@
 
 **ScribeNode** is a full-stack, high-throughput AI audio transcription and speech intelligence web application. Powered by Google's Gemini Flash AI model suite, ScribeNode transforms raw podcast recordings, meeting audio, interviews, and voice notes into polished clean-verbatim transcripts, structured chapters, executive summaries, and actionable key takeaways.
 
+> **Note on Development**: This project was built using AI-assisted pair programming ("vibecoded") and then manually audited, refined, and tested for code quality, type safety, and container security.
+
 ---
 
 ## Key Features
@@ -131,13 +133,19 @@ Save the following `docker-compose.yml` file to your deployment directory:
 ```yaml
 services:
   scribenode:
-    # Option 1: Pull pre-built image from GHCR (Replace with your repository name)
-    image: ghcr.io/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME:latest
+    # -------------------------------------------------------------------------
+    # Option 1: Pull official pre-built public image (Recommended, zero build step)
+    # Replace YOUR_GITHUB_USERNAME with the repository owner (e.g., ghcr.io/yourusername/scribenode:latest)
+    image: ghcr.io/YOUR_GITHUB_USERNAME/scribenode:latest
 
     # Option 2: Or build locally from source code
     # build:
     #   context: .
     #   dockerfile: Dockerfile
+
+    # Option 3: Or pull from your own private/forked GHCR image
+    # image: ghcr.io/YOUR_FORK_USERNAME/scribenode:latest
+    # -------------------------------------------------------------------------
 
     container_name: scribenode-app
     restart: unless-stopped
@@ -182,6 +190,68 @@ docker compose up -d
 ```
 
 Your ScribeNode container will automatically read the `.env` file, bind to the configured port, and persist audio jobs to the `scribenode_uploads` volume!
+
+---
+
+## Container Registry (GHCR) & Image Distribution
+
+ScribeNode utilizes **GitHub Container Registry (GHCR)** for continuous automated container builds via GitHub Actions (`.github/workflows/deploy.yml`).
+
+### 🌐 Pulling Public Images (No Authentication Required)
+
+Once the package is set to Public, anyone can pull and run the pre-built Docker image directly on any server or homelab node without needing a GitHub account or personal access token:
+
+```bash
+# Direct Docker run
+docker run -d \
+  -p 3000:3000 \
+  --name scribenode-app \
+  --env-file .env \
+  -v scribenode_uploads:/app/uploads \
+  ghcr.io/YOUR_GITHUB_USERNAME/scribenode:latest
+```
+
+---
+
+### 🛠️ Setting GHCR Package Visibility to Public (For Repository Owners)
+
+When you first push code to `main`/`master`, GitHub Actions will build and publish your image to GHCR as **Private** by default. To allow anyone to pull the image publicly:
+
+1. Navigate to your GitHub Profile or Organization page.
+2. Click the **Packages** tab.
+3. Click on the **`scribenode`** package.
+4. In the right sidebar, click **Package settings**.
+5. Scroll down to the **Danger Zone** section and click **Change package visibility**.
+6. Select **Public**, type `scribenode` to confirm, and click **I understand the consequences, make this package public**.
+7. *(Optional)* Under **Repository source**, link the package to your `scribenode` repository to enable automatic public synchronization.
+
+---
+
+### 🔒 Forking or Maintaining Private GHCR Packages
+
+If you maintain a private fork of ScribeNode and want to keep your GHCR package private:
+
+#### 1. Configure GitHub Actions Workflow Permissions
+Ensure GitHub Actions has permission to publish images:
+1. In your repository, go to **Settings** $\rightarrow$ **Actions** $\rightarrow$ **General**.
+2. Under **Workflow permissions**, select **Read and write permissions**.
+3. Click **Save**.
+
+#### 2. Authenticate Your Homelab Host with a Personal Access Token (PAT)
+To pull a private package on your home server or VM:
+1. Generate a Classic Personal Access Token on GitHub (**Settings** $\rightarrow$ **Developer Settings** $\rightarrow$ **Personal access tokens** $\rightarrow$ **Tokens (classic)**).
+2. Select the **`read:packages`** scope (and **`write:packages`** if publishing from external CI).
+3. Log in to GHCR on your server:
+
+```bash
+echo "YOUR_GITHUB_PAT" | docker login ghcr.io -u "YOUR_GITHUB_USERNAME" --password-stdin
+```
+
+4. Now you can pull your private image seamlessly:
+
+```bash
+docker compose pull && docker compose up -d
+```
 
 ---
 
@@ -231,16 +301,10 @@ npm run start
 ## GitHub Actions CI/CD Pipeline
 
 The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically:
-- Validates type safety (`tsc --noEmit`) and lints code.
-- Builds the production bundle.
-- Compiles and pushes a multi-arch Docker image to **GitHub Container Registry (GHCR)** on every push to `main`/`master`.
-
-To pull your private container image from GHCR on a homelab host:
-
-```bash
-echo "YOUR_GITHUB_PAT_OR_TOKEN" | docker login ghcr.io -u "YOUR_GITHUB_USERNAME" --password-stdin
-docker compose pull && docker compose up -d
-```
+- Validates type safety (`tsc --noEmit`) and lints code with zero warnings.
+- Builds the client bundle and bundles the server entry point via `esbuild`.
+- Compiles and publishes a multi-platform Docker container image to **GitHub Container Registry (GHCR)** on every push to `main` or `master`.
+- Embeds OpenContainer (OCI) metadata annotations linking the image directly back to the public repository.
 
 ---
 

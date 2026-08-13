@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local uploaded media files & persistent user audio
+uploads/*.mp3
+uploads/*.wav
+uploads/*.m4a
+uploads/*.flac
+uploads/*.ogg
+uploads/*.webm
+uploads/*.aac

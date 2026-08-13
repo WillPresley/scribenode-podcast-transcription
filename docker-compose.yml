@@ -3,13 +3,22 @@
 
 services:
   scribenode:
-    # Option A: Build locally from source code
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # -------------------------------------------------------------------------
+    # IMAGE / BUILD SOURCE (Choose ONE of the three options below):
+    # -------------------------------------------------------------------------
+    
+    # Option 1: Official Public GHCR Image (Recommended for fast homelab deployment, zero build step)
+    # Replace with your repository path, e.g., ghcr.io/YOUR_GITHUB_USERNAME/scribenode:latest
+    image: ghcr.io/YOUR_GITHUB_USERNAME/scribenode:latest
 
-    # Option B: Alternatively, pull pre-built image from GitHub Container Registry (GHCR)
-    # image: ghcr.io/YOUR_GITHUB_USERNAME/YOUR_REPO_NAME:latest
+    # Option 2: Build locally from source code
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+
+    # Option 3: Private / Forked GHCR image (requires `docker login ghcr.io`)
+    # image: ghcr.io/YOUR_FORK_USERNAME/scribenode:latest
+    # -------------------------------------------------------------------------
 
     container_name: scribenode-app
     restart: unless-stopped
