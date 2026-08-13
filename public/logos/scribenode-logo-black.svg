@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" fill="none">
+  <!-- Background Container -->
+  <rect width="512" height="512" rx="128" fill="#0f172a"/>
+  
+  <!-- Waveform Nodes & Bars -->
+  <g transform="translate(64, 64) scale(16)" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 11V13M8 7V17M12 3V21M16 6V18M20 10V14" />
+    <circle cx="12" cy="3" r="2" fill="#ffffff" stroke="none" />
+    <circle cx="16" cy="18" r="2" fill="#ffffff" stroke="none" />
+  </g>
+</svg>

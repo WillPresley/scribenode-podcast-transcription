@@ -1,4 +1,4 @@
-# ScribeNode — AI Speech & Transcript Engine
+# <img src="public/logos/scribenode-logo-color.svg" alt="ScribeNode Logo" width="38" height="38" valign="middle" /> ScribeNode — AI Speech & Transcript Engine
 
 [![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](package.json)
 [![Node](https://img.shields.io/badge/node-v26%2B-brightgreen.svg)](package.json)
