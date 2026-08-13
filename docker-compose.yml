@@ -8,8 +8,7 @@ services:
     # -------------------------------------------------------------------------
     
     # Option 1: Official Public GHCR Image (Recommended for fast homelab deployment, zero build step)
-    # Replace with your repository path, e.g., ghcr.io/YOUR_GITHUB_USERNAME/scribenode:latest
-    image: ghcr.io/YOUR_GITHUB_USERNAME/scribenode:latest
+    image: ghcr.io/willpresley/scribenode:latest
 
     # Option 2: Build locally from source code
     # build:

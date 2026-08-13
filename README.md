@@ -135,8 +135,7 @@ services:
   scribenode:
     # -------------------------------------------------------------------------
     # Option 1: Pull official pre-built public image (Recommended, zero build step)
-    # Replace YOUR_GITHUB_USERNAME with the repository owner (e.g., ghcr.io/yourusername/scribenode:latest)
-    image: ghcr.io/YOUR_GITHUB_USERNAME/scribenode:latest
+    image: ghcr.io/willpresley/scribenode:latest
 
     # Option 2: Or build locally from source code
     # build:
@@ -208,7 +207,7 @@ docker run -d \
   --name scribenode-app \
   --env-file .env \
   -v scribenode_uploads:/app/uploads \
-  ghcr.io/YOUR_GITHUB_USERNAME/scribenode:latest
+  ghcr.io/willpresley/scribenode:latest
 ```
 
 ---
@@ -266,8 +265,8 @@ docker compose pull && docker compose up -d
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
-cd YOUR_REPO
+git clone https://github.com/WillPresley/scribenode.git
+cd scribenode
 
 # Install dependencies
 npm install
