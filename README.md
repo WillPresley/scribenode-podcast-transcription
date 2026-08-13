@@ -135,7 +135,7 @@ services:
   scribenode:
     # -------------------------------------------------------------------------
     # Option 1: Pull official pre-built public image (Recommended, zero build step)
-    image: ghcr.io/willpresley/scribenode:latest
+    image: ghcr.io/willpresley/scribenode-podcast-transcription:latest
 
     # Option 2: Or build locally from source code
     # build:
@@ -143,7 +143,7 @@ services:
     #   dockerfile: Dockerfile
 
     # Option 3: Or pull from your own private/forked GHCR image
-    # image: ghcr.io/YOUR_FORK_USERNAME/scribenode:latest
+    # image: ghcr.io/YOUR_FORK_USERNAME/scribenode-podcast-transcription:latest
     # -------------------------------------------------------------------------
 
     container_name: scribenode-app
@@ -207,7 +207,7 @@ docker run -d \
   --name scribenode-app \
   --env-file .env \
   -v scribenode_uploads:/app/uploads \
-  ghcr.io/willpresley/scribenode:latest
+  ghcr.io/willpresley/scribenode-podcast-transcription:latest
 ```
 
 ---
@@ -218,11 +218,11 @@ When you first push code to `main`/`master`, GitHub Actions will build and publi
 
 1. Navigate to your GitHub Profile or Organization page.
 2. Click the **Packages** tab.
-3. Click on the **`scribenode`** package.
+3. Click on the **`scribenode-podcast-transcription`** package.
 4. In the right sidebar, click **Package settings**.
 5. Scroll down to the **Danger Zone** section and click **Change package visibility**.
-6. Select **Public**, type `scribenode` to confirm, and click **I understand the consequences, make this package public**.
-7. *(Optional)* Under **Repository source**, link the package to your `scribenode` repository to enable automatic public synchronization.
+6. Select **Public**, type `scribenode-podcast-transcription` to confirm, and click **I understand the consequences, make this package public**.
+7. *(Optional)* Under **Repository source**, link the package to your `scribenode-podcast-transcription` repository to enable automatic public synchronization.
 
 ---
 
@@ -265,8 +265,8 @@ docker compose pull && docker compose up -d
 
 ```bash
 # Clone the repository
-git clone https://github.com/WillPresley/scribenode.git
-cd scribenode
+git clone https://github.com/WillPresley/scribenode-podcast-transcription.git
+cd scribenode-podcast-transcription
 
 # Install dependencies
 npm install

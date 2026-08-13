@@ -31,7 +31,7 @@ jobs:
         run: npm run build
 
   # AUTOMATED CONTAINER PUBLISH: GitHub Container Registry (GHCR)
-  # Automatically builds and publishes the Docker image to ghcr.io/owner/scribenode:latest
+  # Automatically builds and publishes the Docker image to ghcr.io/owner/scribenode-podcast-transcription:latest
   publish-container:
     name: Build & Publish Container Image (GHCR)
     needs: build-and-test
