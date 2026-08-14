@@ -41,17 +41,18 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(compose).toContain('uploads:/app/uploads');
   });
 
-  it('validates GitHub Actions workflow includes lint, test, and build stages', () => {
+  it('validates GitHub Actions workflow includes lint, test, and build stages with native runner CLI', () => {
     const workflowPath = path.join(rootDir, '.github/workflows/deploy.yml');
     expect(fs.existsSync(workflowPath)).toBe(true);
 
     const workflow = fs.readFileSync(workflowPath, 'utf-8');
-    expect(workflow).toContain('actions/checkout@v4');
-    expect(workflow).toContain('actions/setup-node@v4');
-    expect(workflow).toContain('node-version: 26');
+    expect(workflow).toContain('git fetch --depth 1 origin "${{ github.sha }}"');
+    expect(workflow).toContain('nvm install 26 --default');
     expect(workflow).toContain('npm ci');
     expect(workflow).toContain('npm run lint');
+    expect(workflow).toContain('npm test');
     expect(workflow).toContain('npm run build');
+    expect(workflow).toContain('docker buildx create --use');
   });
 
   it('validates metadata.json application settings and capabilities', () => {

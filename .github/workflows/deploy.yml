@@ -12,14 +12,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout Code (Native Git)
+        run: |
+          git init
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth 1 origin "${{ github.sha }}"
+          git checkout FETCH_HEAD
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 26
-          cache: 'npm'
+      - name: Setup Node.js 26 (Native NVM)
+        run: |
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          nvm install 26 --default
+          nvm use 26
+          echo "$NVM_DIR/versions/node/$(nvm current)/bin" >> $GITHUB_PATH
 
       - name: Install Dependencies
         run: npm ci
@@ -44,8 +50,12 @@ jobs:
       contents: read
       packages: write
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout Code (Native Git)
+        run: |
+          git init
+          git remote add origin "https://github.com/${{ github.repository }}.git"
+          git fetch --depth 1 origin "${{ github.sha }}"
+          git checkout FETCH_HEAD
 
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
