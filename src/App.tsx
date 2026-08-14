@@ -34,6 +34,20 @@ import {
   Info
 } from "lucide-react";
 import { JobStatus, PromptStyle, AnalysisMode, TranscribeJob, AnalysisResults } from "./types";
+import {
+  inferPodcastTitle,
+  inferSpeakers,
+  stripExistingHeader,
+  cleanMarkdownHeaders,
+  stripMarkdown,
+  boldSpeakerNamesInMarkdown,
+  formatExportContent,
+  getPreviewLines,
+  convertTranscriptToVtt,
+  convertTranscriptToSrt,
+  EXCLUDED_SPEAKER_KEYWORDS
+} from "./utils/transcript";
+import { formatDuration } from "./utils/audio";
 
 const ScribeNodeLogo = ({ className = "w-9 h-9" }: { className?: string }) => (
   <div className={`flex items-center justify-center rounded-xl bg-blue-600 p-2 shrink-0 shadow-sm ${className}`}>
@@ -80,256 +94,6 @@ const SAMPLE_JOBS: Record<string, TranscribeJob> = {
 [00:45] SPEAKER B: Yes, we need to focus on streamlining social asset creation. Creating snippets for LinkedIn and Twitter makes a huge difference in driving engagement back to the core episodes.`
   }
 };
-
-const inferPodcastTitle = (filename: string, transcriptText: string): string => {
-  const h1Match = transcriptText.match(/^\s*#\s+([^\n]+)/);
-  if (h1Match) {
-    let cleanH1 = h1Match[1].replace(/[*_#\[\]]/g, '').trim();
-    if (cleanH1) return cleanH1;
-  }
-
-  let cleanName = filename || "";
-  cleanName = cleanName.replace(/\.[^/.]+$/, "");
-  cleanName = cleanName.replace(/[_\-.]+/g, " ");
-  return cleanName.split(/\s+/).map(word => {
-    if (!word) return "";
-    return word.charAt(0).toUpperCase() + word.slice(1);
-  }).join(" ") || "Podcast Transcript";
-};
-
-const EXCLUDED_SPEAKER_KEYWORDS = /^(hosts?|summary|transcript|chapter|chapters|takeaway|takeaways|speaker|speakers|intro|outro|section|note|notes|questions?|example|examples|value|effort|part|step|option|overview|theme|themes|agenda|topic|topics|action|items?|link|definition|table|figure|header|heading|number|one|two|three|four|five|six|seven|eight|nine|ten|point|points|so|our|my|your|this|that|what|how|why|when|where|is|are|was|were|be|been|have|has|had|do|does|did|a|an|the|and|or|but|if|in|on|at|to|for|with|by|from)$/i;
-
-const inferSpeakers = (transcriptText: string): string[] => {
-  const speakersSet = new Set<string>();
-  const lines = transcriptText.split('\n');
-
-  // Priority 1: Extract from an explicit Hosts: header line if present
-  for (const line of lines) {
-    const trimmed = line.trim();
-    const hostsMatch = trimmed.match(/^(?:\*\*)?Hosts:(?:\*\*)?\s*\*?(.*?)\*?$/i);
-    if (hostsMatch) {
-      const rawHosts = hostsMatch[1].replace(/[*_`]/g, '').trim();
-      const candidates = rawHosts.split(/,\s*/);
-      for (const cand of candidates) {
-        const clean = cand.trim();
-        if (!clean) continue;
-        const words = clean.split(/\s+/);
-        if (words.length > 4) continue;
-        const hasExcludedWord = words.some(w => EXCLUDED_SPEAKER_KEYWORDS.test(w.replace(/[^a-zA-Z]/g, '')));
-        if (!hasExcludedWord && /^[A-Z]/.test(clean)) {
-          speakersSet.add(clean);
-        }
-      }
-      if (speakersSet.size > 0) {
-        return Array.from(speakersSet);
-      }
-    }
-  }
-
-  // Priority 2: Infer from speaker turn lines
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    const match = trimmed.match(/^(?:\[\d{1,2}:\d{2}(?::\d{2})?\]\s*)?([^:\n]+?):\s*(.*)/s);
-    if (match) {
-      const rawSpeaker = match[1].trim();
-      const speechBody = match[2].trim();
-
-      const cleanSpeaker = rawSpeaker.replace(/[*_#\[\]`]/g, '').trim();
-
-      if (!cleanSpeaker) continue;
-
-      if (cleanSpeaker.length > 35 || cleanSpeaker.split(/\s+/).length > 4) continue;
-
-      if (/[,?!/=+\(\)]/.test(cleanSpeaker)) continue;
-
-      const words = cleanSpeaker.split(/\s+/);
-      const isKeyword = words.some(w => EXCLUDED_SPEAKER_KEYWORDS.test(w.replace(/[^a-zA-Z]/g, '')));
-      if (isKeyword) continue;
-
-      if (!speechBody && !trimmed.startsWith('[') && !trimmed.startsWith('**')) continue;
-
-      speakersSet.add(cleanSpeaker);
-    }
-  }
-
-  return Array.from(speakersSet);
-};
-
-const stripExistingHeader = (text: string): string => {
-  if (!text) return "";
-  let lines = text.split('\n');
-
-  while (lines.length > 0 && !lines[0].trim()) {
-    lines.shift();
-  }
-
-  let stripped = true;
-  while (stripped && lines.length > 0) {
-    stripped = false;
-    const line = lines[0].trim();
-
-    if (/^#\s+/.test(line)) {
-      lines.shift();
-      stripped = true;
-    } else if (/^\*\*Hosts:\*\*|^\s*Hosts:/i.test(line)) {
-      lines.shift();
-      stripped = true;
-    } else if (/^\s*[-*_]{3,}\s*$/.test(line)) {
-      lines.shift();
-      stripped = true;
-    }
-
-    while (lines.length > 0 && !lines[0].trim()) {
-      lines.shift();
-    }
-  }
-
-  return lines.join('\n');
-};
-
-const cleanMarkdownHeaders = (mdText: string): string => {
-  return mdText.split('\n').map(line => {
-    if (/^\s*#+\s+/.test(line)) {
-      return line
-        .replace(/\*\*/g, '')
-        .replace(/__/g, '');
-    }
-    return line;
-  }).join('\n');
-};
-
-const stripMarkdown = (md: string): string => {
-  let text = md;
-  text = text.replace(/^\s*[-*_]{3,}\s*$/gm, "");
-  text = text.replace(/^\s*(#+)\s*(.*)/gm, "$2");
-  text = text.replace(/\*\*(.*?)\*\*/g, "$1");
-  text = text.replace(/__(.*?)__/g, "$1");
-  text = text.replace(/\*(.*?)\*/g, "$1");
-  text = text.replace(/_(.*?)_/g, "$1");
-  text = text.replace(/`(.*?)`/g, "$1");
-  text = text.replace(/\[(.*?)\]\((.*?)\)/g, "$1");
-  text = text.replace(/^\s*>\s*(.*)/gm, "$1");
-  return text;
-};
-
-const boldSpeakerNamesInMarkdown = (text: string): string => {
-  return text.split('\n').map(line => {
-    const doubleMatch = line.match(/^(\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*)([^:]+)(:\s*.*)/s);
-    if (doubleMatch) {
-      const prefix = doubleMatch[1];
-      const speaker = doubleMatch[3].trim();
-      const suffix = doubleMatch[4];
-      
-      const cleanSpeaker = speaker.replace(/[*_#\[\]`]/g, "").trim();
-      const words = cleanSpeaker.split(/\s+/);
-      const isKeyword = words.some(w => EXCLUDED_SPEAKER_KEYWORDS.test(w.replace(/[^a-zA-Z]/g, '')));
-
-      if (cleanSpeaker && cleanSpeaker.length < 35 && !/[,?!]/.test(cleanSpeaker) && !isKeyword) {
-        return `${prefix}**${cleanSpeaker}**${suffix}`;
-      }
-    }
-    
-    const speakerOnlyMatch = line.match(/^([^:]+)(:\s*.*)/s);
-    if (speakerOnlyMatch) {
-      const speaker = speakerOnlyMatch[1].trim();
-      const suffix = speakerOnlyMatch[2];
-      
-      const cleanSpeaker = speaker.replace(/[*_#\[\]`]/g, "").trim();
-      const words = cleanSpeaker.split(/\s+/);
-      const isKeyword = words.some(w => EXCLUDED_SPEAKER_KEYWORDS.test(w.replace(/[^a-zA-Z]/g, '')));
-
-      if (cleanSpeaker && cleanSpeaker.length < 35 && !/[,?!]/.test(cleanSpeaker) && !isKeyword && !cleanSpeaker.includes("[") && !cleanSpeaker.includes("]")) {
-        return `**${cleanSpeaker}**${suffix}`;
-      }
-    }
-    
-    return line;
-  }).join('\n');
-};
-
-const formatExportContent = (
-  rawText: string,
-  type: "txt" | "md",
-  filename: string,
-  suffix: string
-): string => {
-  if (suffix !== "transcript") {
-    if (type === "md") {
-      return cleanMarkdownHeaders(rawText);
-    } else {
-      return stripMarkdown(rawText);
-    }
-  }
-
-  const title = inferPodcastTitle(filename, rawText);
-  const speakers = inferSpeakers(rawText);
-  const cleanBody = stripExistingHeader(rawText);
-
-  if (type === "md") {
-    let header = `# ${title}\n`;
-    if (speakers.length > 0) {
-      header += `**Hosts:** *${speakers.join(", ")}*\n`;
-    }
-    header += `\n---\n\n`;
-    const boldedTranscript = boldSpeakerNamesInMarkdown(cleanBody);
-    return cleanMarkdownHeaders(header + boldedTranscript);
-  } else {
-    let header = `${title}\n`;
-    if (speakers.length > 0) {
-      header += `Hosts: ${speakers.join(", ")}\n`;
-    }
-    header += `========================================\n\n`;
-    return stripMarkdown(header + cleanBody);
-  }
-};
-
-const getPreviewLines = (transcriptText: string) => {
-  const paragraphs = transcriptText.split(/\n+/).map(p => p.trim()).filter(Boolean);
-  
-  return paragraphs.slice(0, 15).map((p, index) => {
-    const speakerMatch = p.match(/^(\[[^\]]+\]\s*)?([A-Za-z0-9\s]+):\s*(.*)/s);
-    if (speakerMatch) {
-      const timestamp = speakerMatch[1]?.trim() || "";
-      const speaker = speakerMatch[2]?.trim() || "";
-      const text = speakerMatch[3]?.trim() || "";
-      return {
-        header: `${timestamp} ${speaker}`.trim(),
-        text,
-        isSpeaker: true,
-        speakerColorClass: index % 2 === 0 ? "text-blue-400" : "text-emerald-400"
-      };
-    } else {
-      const timestampOnlyMatch = p.match(/^(\[[^\]]+\])\s*(.*)/s);
-      if (timestampOnlyMatch) {
-        return {
-          header: timestampOnlyMatch[1],
-          text: timestampOnlyMatch[2],
-          isSpeaker: false,
-          speakerColorClass: "text-blue-400"
-        };
-      }
-      return {
-        header: `Paragraph ${index + 1}`,
-        text: p,
-        isSpeaker: false,
-        speakerColorClass: "text-slate-400"
-      };
-    }
-  });
-};
-
-function formatDuration(seconds: number): string {
-  if (!seconds || isNaN(seconds) || seconds <= 0) return "--:--";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
 
 async function getAudioDuration(file: File): Promise<number> {
   // Fast track: try using lightweight HTML5 Audio metadata extraction

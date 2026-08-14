@@ -283,6 +283,33 @@ Open `http://localhost:3000` in your browser.
 
 ---
 
+## Testing & Quality Assurance Suite
+
+ScribeNode includes a comprehensive, automated test suite built with Vitest and Supertest covering backend APIs, audio processing math, transcript parsing/formatting, security routines, storage persistence, and packaging/release integrity.
+
+### Running Tests
+
+```bash
+# Run the complete test suite
+npm test
+
+# Run tests with detailed code coverage report
+npm run test:coverage
+```
+
+### Test Scope & Coverage
+- **Unit Tests (`tests/unit/`)**:
+  - **Transcript Engine**: Speaker inference, title normalization, header stripping, speaker bolding, Markdown clean-verbatim rules, SRT subtitle formatting, WebVTT generation, and chapter breakdown.
+  - **Audio Math & Optimization**: Duration formatting, timestamp conversion, sample rate & PCM bit depth calculations.
+  - **Security & Config Guard**: Environment variable parsing, quote stripping, boolean flags normalization, HTTP Basic Auth credential validator.
+  - **AI Model Cascade**: Prompt builders, system instruction formatting, and exponential backoff retry/fallback mechanics.
+  - **Storage & Disk Persistence**: JSON database persistence, preseeded sample items lifecycle, garbage collection for orphaned uploads and temporary files.
+- **Integration Tests (`tests/integration/`)**:
+  - **API Endpoints**: Health probes (`/api/health`, `/healthz`), configuration (`/api/config`), Jobs CRUD, archive toggle (`/api/jobs/:id/archive`), sample job retranscription, analysis generation (`/api/jobs/:id/analyze`), and Basic Auth enforcement.
+  - **Release & Packaging**: Validation of `package.json`, `package-lock.json` sync, `Dockerfile`, `docker-compose.yml`, GitHub Actions workflow, and metadata files.
+
+---
+
 ## Production Build & Standalone Node Execution
 
 To build the standalone single-file production CJS backend and static frontend bundle:

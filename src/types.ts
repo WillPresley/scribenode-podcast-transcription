@@ -19,6 +19,8 @@ export interface TranscribeJob {
   key_takeaways?: string;
   chapters?: string;
   social_media?: string;
+  localFilePath?: string;
+  mimeType?: string;
 }
 
 export interface AnalysisResults {

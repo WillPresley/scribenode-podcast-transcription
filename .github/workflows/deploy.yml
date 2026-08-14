@@ -27,6 +27,9 @@ jobs:
       - name: Lint and Type Check
         run: npm run lint
 
+      - name: Run Test Suite (Vitest)
+        run: npm test
+
       - name: Build Application
         run: npm run build
 
