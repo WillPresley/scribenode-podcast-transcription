@@ -2142,7 +2142,7 @@ export default function App() {
             className="flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800">v1.1.0</span>
+            <span className="font-mono text-xs font-bold text-slate-800">v1.2.0</span>
             <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-2">About & Release Notes</span>
           </button>
         </footer>
@@ -2166,7 +2166,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-lg text-white tracking-tight">Scribe<span className="text-blue-300">Node</span></h2>
                         <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                          v1.1.0
+                          v1.2.0
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -2194,7 +2194,7 @@ export default function App() {
                     <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 font-mono text-[11px]">
                       <div>
                         <span className="text-slate-400 block text-[10px]">CORE AI MODEL</span>
-                        <span className="text-slate-800 font-semibold">Gemini 3.6 Flash</span>
+                        <span className="text-slate-800 font-semibold">{formatModelDisplayName(modelStatus.activeModel)}</span>
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">SERVER FRAMEWORK</span>
@@ -2215,28 +2215,24 @@ export default function App() {
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
                       <Zap className="w-4 h-4 text-amber-500" />
-                      What's New in v1.1.0
+                      What's New in v1.2.0
                     </h3>
                     <ul className="space-y-2.5 border-l-2 border-blue-200 pl-3">
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Intelligent Host & Speaker Extraction:</span>
-                        <p className="text-slate-600 mt-0.5">Automatically identifies show hosts and key guests (e.g. "Mike Auzenne, Mark Horstman"), filtering out conversational filler and isolating official speaker names in transcript headers and turn badges.</p>
+                        <span className="font-bold text-slate-900">Gemini 3.7 Flash Flagship Engine:</span>
+                        <p className="text-slate-600 mt-0.5">Elevated default transcription and speech intelligence to Google Gemini 3.7 Flash with superior audio encoding fidelity, enhanced speaker recognition, and faster turn-by-turn segmentation.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Refined Diarization & Speaker Turn Tags:</span>
-                        <p className="text-slate-600 mt-0.5">Improved multi-speaker transcript clarity with precise turn-by-turn attribution, formatted timecode stamps, and clean paragraph breaks for long podcasts and interviews.</p>
+                        <span className="font-bold text-slate-900">Live Active Model Indicator & Hierarchy:</span>
+                        <p className="text-slate-600 mt-0.5">Added dynamic header status badges and live diagnostic popovers indicating the exact active model scheduled for the next task with real-time failover synchronization (Gemini 3.7 Flash &rarr; 3.6 Flash &rarr; 3.5 Flash &rarr; Flash Lite).</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Polished Clean Verbatim Engine:</span>
-                        <p className="text-slate-600 mt-0.5">Optimized prompt processing to strip out false starts, stutters, and verbal artifacts while preserving natural tone, technical terms, and critical quotes.</p>
+                        <span className="font-bold text-slate-900">Volume Persistence & Crash Recovery:</span>
+                        <p className="text-slate-600 mt-0.5">Preserves all job records, chapter segments, and uploaded audio tracks across container restarts and Docker volume deployments at /app/uploads/jobs.json.</p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900">Transcript Workspace & Multi-Format Exports:</span>
-                        <p className="text-slate-600 mt-0.5">Enhanced search and speaker filtering controls, alongside instant exports to Markdown (.md), plain text (.txt), and one-click clipboard copying.</p>
-                      </li>
-                      <li className="relative">
-                        <span className="font-bold text-slate-900">High-Performance Core Infrastructure:</span>
-                        <p className="text-slate-600 mt-0.5">Upgraded backend server architecture to Express 5 & Node 26 with Vite 8 and React 19 for faster audio uploads, streamlined background processing, and peak security compliance.</p>
+                        <span className="font-bold text-slate-900">Polished Speaker Turn Tags & Host Diarization:</span>
+                        <p className="text-slate-600 mt-0.5">Automated host discovery (e.g. "Mike Auzenne, Mark Horstman"), clean conversational filler removal, and turn attribution with export capabilities to Markdown and TXT.</p>
                       </li>
                     </ul>
                   </div>
@@ -2248,14 +2244,14 @@ export default function App() {
                       Privacy & Storage
                     </h3>
                     <p className="text-slate-600">
-                      Audio files are processed via secure server-side Gemini API proxy calls and cleaned up after processing. Transcripts and job histories remain saved locally in memory.
+                      Audio files are processed via secure server-side Gemini API proxy calls and cleaned up after processing. Transcripts and job histories remain saved locally in volume persistence.
                     </p>
                   </div>
                 </div>
 
                 {/* Modal Footer */}
                 <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
-                  <span className="text-[10px] text-slate-400 font-mono">ScribeNode • Production Engine</span>
+                  <span className="text-[10px] text-slate-400 font-mono">ScribeNode • Production Engine v1.2.0</span>
                   <button
                     onClick={() => setShowAboutModal(false)}
                     className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
