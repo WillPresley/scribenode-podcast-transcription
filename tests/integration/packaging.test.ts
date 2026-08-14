@@ -46,7 +46,11 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(fs.existsSync(workflowPath)).toBe(true);
 
     const workflow = fs.readFileSync(workflowPath, 'utf-8');
+    expect(workflow).toContain('git config --global init.defaultBranch main');
+    expect(workflow).toContain('git config --global advice.detachedHead false');
+    expect(workflow).toContain('git init -b main');
     expect(workflow).toContain('git fetch --depth 1 origin "${{ github.sha }}"');
+    expect(workflow).toContain('git checkout --quiet FETCH_HEAD');
     expect(workflow).toContain('nvm install 26 --default');
     expect(workflow).toContain('npm ci');
     expect(workflow).toContain('npm run lint');

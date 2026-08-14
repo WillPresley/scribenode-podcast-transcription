@@ -2,9 +2,9 @@ name: CI/CD Build and GHCR Container Publish
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
   build-and-test:
@@ -14,10 +14,12 @@ jobs:
     steps:
       - name: Checkout Code (Native Git)
         run: |
-          git init
+          git config --global init.defaultBranch main
+          git config --global advice.detachedHead false
+          git init -b main
           git remote add origin "https://github.com/${{ github.repository }}.git"
           git fetch --depth 1 origin "${{ github.sha }}"
-          git checkout FETCH_HEAD
+          git checkout --quiet FETCH_HEAD
 
       - name: Setup Node.js 26 (Native NVM)
         run: |
@@ -44,7 +46,7 @@ jobs:
   publish-container:
     name: Build & Publish Container Image (GHCR)
     needs: build-and-test
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -52,10 +54,12 @@ jobs:
     steps:
       - name: Checkout Code (Native Git)
         run: |
-          git init
+          git config --global init.defaultBranch main
+          git config --global advice.detachedHead false
+          git init -b main
           git remote add origin "https://github.com/${{ github.repository }}.git"
           git fetch --depth 1 origin "${{ github.sha }}"
-          git checkout FETCH_HEAD
+          git checkout --quiet FETCH_HEAD
 
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
