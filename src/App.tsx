@@ -401,12 +401,19 @@ export default function App() {
     };
   }, [showModelPopover]);
 
-  // Clear polling and fetch jobs/config on mount
+  // Clear polling and fetch jobs/config on mount with periodic model-status refresh
   useEffect(() => {
     fetchJobsList();
     fetchConfig();
     fetchModelStatus();
+
+    // Periodically sync model status to detect dynamic failover changes (e.g. rate limits/service transitions)
+    const modelStatusInterval = setInterval(() => {
+      fetchModelStatus();
+    }, 10000);
+
     return () => {
+      clearInterval(modelStatusInterval);
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
   }, []);
@@ -423,8 +430,9 @@ export default function App() {
         const data: TranscribeJob = await res.json();
         setJob(data);
         
-        // Refresh the jobs list to reflect the current job status on the home page
+        // Refresh the jobs list and model status to reflect the current job status and active model
         fetchJobsList();
+        fetchModelStatus();
 
         if (data.status === "completed" || data.status === "failed") {
           if (pollTimerRef.current) {
@@ -566,7 +574,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: "gemini-3.6-flash",
+        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
         duration: durationStr,
       });
 
@@ -596,6 +604,7 @@ export default function App() {
       setAnalysisResults(prev => ({ ...prev, [mode]: data.result }));
       setJob(prev => prev ? { ...prev, [mode]: data.result } : null);
       fetchJobsList();
+      fetchModelStatus();
     } catch (err: any) {
       console.error("Analysis generation failed:", err);
     } finally {
@@ -1521,14 +1530,7 @@ export default function App() {
                         </div>
                         <div className="flex items-center justify-between text-xs">
                           <span className={`font-medium ${job.progress >= 20 ? "text-slate-800" : "text-slate-400"}`}>
-                            2. {job.modelUsed ? (
-                              job.modelUsed === "gemini-3.6-flash" ? "Gemini 3.6 Flash Encoding" :
-                              job.modelUsed === "gemini-3.5-flash" ? "Gemini 3.5 Flash Encoding" :
-                              job.modelUsed === "gemini-3.5-flash-lite" ? "Gemini 3.5 Flash Lite Encoding" :
-                              job.modelUsed === "gemini-3.1-flash-lite" ? "Gemini 3.1 Flash Lite Encoding (Fallback)" :
-                              job.modelUsed === "gemini-flash-latest" ? "Gemini Flash Latest Encoding (Fallback)" :
-                              `${job.modelUsed.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Encoding`
-                            ) : "Gemini 3.6 Flash Encoding"}
+                            2. {formatModelDisplayName(job.modelUsed || modelStatus.activeModel)} Encoding
                           </span>
                           {job.progress >= 70 ? (
                             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
