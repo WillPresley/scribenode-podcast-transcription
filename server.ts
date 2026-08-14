@@ -4,13 +4,13 @@ import os from "os";
 import { createServer as createViteServer } from "vite";
 import { createApp } from "./server/app";
 import { JobsStorage } from "./server/storage";
-import { isDisableDefaultItems, formatDockerTag } from "./server/config";
+import { isDisableDefaultItems, formatDockerTag, getAppVersion } from "./server/config";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const storage = new JobsStorage();
 
 function printStartupBanner() {
-  const VERSION = "1.1.0";
+  const VERSION = getAppVersion();
   const tag = process.env.DOCKER_TAG || process.env.CONTAINER_TAG || process.env.IMAGE_TAG || "latest";
   
   let rawSha = (process.env.GIT_SHA || process.env.COMMIT_SHA || process.env.GITHUB_SHA || process.env.BUILD_SHA || process.env.IMAGE_SHA || process.env.IMAGE_DIGEST || process.env.SHA || "").trim();

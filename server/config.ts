@@ -1,9 +1,23 @@
+import fs from "fs";
+import path from "path";
+
 export interface BasicAuthCredentials {
   enabled: boolean;
   user: string;
   pass: string;
   reason: string;
 }
+
+export const getAppVersion = (): string => {
+  try {
+    const pkgPath = path.join(process.cwd(), "package.json");
+    if (fs.existsSync(pkgPath)) {
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+      if (pkg.version) return pkg.version;
+    }
+  } catch {}
+  return "1.2.0";
+};
 
 export const cleanEnvString = (val: string | undefined): string => {
   if (!val) return "";

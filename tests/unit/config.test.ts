@@ -4,10 +4,18 @@ import {
   parseBooleanEnv,
   isDisableDefaultItems,
   getBasicAuthCredentials,
-  formatDockerTag
+  formatDockerTag,
+  getAppVersion
 } from '../../server/config';
 
 describe('Server Configuration & Security Guard Engine', () => {
+  describe('getAppVersion', () => {
+    it('returns the current version matching package.json', () => {
+      const version = getAppVersion();
+      expect(version).toBe('1.2.0');
+    });
+  });
+
   describe('cleanEnvString', () => {
     it('strips leading and trailing whitespace', () => {
       expect(cleanEnvString('   my-value   ')).toBe('my-value');

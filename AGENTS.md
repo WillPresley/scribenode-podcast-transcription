@@ -43,6 +43,7 @@ Before declaring any coding task complete, execute the following verification lo
 - **Comprehensive Change Review**: Whenever a new numbered or named release is requested (e.g., `v1.2.0`), perform a thorough check of all changes, improvements, refactors, and bug fixes introduced since the previous release.
 - **Major Highlights & Release Notes**: Clearly articulate and summarize the most critical and major updates in the release summary.
 - **UI Footer & Release Notes Sync**: Update the frontend UI Footer version badge and the 'About & Release Notes' modal (version tag, core model, and "What's New in vX.X.X" change bullets) to match the newly released version.
+- **Server Startup Banner & Dynamic Versioning**: Ensure the backend server startup banner dynamically reads the current release version from `package.json` (`getAppVersion()`) or is updated to reflect the new release version.
 - **Package & Documentation Alignment**: Update `package.json`, `README.md` (version badges, architecture table, pipeline overview), and sync `package-lock.json`.
 - **GitHub Tag Snapshotting**: If git and repository access are available, ensure a matching Git tag (e.g., `v1.2.0`) is created and pushed to the repository to snapshot that specific milestone of the project.
 
