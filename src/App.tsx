@@ -31,7 +31,9 @@ import {
   Cpu,
   ShieldCheck,
   Zap,
-  Info
+  Info,
+  ExternalLink,
+  GitBranch
 } from "lucide-react";
 import { JobStatus, PromptStyle, AnalysisMode, TranscribeJob, AnalysisResults, ModelStatusInfo } from "./types";
 import {
@@ -2247,11 +2249,44 @@ export default function App() {
                       Audio files are processed via secure server-side Gemini API proxy calls and cleaned up after processing. Transcripts and job histories remain saved locally in volume persistence.
                     </p>
                   </div>
+
+                  {/* Section 4: Open Source Repository */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <a
+                      href="https://github.com/WillPresley/scribenode-podcast-transcription"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center justify-between p-3.5 bg-slate-50 hover:bg-blue-50/70 rounded-xl border border-slate-200/90 hover:border-blue-300 transition-all text-slate-800"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0 group-hover:bg-blue-600 transition-colors shadow-2xs">
+                          <GitBranch className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-slate-900 group-hover:text-blue-700 text-xs">WillPresley/scribenode-podcast-transcription</span>
+                            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-medium">GitHub</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">Explore source code, self-hosted Docker instructions, and CI/CD pipelines</p>
+                        </div>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-600 shrink-0 ml-2 transition-colors" />
+                    </a>
+                  </div>
                 </div>
 
                 {/* Modal Footer */}
                 <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
-                  <span className="text-[10px] text-slate-400 font-mono">ScribeNode • Production Engine v1.2.0</span>
+                  <a
+                    href="https://github.com/WillPresley/scribenode-podcast-transcription"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 hover:text-blue-600 transition-colors"
+                  >
+                    <GitBranch className="w-3.5 h-3.5" />
+                    <span>View on GitHub</span>
+                    <ExternalLink className="w-3 h-3 text-slate-400" />
+                  </a>
                   <button
                     onClick={() => setShowAboutModal(false)}
                     className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
