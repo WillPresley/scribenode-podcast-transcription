@@ -6,9 +6,6 @@ on:
   pull_request:
     branches: [ main, master ]
 
-env:
-  ACTIONS_RUNNER_FORCE_ACTIONS_NODE24: 'true'
-
 jobs:
   build-and-test:
     name: Validate Build & Types

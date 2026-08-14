@@ -46,7 +46,6 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(fs.existsSync(workflowPath)).toBe(true);
 
     const workflow = fs.readFileSync(workflowPath, 'utf-8');
-    expect(workflow).toContain('ACTIONS_RUNNER_FORCE_ACTIONS_NODE24');
     expect(workflow).toContain('actions/checkout@v4');
     expect(workflow).toContain('actions/setup-node@v4');
     expect(workflow).toContain('node-version: 26');
