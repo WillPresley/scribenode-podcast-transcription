@@ -358,3 +358,27 @@ export const convertTranscriptToSrt = (rawText: string): string => {
 
   return srt.trim() + "\n";
 };
+
+export const formatModelDisplayName = (modelId?: string): string => {
+  if (!modelId) return "Gemini 3.7 Flash";
+  switch (modelId) {
+    case "gemini-3.7-flash":
+      return "Gemini 3.7 Flash";
+    case "gemini-3.6-flash":
+      return "Gemini 3.6 Flash";
+    case "gemini-3.5-flash":
+      return "Gemini 3.5 Flash";
+    case "gemini-3.5-flash-lite":
+      return "Gemini 3.5 Flash Lite";
+    case "gemini-3.1-flash-lite":
+      return "Gemini 3.1 Flash Lite";
+    case "gemini-flash-latest":
+      return "Gemini Flash Latest";
+    default:
+      return modelId
+        .split("-")
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+  }
+};
+

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   BASE_TRANSCRIPTION_STANDARDS,
+  DEFAULT_TRANSCRIPTION_MODELS,
   getSystemInstruction,
   buildTranscriptionPrompt,
   generateContentWithFallback
@@ -110,6 +111,42 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
 
       expect(result.model).toBe('gemini-3.5-flash');
       expect(result.response.text).toBe('Secondary model transcript');
+    });
+
+    it('triggers onFallbackTransition callback when moving to fallback model', async () => {
+      const mockGenerateContent = vi.fn()
+        .mockRejectedValueOnce(new Error('429 Rate Limit Exceeded'))
+        .mockResolvedValueOnce({ text: 'Fallback output' });
+
+      const mockAiClient: any = {
+        models: {
+          generateContent: mockGenerateContent
+        }
+      };
+
+      const transitions: Array<{ from: string; to: string; reason: string }> = [];
+      const result = await generateContentWithFallback({
+        aiClient: mockAiClient,
+        contents: [{ text: 'test' }],
+        modelsToTry: ['gemini-3.7-flash', 'gemini-3.6-flash'],
+        maxRetries: 0,
+        initialDelayMs: 1,
+        onFallbackTransition: (from, to, reason) => {
+          transitions.push({ from, to, reason });
+        }
+      });
+
+      expect(result.model).toBe('gemini-3.6-flash');
+      expect(transitions.length).toBe(1);
+      expect(transitions[0].from).toBe('gemini-3.7-flash');
+      expect(transitions[0].to).toBe('gemini-3.6-flash');
+      expect(transitions[0].reason).toContain('429 Rate Limit Exceeded');
+    });
+
+    it('defines prioritized model list starting with gemini-3.7-flash', () => {
+      expect(DEFAULT_TRANSCRIPTION_MODELS[0]).toBe('gemini-3.7-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-3.6-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-3.5-flash');
     });
 
     it('throws error when all fallback models fail', async () => {

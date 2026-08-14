@@ -30,14 +30,14 @@ export const sampleJobsList: TranscribeJob[] = [
     status: "completed",
     progress: 100,
     createdAt: Date.now() + 1000 * 365 * 24 * 3600 * 1000,
-    modelUsed: "gemini-3.6-flash",
+    modelUsed: "gemini-3.7-flash",
     transcript: `[00:12] SPEAKER A: Welcome to the Product Mindset podcast. Today we're diving deep into the architecture of modern SaaS applications and how engineering teams can leverage AI models to automate workflows. I'm joined today by Sarah Drabner, VP of Product Engineering. Welcome, Sarah.
 
-[00:34] SPEAKER B: Thanks for having me! It's fascinating because the barrier to entry has never been lower, but the barrier to excellence has never been higher. When we talk about building with APIs, specifically Gemini 3.6 Flash, it completely changes how we approach multimodal processing of large audio, video, and text streams.
+[00:34] SPEAKER B: Thanks for having me! It's fascinating because the barrier to entry has never been lower, but the barrier to excellence has never been higher. When we talk about building with APIs, specifically Gemini 3.7 Flash, it completely changes how we approach multimodal processing of large audio, video, and text streams.
 
 [01:15] SPEAKER A: Absolutely. We've seen teams struggle with latency and cost. How do you balance transcription quality with rapid content generation?
 
-[01:45] SPEAKER B: The key is multi-stage workflows. First, use a highly capable reasoning model like Gemini 3.6 Flash for direct audio-to-text alignment, which maintains speaker identity and captures verbal nuances. Once you have that high-fidelity transcript, you feed it into downstream summarization and chaptering pipelines. That keeps things highly cost-efficient and incredibly fast.`,
+[01:45] SPEAKER B: The key is multi-stage workflows. First, use a highly capable reasoning model like Gemini 3.7 Flash for direct audio-to-text alignment, which maintains speaker identity and captures verbal nuances. Once you have that high-fidelity transcript, you feed it into downstream summarization and chaptering pipelines. That keeps things highly cost-efficient and incredibly fast.`,
     duration: "45:00",
     summary: `### Executive Summary
 In this episode of the Product Mindset podcast, host Speaker A sits down with Sarah Drabner, VP of Product Engineering, to explore the architectural principles of modern, AI-augmented SaaS applications. 

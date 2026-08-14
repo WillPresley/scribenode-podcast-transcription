@@ -29,3 +29,13 @@ export interface AnalysisResults {
   chapters?: string;
   social_media?: string;
 }
+
+export interface ModelStatusInfo {
+  primaryModel: string;
+  activeModel: string;
+  fallbackModels: string[];
+  status: 'optimal' | 'fallback_active' | 'degraded';
+  lastUsedModel?: string;
+  lastFallbackReason?: string;
+  lastTestedTimestamp?: number;
+}

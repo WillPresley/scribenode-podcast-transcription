@@ -60,6 +60,20 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.basicAuthEnabled).toBe(false);
       expect(res.body.disableDefaultItems).toBe(false);
       expect(res.body.hasGeminiKey).toBe(true);
+      expect(res.body.modelStatus).toBeDefined();
+      expect(res.body.modelStatus.primaryModel).toBe('gemini-3.7-flash');
+      expect(res.body.modelStatus.activeModel).toBe('gemini-3.7-flash');
+    });
+
+    it('returns active model orchestration status on /api/model-status', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app).get('/api/model-status');
+      expect(res.status).toBe(200);
+      expect(res.body.primaryModel).toBe('gemini-3.7-flash');
+      expect(res.body.activeModel).toBe('gemini-3.7-flash');
+      expect(res.body.status).toBe('optimal');
+      expect(res.body.fallbackModels).toContain('gemini-3.7-flash');
+      expect(res.body.fallbackModels).toContain('gemini-3.6-flash');
     });
 
     it('enforces Basic Auth when BASIC_AUTH_ENABLED=true and credentials match', async () => {
@@ -274,7 +288,15 @@ describe('API Integration & Route Endpoints', () => {
       });
       const res = await request(app).post('/api/transcribe');
       expect(res.status).toBe(400);
-      expect(res.body.error).toContain('Please upload an audio file');
+      expect(res.body.error).toContain('Please upload a valid audio file');
+    });
+
+    it('returns a JSON 404 for unmatched /api routes rather than falling through to HTML', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app).get('/api/non-existent-route-endpoint');
+      expect(res.status).toBe(404);
+      expect(res.headers['content-type']).toContain('application/json');
+      expect(res.body.error).toContain('API route not found');
     });
   });
 });

@@ -33,7 +33,7 @@ import {
   Zap,
   Info
 } from "lucide-react";
-import { JobStatus, PromptStyle, AnalysisMode, TranscribeJob, AnalysisResults } from "./types";
+import { JobStatus, PromptStyle, AnalysisMode, TranscribeJob, AnalysisResults, ModelStatusInfo } from "./types";
 import {
   inferPodcastTitle,
   inferSpeakers,
@@ -45,6 +45,7 @@ import {
   getPreviewLines,
   convertTranscriptToVtt,
   convertTranscriptToSrt,
+  formatModelDisplayName,
   EXCLUDED_SPEAKER_KEYWORDS
 } from "./utils/transcript";
 import { formatDuration } from "./utils/audio";
@@ -72,14 +73,14 @@ const SAMPLE_JOBS: Record<string, TranscribeJob> = {
     status: "completed",
     progress: 100,
     createdAt: Date.now() - 7200000,
-    modelUsed: "gemini-3.6-flash",
+    modelUsed: "gemini-3.7-flash",
     transcript: `[00:12] SPEAKER A: Welcome to the Product Mindset podcast. Today we're diving deep into the architecture of modern SaaS applications and how engineering teams can leverage AI models to automate workflows. I'm joined today by Sarah Drabner, VP of Product Engineering. Welcome, Sarah.
 
-[00:34] SPEAKER B: Thanks for having me! It's fascinating because the barrier to entry has never been lower, but the barrier to excellence has never been higher. When we talk about building with APIs, specifically Gemini 3.6 Flash, it completely changes how we approach multimodal processing of large audio, video, and text streams.
+[00:34] SPEAKER B: Thanks for having me! It's fascinating because the barrier to entry has never been lower, but the barrier to excellence has never been higher. When we talk about building with APIs, specifically Gemini 3.7 Flash, it completely changes how we approach multimodal processing of large audio, video, and text streams.
 
 [01:15] SPEAKER A: Absolutely. We've seen teams struggle with latency and cost. How do you balance transcription quality with rapid content generation?
 
-[01:45] SPEAKER B: The key is multi-stage workflows. First, use a highly capable reasoning model like Gemini 3.6 Flash for direct audio-to-text alignment, which maintains speaker identity and captures verbal nuances. Once you have that high-fidelity transcript, you feed it into downstream summarization and chaptering pipelines. That keeps things highly cost-efficient and incredibly fast.`
+[01:45] SPEAKER B: The key is multi-stage workflows. First, use a highly capable reasoning model like Gemini 3.7 Flash for direct audio-to-text alignment, which maintains speaker identity and captures verbal nuances. Once you have that high-fidelity transcript, you feed it into downstream summarization and chaptering pipelines. That keeps things highly cost-efficient and incredibly fast.`
   },
   "sample-brief": {
     id: "sample-brief",
@@ -88,7 +89,7 @@ const SAMPLE_JOBS: Record<string, TranscribeJob> = {
     status: "archived",
     progress: 100,
     createdAt: Date.now() - 86400000,
-    modelUsed: "gemini-3.6-flash",
+    modelUsed: "gemini-3.7-flash",
     transcript: `[00:01] SPEAKER A: Let's quickly sync on the Q3 marketing campaigns. The podcast adoption rates are looking fantastic. Our automated workflow has processed over one thousand hours.
 
 [00:45] SPEAKER B: Yes, we need to focus on streamlining social asset creation. Creating snippets for LinkedIn and Twitter makes a huge difference in driving engagement back to the core episodes.`
@@ -314,6 +315,23 @@ export default function App() {
   const parsedLines = previewJob ? getPreviewLines(previewJob.transcript || "") : [];
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   
+  // Model Orchestration & Failover status
+  const [modelStatus, setModelStatus] = useState<ModelStatusInfo>({
+    primaryModel: "gemini-3.7-flash",
+    activeModel: "gemini-3.7-flash",
+    fallbackModels: [
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-latest"
+    ],
+    status: "optimal"
+  });
+  const [showModelPopover, setShowModelPopover] = useState<boolean>(false);
+  const modelPopoverRef = useRef<HTMLDivElement>(null);
+
   // Marketing / Analysis states
   const [analysisResults, setAnalysisResults] = useState<AnalysisResults>({});
   const [loadingAnalysis, setLoadingAnalysis] = useState<Record<AnalysisMode, boolean>>({
@@ -339,6 +357,18 @@ export default function App() {
     }
   };
 
+  const fetchModelStatus = async () => {
+    try {
+      const res = await fetch("/api/model-status");
+      if (res.ok) {
+        const data: ModelStatusInfo = await res.json();
+        setModelStatus(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch model status:", err);
+    }
+  };
+
   const fetchConfig = async () => {
     try {
       const res = await fetch("/api/config");
@@ -347,16 +377,35 @@ export default function App() {
         if (data && data.appTitle) {
           document.title = data.appTitle;
         }
+        if (data && data.modelStatus) {
+          setModelStatus(data.modelStatus);
+        }
       }
     } catch (err) {
       document.title = "ScribeNode – Transcription Engine";
     }
   };
 
+  // Close model popover on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modelPopoverRef.current && !modelPopoverRef.current.contains(e.target as Node)) {
+        setShowModelPopover(false);
+      }
+    };
+    if (showModelPopover) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showModelPopover]);
+
   // Clear polling and fetch jobs/config on mount
   useEffect(() => {
     fetchJobsList();
     fetchConfig();
+    fetchModelStatus();
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     };
@@ -365,12 +414,22 @@ export default function App() {
   // Poll job status
   const startPolling = (jobId: string) => {
     if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    let consecutiveErrors = 0;
 
     pollTimerRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${jobId}`);
-        if (!res.ok) throw new Error("Failed to fetch job status");
+        const contentType = res.headers.get("content-type") || "";
         
+        if (!res.ok || !contentType.includes("application/json")) {
+          consecutiveErrors++;
+          if (consecutiveErrors >= 5) {
+            throw new Error("Lost connection to transcription worker.");
+          }
+          return;
+        }
+
+        consecutiveErrors = 0;
         const data: TranscribeJob = await res.json();
         setJob(data);
         
@@ -389,12 +448,14 @@ export default function App() {
         }
       } catch (err: any) {
         console.error("Polling error:", err);
-        setErrorMessage("Network error while polling job status.");
-        if (pollTimerRef.current) {
-          clearInterval(pollTimerRef.current);
-          pollTimerRef.current = null;
+        if (consecutiveErrors >= 5) {
+          setErrorMessage("Network error while polling job status. Please refresh or check connection.");
+          if (pollTimerRef.current) {
+            clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
+          }
+          setIsPending(false);
         }
-        setIsPending(false);
       }
     }, 2500);
   };
@@ -480,34 +541,53 @@ export default function App() {
         formData.append("customPrompt", customPrompt);
       }
 
-      const response = await fetch("/api/transcribe", {
-        method: "POST",
-        body: formData,
-      });
+      let response: Response;
+      try {
+        response = await fetch("/api/transcribe", {
+          method: "POST",
+          body: formData,
+        });
+      } catch (fetchErr: any) {
+        if (fetchErr.name === "TypeError" || fetchErr.message?.includes("Failed to fetch")) {
+          throw new Error("Could not connect to transcription server. Please check your connection and try again.");
+        }
+        throw fetchErr;
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      let responseData: any = null;
+
+      if (contentType.includes("application/json")) {
+        try {
+          responseData = await response.json();
+        } catch {
+          responseData = null;
+        }
+      } else {
+        const textMsg = await response.text();
+        try {
+          responseData = JSON.parse(textMsg);
+        } catch {
+          const titleMatch = textMsg.match(/<title>(.*?)<\/title>/i);
+          const errorSummary = titleMatch ? titleMatch[1] : textMsg.slice(0, 120);
+          throw new Error(
+            response.ok
+              ? "Received unexpected response format from server. Please retry the upload."
+              : (errorSummary || `Server returned error (${response.status})`)
+          );
+        }
+      }
 
       if (!response.ok) {
-        let errMsg = "Failed to start transcription.";
-        try {
-          const contentType = response.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const errorData = await response.json();
-            errMsg = errorData.error || errMsg;
-          } else {
-            const textMsg = await response.text();
-            const titleMatch = textMsg.match(/<title>(.*?)<\/title>/i);
-            if (titleMatch && titleMatch[1]) {
-              errMsg = titleMatch[1];
-            } else {
-              errMsg = textMsg.slice(0, 150) || `Error ${response.status}`;
-            }
-          }
-        } catch (parseErr) {
-          errMsg = `Server error ${response.status}`;
-        }
+        const errMsg = responseData?.error || `Upload failed (status ${response.status}).`;
         throw new Error(errMsg);
       }
 
-      const data = await response.json();
+      if (!responseData || !responseData.jobId) {
+        throw new Error("Transcription server did not return a valid Job ID.");
+      }
+
+      const data = responseData;
       
       // Initialize local job state as uploading
       setJob({
@@ -517,7 +597,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: "gemini-3.6-flash",
+        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
         duration: durationStr,
       });
 
@@ -535,15 +615,42 @@ export default function App() {
     
     setLoadingAnalysis(prev => ({ ...prev, [mode]: true }));
     try {
-      const response = await fetch(`/api/jobs/${job.id}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode }),
-      });
+      let response: Response;
+      try {
+        response = await fetch(`/api/jobs/${job.id}/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode }),
+        });
+      } catch (fetchErr: any) {
+        if (fetchErr.name === "TypeError" || fetchErr.message?.includes("Failed to fetch")) {
+          throw new Error("Could not connect to analysis worker. Please check your network and try again.");
+        }
+        throw fetchErr;
+      }
 
-      if (!response.ok) throw new Error("Failed to generate insights.");
+      const contentType = response.headers.get("content-type") || "";
+      let data: any = null;
 
-      const data = await response.json();
+      if (contentType.includes("application/json")) {
+        try {
+          data = await response.json();
+        } catch {
+          data = null;
+        }
+      } else {
+        const textMsg = await response.text();
+        try {
+          data = JSON.parse(textMsg);
+        } catch {
+          throw new Error(response.ok ? "Unexpected response format from analysis service." : `Server returned error (${response.status})`);
+        }
+      }
+
+      if (!response.ok || !data) {
+        throw new Error(data?.error || `Failed to generate ${mode.replace('_', ' ')}.`);
+      }
+
       setAnalysisResults(prev => ({ ...prev, [mode]: data.result }));
       setJob(prev => prev ? { ...prev, [mode]: data.result } : null);
       fetchJobsList();
@@ -609,37 +716,56 @@ export default function App() {
     setIsPending(true);
     setErrorMessage("");
     try {
-      const res = await fetch(`/api/jobs/${jobId}/retranscribe`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ promptStyle: style }),
-      });
-      if (!res.ok) {
-        let errMsg = "Failed to start re-transcription.";
-        try {
-          const contentType = res.headers.get("content-type");
-          if (contentType && contentType.includes("application/json")) {
-            const errorData = await res.json();
-            errMsg = errorData.error || errMsg;
-          } else {
-            const textMsg = await res.text();
-            const titleMatch = textMsg.match(/<title>(.*?)<\/title>/i);
-            if (titleMatch && titleMatch[1]) {
-              errMsg = titleMatch[1];
-            } else {
-              errMsg = textMsg.slice(0, 150) || `Error ${res.status}`;
-            }
-          }
-        } catch (parseErr) {
-          errMsg = `Server error ${res.status}`;
+      let res: Response;
+      try {
+        res = await fetch(`/api/jobs/${jobId}/retranscribe`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ promptStyle: style }),
+        });
+      } catch (fetchErr: any) {
+        if (fetchErr.name === "TypeError" || fetchErr.message?.includes("Failed to fetch")) {
+          throw new Error("Could not connect to transcription server. Please check your connection and try again.");
         }
-        throw new Error(errMsg);
+        throw fetchErr;
       }
-      const data = await res.json();
+
+      const contentType = res.headers.get("content-type") || "";
+      let responseData: any = null;
+
+      if (contentType.includes("application/json")) {
+        try {
+          responseData = await res.json();
+        } catch {
+          responseData = null;
+        }
+      } else {
+        const textMsg = await res.text();
+        try {
+          responseData = JSON.parse(textMsg);
+        } catch {
+          const titleMatch = textMsg.match(/<title>(.*?)<\/title>/i);
+          const errorSummary = titleMatch ? titleMatch[1] : textMsg.slice(0, 120);
+          throw new Error(
+            res.ok
+              ? "Received unexpected response format from server."
+              : (errorSummary || `Server returned error (${res.status})`)
+          );
+        }
+      }
+
+      if (!res.ok) {
+        throw new Error(responseData?.error || `Re-transcription failed (status ${res.status}).`);
+      }
+
+      if (!responseData || !responseData.jobId) {
+        throw new Error("Server did not return a valid job ID for re-transcription.");
+      }
+
       handleReset();
-      startPolling(data.jobId);
+      startPolling(responseData.jobId);
     } catch (err: any) {
       console.error("Re-transcribe error:", err);
       setErrorMessage(err.message || "An unexpected error occurred during re-transcription.");
@@ -909,22 +1035,167 @@ export default function App() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 select-none">
-          <div className="flex items-center gap-4 min-w-0">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 select-none relative z-20">
+          <div className="flex items-center gap-3.5 min-w-0">
             <h2 className="font-semibold text-slate-800 truncate text-sm sm:text-base">
-              {job?.status === "completed" ? `Review: ${job.filename}` : "Podcast Transcription Queue"}
+              {job?.status === "completed" ? `Review: ${job.filename}` : "Transcript Queue"}
             </h2>
-            <div className="h-4 w-px bg-slate-200 hidden sm:block"></div>
-            <div className="hidden md:flex gap-2 shrink-0">
-              <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold uppercase tracking-wider border border-blue-100">
-                {activeCount} Active
-              </span>
-              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[10px] font-bold uppercase tracking-wider border border-emerald-100">
-                {completedCount} Completed
-              </span>
-            </div>
           </div>
-          <div className="flex gap-2 shrink-0">
+          
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* Active Model Indicator & Failover Pipeline Dropdown */}
+            <div className="relative" ref={modelPopoverRef}>
+              <button
+                type="button"
+                onClick={() => setShowModelPopover(!showModelPopover)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200/90 bg-slate-50/90 hover:bg-slate-100/90 text-slate-700 transition-all cursor-pointer shadow-xs hover:border-slate-300"
+                title="Click to view Gemini Model fallback chain & health status"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span
+                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                      modelStatus.status === "optimal" ? "bg-emerald-400" : "bg-amber-400"
+                    }`}
+                  />
+                  <span
+                    className={`relative inline-flex rounded-full h-2 w-2 ${
+                      modelStatus.status === "optimal" ? "bg-emerald-500" : "bg-amber-500"
+                    }`}
+                  />
+                </span>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                  <span className="hidden sm:inline text-slate-500 font-medium text-[11px]">Model:</span>
+                  <span className="font-bold text-slate-800 text-[11px]">
+                    {formatModelDisplayName(modelStatus.activeModel)}
+                  </span>
+                  {modelStatus.status === "fallback_active" ? (
+                    <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 text-amber-800 rounded border border-amber-200">
+                      Fallback
+                    </span>
+                  ) : (
+                    <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 rounded border border-blue-200/60">
+                      Next Task
+                    </span>
+                  )}
+                </div>
+                <ChevronDown className="h-3 w-3 text-slate-400 ml-0.5" />
+              </button>
+
+              {/* Popover / Tooltip */}
+              <AnimatePresence>
+                {showModelPopover && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 text-slate-800"
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                          <Cpu className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">Gemini Model Orchestration</h4>
+                          <p className="text-[10px] text-slate-500">Real-time model loaded for next transcription</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowModelPopover(false)}
+                        className="p-1 text-slate-400 hover:text-slate-600 rounded-md cursor-pointer"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Current Loaded Model Banner */}
+                    <div className="mt-3 p-3 bg-gradient-to-r from-blue-50/70 to-indigo-50/40 rounded-lg border border-blue-100 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-blue-700">Active Loaded Model</div>
+                        <div className="text-sm font-extrabold text-slate-900 mt-0.5">
+                          {formatModelDisplayName(modelStatus.activeModel)}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">{modelStatus.activeModel}</div>
+                      </div>
+                      <span
+                        className={`px-2 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider border ${
+                          modelStatus.status === "optimal"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                        }`}
+                      >
+                        {modelStatus.status === "optimal" ? "Ready" : "Failover Active"}
+                      </span>
+                    </div>
+
+                    {modelStatus.lastFallbackReason && (
+                      <div className="mt-2.5 p-2 bg-amber-50 border border-amber-200/80 rounded-md text-[11px] text-amber-800 flex items-start gap-2">
+                        <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="leading-tight">
+                          <span className="font-bold">Failover note: </span>
+                          {modelStatus.lastFallbackReason}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Fallback Priority Queue */}
+                    <div className="mt-3.5">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
+                        <span>Fallback Execution Sequence</span>
+                        <span className="text-[9px] font-normal text-slate-400 lowercase">automatic failover</span>
+                      </div>
+                      <div className="space-y-1.5 text-xs font-medium">
+                        {modelStatus.fallbackModels.map((m, idx) => {
+                          const isActive = modelStatus.activeModel === m;
+                          const isPrimary = modelStatus.primaryModel === m;
+                          return (
+                            <div
+                              key={m}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[11px] transition-colors ${
+                                isActive
+                                  ? "bg-blue-50/80 border-blue-200 text-blue-900 font-bold"
+                                  : "bg-slate-50/50 border-slate-100 text-slate-600"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-[10px] text-slate-400 w-3">{idx + 1}.</span>
+                                <span>{formatModelDisplayName(m)}</span>
+                                {isPrimary && (
+                                  <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                    Flagship
+                                  </span>
+                                )}
+                              </div>
+                              {isActive && (
+                                <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
+                                  <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Active
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Helper Footer */}
+                    <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+                      <span>Dynamic failover on 429/503 errors</span>
+                      <button
+                        type="button"
+                        onClick={() => fetchModelStatus()}
+                        className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <RotateCcw className="h-2.5 w-2.5" /> Refresh
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {job?.status === "completed" && (
               <button 
                 onClick={handleReset}

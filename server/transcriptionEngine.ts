@@ -116,26 +116,31 @@ export function buildTranscriptionPrompt(promptStyle: string, customPrompt?: str
   return "Please transcribe this entire recording following the strict polished clean verbatim standards. Do not summarize or skip spoken content.";
 }
 
+export const DEFAULT_TRANSCRIPTION_MODELS = [
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-latest"
+];
+
 export async function generateContentWithFallback(params: {
   aiClient: GoogleGenAI;
   contents: any;
   config?: any;
   onModelSelected?: (model: string) => void;
+  onFallbackTransition?: (fromModel: string, toModel: string, reason: string) => void;
   modelsToTry?: string[];
   maxRetries?: number;
   initialDelayMs?: number;
 }) {
-  const modelsToTry = params.modelsToTry || [
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.1-flash-lite",
-    "gemini-flash-latest"
-  ];
+  const modelsToTry = params.modelsToTry || DEFAULT_TRANSCRIPTION_MODELS;
   const maxRetries = params.maxRetries ?? 3;
   let lastError: any = null;
 
-  for (const model of modelsToTry) {
+  for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
+    const model = modelsToTry[mIdx];
     let delay = params.initialDelayMs ?? 1000;
     
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -177,6 +182,13 @@ export async function generateContentWithFallback(params: {
 
         // If it's not a transient error, or we reached max retries, don't retry this model, fall back to next model
         if (!isTransient || attempt === maxRetries) {
+          if (mIdx + 1 < modelsToTry.length && params.onFallbackTransition) {
+            try {
+              params.onFallbackTransition(model, modelsToTry[mIdx + 1], errorMsg);
+            } catch (fbErr) {
+              console.error("Error in onFallbackTransition callback:", fbErr);
+            }
+          }
           break;
         }
       }

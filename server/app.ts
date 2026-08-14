@@ -6,7 +6,17 @@ import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
 import { cleanEnvString, isDisableDefaultItems, getBasicAuthCredentials } from "./config";
 import { JobsStorage, TranscribeJob, sampleJobsList } from "./storage";
-import { getSystemInstruction, buildTranscriptionPrompt, generateContentWithFallback } from "./transcriptionEngine";
+import { getSystemInstruction, buildTranscriptionPrompt, generateContentWithFallback, DEFAULT_TRANSCRIPTION_MODELS } from "./transcriptionEngine";
+
+export interface ModelStatusInfo {
+  primaryModel: string;
+  activeModel: string;
+  fallbackModels: string[];
+  status: 'optimal' | 'fallback_active' | 'degraded';
+  lastUsedModel?: string;
+  lastFallbackReason?: string;
+  lastTestedTimestamp?: number;
+}
 
 export interface CreateAppOptions {
   storage?: JobsStorage;
@@ -19,6 +29,27 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const env = options.env || process.env;
   const storage = options.storage || new JobsStorage();
   storage.initialize(env);
+
+  const modelStatus: ModelStatusInfo = {
+    primaryModel: DEFAULT_TRANSCRIPTION_MODELS[0],
+    activeModel: DEFAULT_TRANSCRIPTION_MODELS[0],
+    fallbackModels: [...DEFAULT_TRANSCRIPTION_MODELS],
+    status: 'optimal',
+    lastTestedTimestamp: Date.now()
+  };
+
+  const updateModelStatus = (selectedModel: string, reason?: string) => {
+    modelStatus.activeModel = selectedModel;
+    modelStatus.lastUsedModel = selectedModel;
+    modelStatus.lastTestedTimestamp = Date.now();
+    if (selectedModel !== modelStatus.primaryModel) {
+      modelStatus.status = 'fallback_active';
+      modelStatus.lastFallbackReason = reason || `Automated failover active from ${modelStatus.primaryModel} to ${selectedModel}`;
+    } else {
+      modelStatus.status = 'optimal';
+      modelStatus.lastFallbackReason = undefined;
+    }
+  };
 
   const app = express();
 
@@ -85,8 +116,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
       appTitle,
       basicAuthEnabled: authState.enabled,
       disableDefaultItems: isDisableDefaultItems(env),
-      hasGeminiKey: Boolean(cleanEnvString(env.GEMINI_API_KEY))
+      hasGeminiKey: Boolean(cleanEnvString(env.GEMINI_API_KEY)),
+      modelStatus
     });
+  });
+
+  app.get("/api/model-status", (req, res) => {
+    res.json(modelStatus);
   });
 
   async function processTranscriptionJob(
@@ -173,6 +209,11 @@ export function createApp(options: CreateAppOptions = {}): Express {
         onModelSelected: (selectedModel) => {
           job.modelUsed = selectedModel;
           storage.set(jobId, job);
+          updateModelStatus(selectedModel);
+        },
+        onFallbackTransition: (fromModel, toModel, reason) => {
+          console.warn(`[Failover] Transcription model failover: ${fromModel} -> ${toModel}. Reason: ${reason}`);
+          updateModelStatus(toModel, `Failover from ${fromModel} (${reason.slice(0, 80)})`);
         }
       });
 
@@ -207,17 +248,30 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
   }
 
-  app.post("/api/transcribe", upload.single("file") as any, async (req, res) => {
+  app.post("/api/transcribe", (req, res, next) => {
+    upload.single("file")(req, res, (err: any) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === "LIMIT_FILE_SIZE") {
+            return res.status(413).json({ error: "File size exceeds the 100MB upload limit. Please select a smaller audio file or enable optimization." });
+          }
+          return res.status(400).json({ error: `Upload error: ${err.message}` });
+        }
+        return res.status(500).json({ error: err.message || "Failed to process audio file upload." });
+      }
+      next();
+    });
+  }, async (req, res) => {
     try {
       if (!env.GEMINI_API_KEY) {
         if (req.file?.path && fs.existsSync(req.file.path)) {
           try { fs.unlinkSync(req.file.path); } catch {}
         }
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server. Please verify your environment settings." });
       }
 
       if (!req.file) {
-        return res.status(400).json({ error: "Please upload an audio file." });
+        return res.status(400).json({ error: "Please upload a valid audio file." });
       }
 
       const { promptStyle, customPrompt, duration } = req.body;
@@ -239,7 +293,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
         createdAt: Date.now(),
         localFilePath,
         mimeType: req.file.mimetype,
-        modelUsed: 'gemini-3.6-flash',
+        modelUsed: modelStatus.activeModel || DEFAULT_TRANSCRIPTION_MODELS[0],
         duration: duration || "--:--",
       };
       
@@ -423,6 +477,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
         ],
         config: {
           systemInstruction: "You are a professional content marketing and podcast assistant. Your goal is to analyze transcripts and generate high-quality, engaging promotional material, clear documentation, and listener sharing drafts."
+        },
+        onModelSelected: (selectedModel) => {
+          updateModelStatus(selectedModel);
+        },
+        onFallbackTransition: (fromModel, toModel, reason) => {
+          console.warn(`[Failover] Analysis model failover: ${fromModel} -> ${toModel}. Reason: ${reason}`);
+          updateModelStatus(toModel, `Failover from ${fromModel} (${reason.slice(0, 80)})`);
         }
       });
 
@@ -443,10 +504,18 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
   });
 
+  // Explicit 404 handler for any unmatched /api routes so they never fall through to Vite / static HTML
+  app.use("/api", (req, res) => {
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl || req.url}` });
+  });
+
   // Error handling middleware
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error("[EXPRESS ERROR]", err);
-    res.status(err.status || 500).json({
+    if (res.headersSent) {
+      return next(err);
+    }
+    res.status(err.status || err.statusCode || 500).json({
       error: err.message || "An unexpected server error occurred during request processing.",
       code: err.code || null,
       name: err.name || null

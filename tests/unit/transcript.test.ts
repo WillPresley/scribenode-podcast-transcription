@@ -11,7 +11,8 @@ import {
   parseTranscriptToCues,
   formatSecondsToTimecode,
   convertTranscriptToVtt,
-  convertTranscriptToSrt
+  convertTranscriptToSrt,
+  formatModelDisplayName
 } from '../../src/utils/transcript';
 import {
   SAMPLE_INTERVIEW_TRANSCRIPT,
@@ -189,6 +190,26 @@ describe('Transcript Formatting & Parsing Engine', () => {
       const srt = convertTranscriptToSrt(SAMPLE_INTERVIEW_TRANSCRIPT);
       expect(srt).toContain('1\n00:00:00,000 -->');
       expect(srt).toContain('2\n00:00:15,000 -->');
+    });
+  });
+
+  describe('formatModelDisplayName', () => {
+    it('formats recognized model IDs into clean human-readable titles', () => {
+      expect(formatModelDisplayName('gemini-3.7-flash')).toBe('Gemini 3.7 Flash');
+      expect(formatModelDisplayName('gemini-3.6-flash')).toBe('Gemini 3.6 Flash');
+      expect(formatModelDisplayName('gemini-3.5-flash')).toBe('Gemini 3.5 Flash');
+      expect(formatModelDisplayName('gemini-3.5-flash-lite')).toBe('Gemini 3.5 Flash Lite');
+      expect(formatModelDisplayName('gemini-3.1-flash-lite')).toBe('Gemini 3.1 Flash Lite');
+      expect(formatModelDisplayName('gemini-flash-latest')).toBe('Gemini Flash Latest');
+    });
+
+    it('handles empty or undefined inputs gracefully with fallback', () => {
+      expect(formatModelDisplayName(undefined)).toBe('Gemini 3.7 Flash');
+      expect(formatModelDisplayName('')).toBe('Gemini 3.7 Flash');
+    });
+
+    it('formats custom or unexpected model strings cleanly', () => {
+      expect(formatModelDisplayName('custom-audio-model-v1')).toBe('Custom Audio Model V1');
     });
   });
 });
