@@ -11,7 +11,7 @@ describe('Build, Packaging & Release Configuration Verification', () => {
 
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
     expect(pkg.name).toBe('scribenode');
-    expect(pkg.engines?.node).toBeDefined();
+    expect(pkg.engines?.node).toBe('>=24.0.0');
     expect(pkg.scripts.build).toBeDefined();
     expect(pkg.scripts.start).toBe('node dist/server.cjs');
     expect(pkg.scripts.lint).toBe('tsc --noEmit');
@@ -26,7 +26,7 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(fs.existsSync(dockerfilePath)).toBe(true);
 
     const dockerfile = fs.readFileSync(dockerfilePath, 'utf-8');
-    expect(dockerfile).toContain('FROM node:24-alpine');
+    expect(dockerfile).toContain('FROM node:26-alpine');
     expect(dockerfile).toContain('EXPOSE 3000');
     expect(dockerfile).toContain('npm run build');
     expect(dockerfile).toContain('CMD ["node", "dist/server.cjs"]');
@@ -49,7 +49,7 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(workflow).toContain('ACTIONS_RUNNER_FORCE_ACTIONS_NODE24');
     expect(workflow).toContain('actions/checkout@v4');
     expect(workflow).toContain('actions/setup-node@v4');
-    expect(workflow).toContain('node-version: 24');
+    expect(workflow).toContain('node-version: 26');
     expect(workflow).toContain('npm ci');
     expect(workflow).toContain('npm run lint');
     expect(workflow).toContain('npm run build');

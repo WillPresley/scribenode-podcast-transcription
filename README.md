@@ -1,7 +1,7 @@
 # <img src="public/logos/scribenode-logo-color.svg" alt="ScribeNode Logo" width="38" height="38" valign="middle" /> ScribeNode — AI Speech & Transcript Engine
 
 [![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](package.json)
-[![Node](https://img.shields.io/badge/node-v24_LTS-brightgreen.svg)](package.json)
+[![Node](https://img.shields.io/badge/node-v24_LTS_%7C_v26-brightgreen.svg)](package.json)
 [![Docker](https://img.shields.io/badge/docker-v1.2.0-blue.svg)](Dockerfile)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -28,10 +28,10 @@
 | Layer | Technology |
 | :--- | :--- |
 | **Frontend** | React 19, Vite 8, Tailwind CSS v4, Lucide React Icons, Motion v12 |
-| **Backend** | Node.js (v24 LTS), Express 5, Multer File Upload |
+| **Backend** | Node.js (v24 LTS & v26), Express 5, Multer File Upload |
 | **AI Engine** | Google Gen AI SDK (`@google/genai`), Gemini 3.7 Flash / 3.6 Flash / 3.5 Flash |
 | **Bundler & Build** | ESBuild (Node CJS bundling), Vite 8 |
-| **Container & CI/CD** | Docker (`node:24-alpine`), Docker Compose, GitHub Actions (Node 24 LTS), GHCR |
+| **Container & CI/CD** | Docker (`node:26-alpine`), Docker Compose, GitHub Actions (Node 24 / 26), GHCR |
 
 ---
 
@@ -258,7 +258,7 @@ docker compose pull && docker compose up -d
 ## Local Development Setup
 
 ### Prerequisites
-- Node.js 24 LTS or higher
+- Node.js 24 LTS or Node.js 26 (Current)
 - npm v10 or higher
 - Google Gemini API Key
 
