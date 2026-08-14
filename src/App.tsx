@@ -414,22 +414,12 @@ export default function App() {
   // Poll job status
   const startPolling = (jobId: string) => {
     if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    let consecutiveErrors = 0;
 
     pollTimerRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/jobs/${jobId}`);
-        const contentType = res.headers.get("content-type") || "";
+        if (!res.ok) throw new Error("Failed to fetch job status");
         
-        if (!res.ok || !contentType.includes("application/json")) {
-          consecutiveErrors++;
-          if (consecutiveErrors >= 5) {
-            throw new Error("Lost connection to transcription worker.");
-          }
-          return;
-        }
-
-        consecutiveErrors = 0;
         const data: TranscribeJob = await res.json();
         setJob(data);
         
@@ -448,14 +438,12 @@ export default function App() {
         }
       } catch (err: any) {
         console.error("Polling error:", err);
-        if (consecutiveErrors >= 5) {
-          setErrorMessage("Network error while polling job status. Please refresh or check connection.");
-          if (pollTimerRef.current) {
-            clearInterval(pollTimerRef.current);
-            pollTimerRef.current = null;
-          }
-          setIsPending(false);
+        setErrorMessage("Network error while polling job status.");
+        if (pollTimerRef.current) {
+          clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
         }
+        setIsPending(false);
       }
     }, 2500);
   };
@@ -541,53 +529,34 @@ export default function App() {
         formData.append("customPrompt", customPrompt);
       }
 
-      let response: Response;
-      try {
-        response = await fetch("/api/transcribe", {
-          method: "POST",
-          body: formData,
-        });
-      } catch (fetchErr: any) {
-        if (fetchErr.name === "TypeError" || fetchErr.message?.includes("Failed to fetch")) {
-          throw new Error("Could not connect to transcription server. Please check your connection and try again.");
-        }
-        throw fetchErr;
-      }
-
-      const contentType = response.headers.get("content-type") || "";
-      let responseData: any = null;
-
-      if (contentType.includes("application/json")) {
-        try {
-          responseData = await response.json();
-        } catch {
-          responseData = null;
-        }
-      } else {
-        const textMsg = await response.text();
-        try {
-          responseData = JSON.parse(textMsg);
-        } catch {
-          const titleMatch = textMsg.match(/<title>(.*?)<\/title>/i);
-          const errorSummary = titleMatch ? titleMatch[1] : textMsg.slice(0, 120);
-          throw new Error(
-            response.ok
-              ? "Received unexpected response format from server. Please retry the upload."
-              : (errorSummary || `Server returned error (${response.status})`)
-          );
-        }
-      }
+      const response = await fetch("/api/transcribe", {
+        method: "POST",
+        body: formData,
+      });
 
       if (!response.ok) {
-        const errMsg = responseData?.error || `Upload failed (status ${response.status}).`;
+        let errMsg = "Failed to start transcription.";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await response.json();
+            errMsg = errorData.error || errMsg;
+          } else {
+            const textMsg = await response.text();
+            const titleMatch = textMsg.match(/<title>(.*?)<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+              errMsg = titleMatch[1];
+            } else {
+              errMsg = textMsg.slice(0, 150) || `Error ${response.status}`;
+            }
+          }
+        } catch (parseErr) {
+          errMsg = `Server error ${response.status}`;
+        }
         throw new Error(errMsg);
       }
 
-      if (!responseData || !responseData.jobId) {
-        throw new Error("Transcription server did not return a valid Job ID.");
-      }
-
-      const data = responseData;
+      const data = await response.json();
       
       // Initialize local job state as uploading
       setJob({
@@ -597,7 +566,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
+        modelUsed: "gemini-3.6-flash",
         duration: durationStr,
       });
 
@@ -615,42 +584,15 @@ export default function App() {
     
     setLoadingAnalysis(prev => ({ ...prev, [mode]: true }));
     try {
-      let response: Response;
-      try {
-        response = await fetch(`/api/jobs/${job.id}/analyze`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode }),
-        });
-      } catch (fetchErr: any) {
-        if (fetchErr.name === "TypeError" || fetchErr.message?.includes("Failed to fetch")) {
-          throw new Error("Could not connect to analysis worker. Please check your network and try again.");
-        }
-        throw fetchErr;
-      }
+      const response = await fetch(`/api/jobs/${job.id}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode }),
+      });
 
-      const contentType = response.headers.get("content-type") || "";
-      let data: any = null;
+      if (!response.ok) throw new Error("Failed to generate insights.");
 
-      if (contentType.includes("application/json")) {
-        try {
-          data = await response.json();
-        } catch {
-          data = null;
-        }
-      } else {
-        const textMsg = await response.text();
-        try {
-          data = JSON.parse(textMsg);
-        } catch {
-          throw new Error(response.ok ? "Unexpected response format from analysis service." : `Server returned error (${response.status})`);
-        }
-      }
-
-      if (!response.ok || !data) {
-        throw new Error(data?.error || `Failed to generate ${mode.replace('_', ' ')}.`);
-      }
-
+      const data = await response.json();
       setAnalysisResults(prev => ({ ...prev, [mode]: data.result }));
       setJob(prev => prev ? { ...prev, [mode]: data.result } : null);
       fetchJobsList();
@@ -716,56 +658,37 @@ export default function App() {
     setIsPending(true);
     setErrorMessage("");
     try {
-      let res: Response;
-      try {
-        res = await fetch(`/api/jobs/${jobId}/retranscribe`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ promptStyle: style }),
-        });
-      } catch (fetchErr: any) {
-        if (fetchErr.name === "TypeError" || fetchErr.message?.includes("Failed to fetch")) {
-          throw new Error("Could not connect to transcription server. Please check your connection and try again.");
-        }
-        throw fetchErr;
-      }
-
-      const contentType = res.headers.get("content-type") || "";
-      let responseData: any = null;
-
-      if (contentType.includes("application/json")) {
-        try {
-          responseData = await res.json();
-        } catch {
-          responseData = null;
-        }
-      } else {
-        const textMsg = await res.text();
-        try {
-          responseData = JSON.parse(textMsg);
-        } catch {
-          const titleMatch = textMsg.match(/<title>(.*?)<\/title>/i);
-          const errorSummary = titleMatch ? titleMatch[1] : textMsg.slice(0, 120);
-          throw new Error(
-            res.ok
-              ? "Received unexpected response format from server."
-              : (errorSummary || `Server returned error (${res.status})`)
-          );
-        }
-      }
-
+      const res = await fetch(`/api/jobs/${jobId}/retranscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ promptStyle: style }),
+      });
       if (!res.ok) {
-        throw new Error(responseData?.error || `Re-transcription failed (status ${res.status}).`);
+        let errMsg = "Failed to start re-transcription.";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errorData = await res.json();
+            errMsg = errorData.error || errMsg;
+          } else {
+            const textMsg = await res.text();
+            const titleMatch = textMsg.match(/<title>(.*?)<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+              errMsg = titleMatch[1];
+            } else {
+              errMsg = textMsg.slice(0, 150) || `Error ${res.status}`;
+            }
+          }
+        } catch (parseErr) {
+          errMsg = `Server error ${res.status}`;
+        }
+        throw new Error(errMsg);
       }
-
-      if (!responseData || !responseData.jobId) {
-        throw new Error("Server did not return a valid job ID for re-transcription.");
-      }
-
+      const data = await res.json();
       handleReset();
-      startPolling(responseData.jobId);
+      startPolling(data.jobId);
     } catch (err: any) {
       console.error("Re-transcribe error:", err);
       setErrorMessage(err.message || "An unexpected error occurred during re-transcription.");

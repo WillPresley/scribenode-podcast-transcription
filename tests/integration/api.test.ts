@@ -288,15 +288,7 @@ describe('API Integration & Route Endpoints', () => {
       });
       const res = await request(app).post('/api/transcribe');
       expect(res.status).toBe(400);
-      expect(res.body.error).toContain('Please upload a valid audio file');
-    });
-
-    it('returns a JSON 404 for unmatched /api routes rather than falling through to HTML', async () => {
-      const app = createApp({ storage, skipVite: true });
-      const res = await request(app).get('/api/non-existent-route-endpoint');
-      expect(res.status).toBe(404);
-      expect(res.headers['content-type']).toContain('application/json');
-      expect(res.body.error).toContain('API route not found');
+      expect(res.body.error).toContain('Please upload an audio file');
     });
   });
 });

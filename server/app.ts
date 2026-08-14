@@ -248,30 +248,17 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
   }
 
-  app.post("/api/transcribe", (req, res, next) => {
-    upload.single("file")(req, res, (err: any) => {
-      if (err) {
-        if (err instanceof multer.MulterError) {
-          if (err.code === "LIMIT_FILE_SIZE") {
-            return res.status(413).json({ error: "File size exceeds the 100MB upload limit. Please select a smaller audio file or enable optimization." });
-          }
-          return res.status(400).json({ error: `Upload error: ${err.message}` });
-        }
-        return res.status(500).json({ error: err.message || "Failed to process audio file upload." });
-      }
-      next();
-    });
-  }, async (req, res) => {
+  app.post("/api/transcribe", upload.single("file") as any, async (req, res) => {
     try {
       if (!env.GEMINI_API_KEY) {
         if (req.file?.path && fs.existsSync(req.file.path)) {
           try { fs.unlinkSync(req.file.path); } catch {}
         }
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server. Please verify your environment settings." });
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
       }
 
       if (!req.file) {
-        return res.status(400).json({ error: "Please upload a valid audio file." });
+        return res.status(400).json({ error: "Please upload an audio file." });
       }
 
       const { promptStyle, customPrompt, duration } = req.body;
@@ -504,18 +491,10 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
   });
 
-  // Explicit 404 handler for any unmatched /api routes so they never fall through to Vite / static HTML
-  app.use("/api", (req, res) => {
-    res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl || req.url}` });
-  });
-
   // Error handling middleware
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     console.error("[EXPRESS ERROR]", err);
-    if (res.headersSent) {
-      return next(err);
-    }
-    res.status(err.status || err.statusCode || 500).json({
+    res.status(err.status || 500).json({
       error: err.message || "An unexpected server error occurred during request processing.",
       code: err.code || null,
       name: err.name || null
