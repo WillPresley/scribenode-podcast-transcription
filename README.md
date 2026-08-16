@@ -93,6 +93,10 @@ BASIC_AUTH_PASS="your_secure_password_here"
 # 📦 OPTIONAL: Disable Preseeded Example Items
 # Defaults to false. Set to "true" to prevent example audio items from being added on startup.
 DISABLE_DEFAULT_ITEMS="false"
+
+# 📤 OPTIONAL: Maximum Upload Size in Megabytes (MB)
+# Defaults to 100MB. Increase this value (e.g. 250, 500, or 1000) for long multi-hour podcast recordings or uncompressed audio.
+MAX_UPLOAD_SIZE_MB=100
 ```
 
 ---
@@ -163,6 +167,7 @@ services:
       - BASIC_AUTH_USER=${BASIC_AUTH_USER:-}
       - BASIC_AUTH_PASS=${BASIC_AUTH_PASS:-}
       - DISABLE_DEFAULT_ITEMS=${DISABLE_DEFAULT_ITEMS:-false}
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-100}
 
     volumes:
       - scribenode_uploads:/app/uploads

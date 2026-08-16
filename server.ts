@@ -4,7 +4,7 @@ import os from "os";
 import { createServer as createViteServer } from "vite";
 import { createApp } from "./server/app";
 import { JobsStorage } from "./server/storage";
-import { isDisableDefaultItems, formatDockerTag, getAppVersion } from "./server/config";
+import { isDisableDefaultItems, formatDockerTag, getAppVersion, getMaxUploadSizeMB } from "./server/config";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const storage = new JobsStorage();
@@ -47,6 +47,7 @@ function printStartupBanner() {
   console.log(` Temp Storage : ${os.tmpdir()}`);
   console.log(` Gemini API   : ${process.env.GEMINI_API_KEY ? 'Configured [OK]' : 'NOT CONFIGURED [WARNING]'}`);
   console.log(` Preseed Items: ${isDisableDefaultItems() ? 'Disabled (DISABLE_DEFAULT_ITEMS=true)' : 'Enabled (Default)'}`);
+  console.log(` Max Upload   : ${getMaxUploadSizeMB()}MB (Configurable via MAX_UPLOAD_SIZE_MB)`);
   console.log(`=======================================================\n`);
 }
 

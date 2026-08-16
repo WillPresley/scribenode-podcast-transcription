@@ -46,6 +46,9 @@ services:
       # Optional: Disable preseeded example items on startup (defaults to false)
       - DISABLE_DEFAULT_ITEMS=${DISABLE_DEFAULT_ITEMS:-false}
 
+      # Optional: Configurable maximum audio upload size in MB (defaults to 100)
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-100}
+
     volumes:
       - scribenode_uploads:/app/uploads
 

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   FileAudio,
   UploadCloud,
+  Upload,
   CheckCircle2,
   AlertCircle,
   Search,
@@ -307,6 +308,11 @@ export default function App() {
   const [audioOptimizationProfile, setAudioOptimizationProfile] = useState<'high' | 'standard' | 'compact' | 'auto'>('auto');
   const [optimizationStatus, setOptimizationStatus] = useState<string>("");
 
+  // Mobile responsive views & drawer states
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [mobileWorkspaceTab, setMobileWorkspaceTab] = useState<'transcript' | 'insights'>('transcript');
+  const [mobileDashboardTab, setMobileDashboardTab] = useState<'queue' | 'preview'>('queue');
+
   const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
   const [selectedPreviewId, setSelectedPreviewId] = useState<string | null>(null);
 
@@ -316,6 +322,7 @@ export default function App() {
   const previewJob = (selectedPreviewId ? jobsList.find(j => j.id === selectedPreviewId) : null) || latestCompletedJob;
   const parsedLines = previewJob ? getPreviewLines(previewJob.transcript || "") : [];
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [maxUploadSizeMB, setMaxUploadSizeMB] = useState<number>(100);
   
   // Model Orchestration & Failover status
   const [modelStatus, setModelStatus] = useState<ModelStatusInfo>({
@@ -381,6 +388,9 @@ export default function App() {
         }
         if (data && data.modelStatus) {
           setModelStatus(data.modelStatus);
+        }
+        if (data && typeof data.maxUploadSizeMB === "number" && data.maxUploadSizeMB > 0) {
+          setMaxUploadSizeMB(data.maxUploadSizeMB);
         }
       }
     } catch (err) {
@@ -478,6 +488,10 @@ export default function App() {
       const validExtensions = [".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac", ".opus", ".webm"];
       const hasValidExt = validExtensions.some(ext => droppedFile.name.toLowerCase().endsWith(ext));
       if (droppedFile.type.startsWith("audio/") || hasValidExt) {
+        if (droppedFile.size > maxUploadSizeMB * 1024 * 1024) {
+          setErrorMessage(`Selected file (${(droppedFile.size / (1024 * 1024)).toFixed(1)}MB) exceeds the maximum allowed upload size of ${maxUploadSizeMB}MB.`);
+          return;
+        }
         setFile(droppedFile);
         setErrorMessage("");
       } else {
@@ -488,7 +502,12 @@ export default function App() {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      if (selectedFile.size > maxUploadSizeMB * 1024 * 1024) {
+        setErrorMessage(`Selected file (${(selectedFile.size / (1024 * 1024)).toFixed(1)}MB) exceeds the maximum allowed upload size of ${maxUploadSizeMB}MB.`);
+        return;
+      }
+      setFile(selectedFile);
       setErrorMessage("");
     }
   };
@@ -889,10 +908,133 @@ export default function App() {
     );
   };
 
+  const readyInsightsCount = (["summary", "key_takeaways", "chapters", "social_media"] as AnalysisMode[]).filter(k => !!(job && (job[k] || analysisResults[k]))).length;
+
   return (
     <div className="flex h-screen w-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden" id="app-root">
-      {/* Left Sidebar: Navigation & Controls */}
-      <aside className="w-64 bg-[#0F172A] text-slate-300 flex flex-col border-r border-slate-800 shrink-0 select-none">
+      {/* Mobile Navigation Slide-Over Drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden flex">
+            {/* Backdrop Blur Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs"
+            />
+            {/* Slide-out Sidebar */}
+            <motion.aside
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 26, stiffness: 280 }}
+              className="relative w-4/5 max-w-xs bg-[#0F172A] text-slate-300 flex flex-col border-r border-slate-800 h-full shadow-2xl z-10 select-none"
+            >
+              <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
+                <div 
+                  className="flex items-center gap-3 cursor-pointer group" 
+                  onClick={() => {
+                    handleReset();
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <ScribeNodeLogo className="w-8 h-8" />
+                  <div>
+                    <h1 className="text-white font-bold text-base tracking-tight leading-none group-hover:text-blue-200 transition-colors">
+                      Scribe<span className="text-blue-300">Node</span>
+                    </h1>
+                    <p className="text-[9px] text-slate-400 font-medium tracking-wide mt-1">
+                      AI Speech & Transcript Engine
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  aria-label="Close navigation menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+                <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-2 mb-1">Workflows</div>
+                <button 
+                  onClick={() => {
+                    handleReset();
+                    setMobileMenuOpen(false);
+                  }} 
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    !job ? "bg-slate-800 text-white shadow-xs" : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+                  }`}
+                >
+                  <span className="opacity-70">▤</span> Active Queue
+                </button>
+                
+                <div className="space-y-1 pt-2 border-t border-slate-800/40 mt-2">
+                  <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-2 mb-1.5">Recent Jobs</div>
+                  {jobsList.filter(j => j.status !== 'archived').slice(0, 8).map(item => {
+                    const isSelected = job?.id === item.id;
+                    return (
+                      <button 
+                        key={item.id}
+                        onClick={() => {
+                          handleSelectJob(item.id);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                          isSelected ? "bg-slate-800 text-white shadow-xs" : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2.5 truncate min-w-0 pr-1 text-left">
+                          <span className="opacity-70 shrink-0">▦</span>
+                          <span className="truncate" title={item.filename}>{item.filename}</span>
+                        </span>
+                        {item.status !== 'completed' && item.status !== 'failed' && (
+                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shrink-0 ml-1"></span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {job && (
+                  <button
+                    onClick={() => {
+                      handleReset();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full mt-3 text-left px-3 py-2 text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors uppercase tracking-wider flex items-center gap-1.5 cursor-pointer border-t border-slate-800/40 pt-3"
+                  >
+                    <span>➔</span> Go to Full Queue List
+                  </button>
+                )}
+              </nav>
+
+              <div className="p-4 bg-slate-900/70 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAboutModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 hover:text-blue-300 transition-colors cursor-pointer text-slate-300 font-medium"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                  <span>v1.2.0 Release Notes</span>
+                </button>
+              </div>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Left Sidebar: Desktop Navigation (Fixed) */}
+      <aside className="hidden lg:flex w-64 bg-[#0F172A] text-slate-300 flex-col border-r border-slate-800 shrink-0 select-none">
         <div className="p-4 border-b border-slate-800/80 flex flex-col">
           <div className="flex items-center gap-3 mb-1 cursor-pointer group" onClick={handleReset}>
             <ScribeNodeLogo className="w-9 h-9" />
@@ -951,38 +1093,36 @@ export default function App() {
           )}
 
         </nav>
-
-        {/* Sidebar Storage Status - Backlog / Mocked
-        <div className="p-4 bg-slate-900/50 border-t border-slate-800">
-          <div className="flex justify-between items-center mb-1.5 text-slate-400">
-            <span className="text-[9px] uppercase font-bold tracking-wider">Storage Usage</span>
-            <span className="text-[10px] font-mono">84%</span>
-          </div>
-          <div className="w-full bg-slate-700 h-1 rounded-full overflow-hidden">
-            <div className="bg-blue-500 w-[84%] h-full"></div>
-          </div>
-        </div>
-        */}
       </aside>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 select-none relative z-20">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <h2 className="font-semibold text-slate-800 truncate text-sm sm:text-base">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-3.5 sm:px-6 shrink-0 select-none relative z-20">
+          <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
+            {/* Mobile Navigation Drawer Hamburger Button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="lg:hidden p-2 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              aria-label="Open Navigation Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            <h2 className="font-semibold text-slate-800 truncate text-xs sm:text-base max-w-[140px] xs:max-w-[200px] sm:max-w-xs md:max-w-md">
               {job?.status === "completed" ? `Review: ${job.filename}` : "Transcript Queue"}
             </h2>
           </div>
           
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Active Model Indicator & Failover Pipeline Dropdown */}
             <div className="relative" ref={modelPopoverRef}>
               <button
                 type="button"
                 onClick={() => setShowModelPopover(!showModelPopover)}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-slate-200/90 bg-slate-50/90 hover:bg-slate-100/90 text-slate-700 transition-all cursor-pointer shadow-xs hover:border-slate-300"
+                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-lg border border-slate-200/90 bg-slate-50/90 hover:bg-slate-100/90 text-slate-700 transition-all cursor-pointer shadow-xs hover:border-slate-300 text-xs"
                 title="Click to view Gemini Model fallback chain & health status"
               >
                 <span className="relative flex h-2 w-2">
@@ -997,14 +1137,14 @@ export default function App() {
                     }`}
                   />
                 </span>
-                <div className="flex items-center gap-1.5 text-xs">
-                  <Sparkles className="h-3.5 w-3.5 text-blue-600" />
-                  <span className="hidden sm:inline text-slate-500 font-medium text-[11px]">Model:</span>
-                  <span className="font-bold text-slate-800 text-[11px]">
+                <div className="flex items-center gap-1 sm:gap-1.5 text-xs">
+                  <Sparkles className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                  <span className="hidden md:inline text-slate-500 font-medium text-[11px]">Model:</span>
+                  <span className="font-bold text-slate-800 text-[10px] sm:text-[11px] truncate max-w-[85px] sm:max-w-none">
                     {formatModelDisplayName(modelStatus.activeModel)}
                   </span>
                   {modelStatus.status === "fallback_active" ? (
-                    <span className="px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 text-amber-800 rounded border border-amber-200">
+                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 text-amber-800 rounded border border-amber-200">
                       Fallback
                     </span>
                   ) : (
@@ -1013,7 +1153,7 @@ export default function App() {
                     </span>
                   )}
                 </div>
-                <ChevronDown className="h-3 w-3 text-slate-400 ml-0.5" />
+                <ChevronDown className="h-3 w-3 text-slate-400 ml-0.5 shrink-0" />
               </button>
 
               {/* Popover / Tooltip */}
@@ -1024,7 +1164,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.98 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 text-slate-800"
+                    className="absolute right-0 top-full mt-2 w-72 xs:w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 text-slate-800 max-w-[calc(100vw-24px)]"
                   >
                     <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                       <div className="flex items-center gap-2">
@@ -1081,7 +1221,7 @@ export default function App() {
                         <span>Fallback Execution Sequence</span>
                         <span className="text-[9px] font-normal text-slate-400 lowercase">automatic failover</span>
                       </div>
-                      <div className="space-y-1.5 text-xs font-medium">
+                      <div className="space-y-1.5 text-xs font-medium max-h-48 overflow-y-auto pr-1">
                         {modelStatus.fallbackModels.map((m, idx) => {
                           const isActive = modelStatus.activeModel === m;
                           const isPrimary = modelStatus.primaryModel === m;
@@ -1094,17 +1234,17 @@ export default function App() {
                                   : "bg-slate-50/50 border-slate-100 text-slate-600"
                               }`}
                             >
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-[10px] text-slate-400 w-3">{idx + 1}.</span>
-                                <span>{formatModelDisplayName(m)}</span>
+                              <div className="flex items-center gap-2 truncate pr-2">
+                                <span className="font-mono text-[10px] text-slate-400 w-3 shrink-0">{idx + 1}.</span>
+                                <span className="truncate">{formatModelDisplayName(m)}</span>
                                 {isPrimary && (
-                                  <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                  <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded shrink-0">
                                     Flagship
                                   </span>
                                 )}
                               </div>
                               {isActive && (
-                                <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
+                                <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold shrink-0">
                                   <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Active
                                 </span>
                               )}
@@ -1133,22 +1273,26 @@ export default function App() {
             {job?.status === "completed" && (
               <button 
                 onClick={handleReset}
-                className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-bold hover:bg-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+                className="px-2.5 sm:px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-bold hover:bg-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
               >
-                <RotateCcw className="h-3 w-3" /> Back to List
+                <RotateCcw className="h-3 w-3 shrink-0" />
+                <span className="hidden sm:inline">Back to List</span>
+                <span className="sm:hidden">List</span>
               </button>
             )}
             <button 
               onClick={handleReset}
-              className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-1 cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-1 cursor-pointer"
             >
-              <Plus className="h-3 w-3" /> New Transcription
+              <Plus className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden sm:inline">New Transcription</span>
+              <span className="sm:hidden">New</span>
             </button>
           </div>
         </header>
 
         {/* Content Body */}
-        <div className="flex-1 p-6 overflow-hidden">
+        <div className="flex-1 p-3 sm:p-6 overflow-hidden">
           <AnimatePresence mode="wait">
             
             {/* VIEW COMPLETED TRANSCRIPT WORKSPACE */}
@@ -1159,15 +1303,50 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                className="grid grid-cols-12 gap-6 h-full overflow-hidden"
+                className="flex flex-col lg:grid lg:grid-cols-12 gap-3 sm:gap-6 h-full overflow-hidden"
               >
+                {/* Mobile Segmented Switcher for Transcript vs Insights Hub */}
+                <div className="lg:hidden flex rounded-xl bg-slate-200/80 p-1 shrink-0 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => setMobileWorkspaceTab("transcript")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      mobileWorkspaceTab === "transcript"
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    <span>Transcript View</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileWorkspaceTab("insights")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer relative ${
+                      mobileWorkspaceTab === "insights"
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    <span>AI Insights Hub</span>
+                    {readyInsightsCount > 0 && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-extrabold rounded-full bg-blue-600 text-white font-mono leading-none">
+                        {readyInsightsCount}/4
+                      </span>
+                    )}
+                  </button>
+                </div>
+
                 {/* Left side: Scrollable text + controls */}
-                <div className="col-span-12 lg:col-span-8 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+                <div className={`col-span-12 lg:col-span-8 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-col h-full min-h-0 ${
+                  mobileWorkspaceTab === "transcript" ? "flex" : "hidden lg:flex"
+                }`}>
                   
                   {/* File Metadata Row */}
-                  <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col gap-3.5 shrink-0">
+                  <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col gap-2.5 sm:gap-3.5 shrink-0">
                     {/* Row 1: Document Details */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
                           ACTIVE TRANSCRIPT
@@ -1182,7 +1361,7 @@ export default function App() {
                     </div>
 
                     {/* Row 2: Actions Bar */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-slate-200/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 sm:pt-2.5 border-t border-slate-200/60">
                       {/* Re-run preset option */}
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-[8px] font-extrabold text-slate-500 uppercase px-1.5 py-0.5 bg-slate-200/60 rounded-md tracking-wider">Re-run Audio:</span>
@@ -1242,7 +1421,7 @@ export default function App() {
                   </div>
 
                   {/* Search bar wrapper */}
-                  <div className="px-4 py-3 border-b border-slate-100 bg-white shrink-0">
+                  <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 bg-white shrink-0">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                       <input
@@ -1287,13 +1466,13 @@ export default function App() {
                   </div>
 
                   {/* Real Transcript text lines */}
-                  <div className="flex-1 overflow-y-auto p-5 space-y-4" id="transcript-scroll-area">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4" id="transcript-scroll-area">
                     {(() => {
                       const title = inferPodcastTitle(job.filename, job.transcript);
                       const speakers = inferSpeakers(job.transcript);
                       return (
                         <div className="pb-3 border-b border-slate-200/80 mb-3">
-                          <h2 className="text-base font-bold text-slate-900 tracking-tight">{title}</h2>
+                          <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">{title}</h2>
                           {speakers.length > 0 && (
                             <p className="text-xs text-slate-600 mt-1">
                               <span className="font-bold text-slate-800">Hosts: </span>
@@ -1327,21 +1506,30 @@ export default function App() {
                 </div>
 
                 {/* Right side: Insights tabs */}
-                <div className="col-span-12 lg:col-span-4 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+                <div className={`col-span-12 lg:col-span-4 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-col h-full min-h-0 ${
+                  mobileWorkspaceTab === "insights" ? "flex" : "hidden lg:flex"
+                }`}>
                   
                   {/* Insights hub header */}
-                  <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center gap-2 shrink-0">
-                    <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Post-Production Insights Hub</h3>
+                  <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Post-Production Insights Hub</h3>
+                    </div>
+                    {readyInsightsCount > 0 && (
+                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+                        {readyInsightsCount}/4 Ready
+                      </span>
+                    )}
                   </div>
 
                   {/* Tab list */}
-                  <div className="flex border-b border-slate-200 bg-white shrink-0">
+                  <div className="flex border-b border-slate-200 bg-white shrink-0 overflow-x-auto">
                     {(["summary", "key_takeaways", "chapters", "social_media"] as AnalysisMode[]).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setActiveAnalysisTab(tab)}
-                        className={`flex-1 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 relative cursor-pointer border-b-2 ${
+                        className={`flex-1 py-2.5 px-2 text-center text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 relative cursor-pointer border-b-2 whitespace-nowrap shrink-0 ${
                           activeAnalysisTab === tab 
                             ? "text-blue-700 font-extrabold border-blue-600 bg-blue-50/20" 
                             : "text-slate-500 hover:text-blue-700 hover:bg-slate-50/50 border-transparent"
@@ -1355,15 +1543,18 @@ export default function App() {
                           {tab === "summary" && "Summary"}
                           {tab === "key_takeaways" && "Takeaways"}
                           {tab === "chapters" && "Chapters"}
-                          {tab === "social_media" && "Social Share"}
+                          {tab === "social_media" && "Social"}
                         </span>
+                        {job && (job[tab] || analysisResults[tab]) && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 ml-0.5" />
+                        )}
                       </button>
                     ))}
                   </div>
 
                   {/* Sticky Assets Actions Row */}
                   {analysisResults[activeAnalysisTab] && !loadingAnalysis[activeAnalysisTab] && (
-                    <div className="bg-slate-50 border-b border-slate-200/80 px-4 py-2 flex flex-wrap items-center justify-between gap-1.5 shrink-0 select-none">
+                    <div className="bg-slate-50 border-b border-slate-200/80 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-1.5 shrink-0 select-none">
                       <span className="text-[9px] font-extrabold uppercase text-slate-500 tracking-wider">Asset Actions:</span>
                       <div className="flex items-center gap-1.5">
                         <button
@@ -1385,14 +1576,14 @@ export default function App() {
                           className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 cursor-pointer transition-colors flex items-center gap-1"
                           title="Download as Markdown"
                         >
-                          <Download className="h-2.5 w-2.5 text-slate-500" /> Markdown
+                          <Download className="h-2.5 w-2.5 text-slate-500" /> MD
                         </button>
                       </div>
                     </div>
                   )}
 
                   {/* Insights scrolling output */}
-                  <div className="flex-1 overflow-y-auto p-5 bg-white relative">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-white relative">
                     <AnimatePresence mode="wait">
                       
                       {analysisResults[activeAnalysisTab] ? (
@@ -1477,10 +1668,48 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                className="grid grid-cols-12 gap-6 h-full overflow-y-auto"
+                className="flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-6 h-full overflow-y-auto"
               >
+                {/* Mobile Segmented Switcher for Dashboard Queue vs Preview */}
+                <div className="lg:hidden flex rounded-xl bg-slate-200/80 p-1 shrink-0 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => setMobileDashboardTab("queue")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      mobileDashboardTab === "queue"
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    <span>Upload & Queue</span>
+                    {jobsList.length > 0 && (
+                      <span className="px-1.5 py-0.5 text-[9px] font-extrabold rounded-full bg-slate-200 text-slate-700 font-mono leading-none">
+                        {jobsList.length}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileDashboardTab("preview")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      mobileDashboardTab === "preview"
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                    }`}
+                  >
+                    <FileAudio className="h-3.5 w-3.5 text-blue-500" />
+                    <span>Quick Preview</span>
+                    {previewJob && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    )}
+                  </button>
+                </div>
+
                 {/* Left Panel: Active Queue List OR Uploading Stream (col-span-8) */}
-                <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+                <div className={`col-span-12 lg:col-span-8 flex-col gap-4 sm:gap-6 ${
+                  mobileDashboardTab === "queue" ? "flex" : "hidden lg:flex"
+                }`}>
                   
                   {/* Conditionally show ACTIVE RUNNING PROGRESS or UPLOAD CARD */}
                   {job && job.status !== "completed" && job.status !== "failed" ? (
@@ -1641,7 +1870,7 @@ export default function App() {
                                 <UploadCloud className="h-6 w-6 text-blue-500" />
                                 <div>
                                   <p className="font-bold text-slate-700 text-xs">Drag & drop podcast audio</p>
-                                  <p className="text-[10px] text-slate-400 mt-0.5">MP3, WAV, M4A, OGG, FLAC (max 100MB)</p>
+                                  <p className="text-[10px] text-slate-400 mt-0.5">MP3, WAV, M4A, OGG, FLAC (max {maxUploadSizeMB}MB)</p>
                                 </div>
                               </div>
                             )}
@@ -1834,7 +2063,7 @@ export default function App() {
 
                   {/* ACTIVE/SAMPLE QUEUE LIST */}
                   <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
-                    <div className="grid grid-cols-12 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider p-3 border-b border-slate-200">
+                    <div className="hidden sm:grid grid-cols-12 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider p-3 border-b border-slate-200">
                       <div className="col-span-6 pl-2">Filename & Metadata</div>
                       <div className="col-span-1">Duration</div>
                       <div className="col-span-2">Status</div>
@@ -1860,7 +2089,7 @@ export default function App() {
                                   setSelectedPreviewId(item.id);
                                 }
                               }}
-                              className={`grid grid-cols-12 items-center p-3 transition-all border-l-2 ${
+                              className={`p-3 transition-all border-l-2 ${
                                 isSelected 
                                   ? "bg-blue-50/50 border-blue-500 shadow-sm" 
                                   : isPreviewed 
@@ -1868,153 +2097,299 @@ export default function App() {
                                     : "border-transparent hover:bg-slate-50/80"
                               } ${isSelectableForPreview ? "cursor-pointer" : ""}`}
                             >
-                              <div className="col-span-6 flex items-center gap-3 min-w-0">
-                                <div className={`w-8 h-8 rounded flex items-center justify-center text-[10px] font-bold font-mono shrink-0 ${
-                                  item.status === "completed" 
-                                    ? "bg-emerald-100 text-emerald-600" 
-                                    : item.status === "failed" 
-                                      ? "bg-red-100 text-red-600"
-                                      : item.status === "archived"
-                                        ? "bg-slate-100 text-slate-400"
-                                        : "bg-blue-100 text-blue-600"
-                                }`}>
-                                  {item.filename.split(".").pop()?.toUpperCase().slice(0, 4) || "AUD"}
-                                </div>
-                                <div className="truncate pr-2">
-                                  <div className="text-xs font-bold text-slate-800 truncate" title={item.filename}>
-                                    {item.filename}
+                              {/* Desktop row view */}
+                              <div className="hidden sm:grid grid-cols-12 items-center">
+                                <div className="col-span-6 flex items-center gap-3 min-w-0">
+                                  <div className={`w-8 h-8 rounded flex items-center justify-center text-[10px] font-bold font-mono shrink-0 ${
+                                    item.status === "completed" 
+                                      ? "bg-emerald-100 text-emerald-600" 
+                                      : item.status === "failed" 
+                                        ? "bg-red-100 text-red-600"
+                                        : item.status === "archived"
+                                          ? "bg-slate-100 text-slate-400"
+                                          : "bg-blue-100 text-blue-600"
+                                  }`}>
+                                    {item.filename.split(".").pop()?.toUpperCase().slice(0, 4) || "AUD"}
                                   </div>
-                                  <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5 flex-wrap">
-                                    <span>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                    <span>•</span>
-                                    <span>{(item.fileSize / (1024 * 1024)).toFixed(1)}MB</span>
-                                    {item.modelUsed && (
-                                      <>
-                                        <span>•</span>
-                                        <span className="px-1.5 py-0.2 bg-slate-100 border border-slate-200 text-slate-500 rounded text-[8px] uppercase tracking-wide font-semibold">{item.modelUsed}</span>
-                                      </>
+                                  <div className="truncate pr-2">
+                                    <div className="text-xs font-bold text-slate-800 truncate" title={item.filename}>
+                                      {item.filename}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5 flex-wrap">
+                                      <span>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                      <span>•</span>
+                                      <span>{(item.fileSize / (1024 * 1024)).toFixed(1)}MB</span>
+                                      {item.modelUsed && (
+                                        <>
+                                          <span>•</span>
+                                          <span className="px-1.5 py-0.2 bg-slate-100 border border-slate-200 text-slate-500 rounded text-[8px] uppercase tracking-wide font-semibold">{item.modelUsed}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Available hub assets status indicators */}
+                                    {(item.summary || item.key_takeaways || item.chapters || item.social_media) && (
+                                      <div className="flex items-center gap-1.5 mt-1.5 select-none">
+                                        <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider">Available Assets:</span>
+                                        <div className="flex items-center gap-1">
+                                          {item.summary && (
+                                            <span className="p-0.5 bg-blue-50 border border-blue-100 text-blue-600 rounded flex items-center" title="Summary Available">
+                                              <FileText className="h-2.5 w-2.5" />
+                                            </span>
+                                          )}
+                                          {item.key_takeaways && (
+                                            <span className="p-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded flex items-center" title="Takeaways Available">
+                                              <CheckCircle2 className="h-2.5 w-2.5" />
+                                            </span>
+                                          )}
+                                          {item.chapters && (
+                                            <span className="p-0.5 bg-amber-50 border border-amber-100 text-amber-600 rounded flex items-center" title="Chapters Available">
+                                              <Clock className="h-2.5 w-2.5" />
+                                            </span>
+                                          )}
+                                          {item.social_media && (
+                                            <span className="p-0.5 bg-purple-50 border border-purple-100 text-purple-600 rounded flex items-center" title="Social Share Available">
+                                              <Share2 className="h-2.5 w-2.5" />
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
                                     )}
                                   </div>
-                                  
-                                  {/* Available hub assets status indicators */}
-                                  {(item.summary || item.key_takeaways || item.chapters || item.social_media) && (
-                                    <div className="flex items-center gap-1.5 mt-1.5 select-none">
-                                      <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider">Available Assets:</span>
-                                      <div className="flex items-center gap-1">
-                                        {item.summary && (
-                                          <span className="p-0.5 bg-blue-50 border border-blue-100 text-blue-600 rounded flex items-center" title="Summary Available">
-                                            <FileText className="h-2.5 w-2.5" />
-                                          </span>
-                                        )}
-                                        {item.key_takeaways && (
-                                          <span className="p-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded flex items-center" title="Takeaways Available">
-                                            <CheckCircle2 className="h-2.5 w-2.5" />
-                                          </span>
-                                        )}
-                                        {item.chapters && (
-                                          <span className="p-0.5 bg-amber-50 border border-amber-100 text-amber-600 rounded flex items-center" title="Chapters Available">
-                                            <Clock className="h-2.5 w-2.5" />
-                                          </span>
-                                        )}
-                                        {item.social_media && (
-                                          <span className="p-0.5 bg-purple-50 border border-purple-100 text-purple-600 rounded flex items-center" title="Social Share Available">
-                                            <Share2 className="h-2.5 w-2.5" />
-                                          </span>
-                                        )}
-                                      </div>
+                                </div>
+                                <div className="col-span-1 text-xs text-slate-600 font-mono">
+                                  {item.duration || "--:--"}
+                                </div>
+                                <div className="col-span-2">
+                                  {item.status === "completed" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-bold border border-emerald-200 uppercase tracking-wide">
+                                      Ready
+                                    </span>
+                                  )}
+                                  {item.status === "archived" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-bold border border-slate-200 uppercase tracking-wide">
+                                      Archived
+                                    </span>
+                                  )}
+                                  {item.status === "failed" && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[9px] font-bold border border-red-200 uppercase tracking-wide">
+                                      Failed
+                                    </span>
+                                  )}
+                                  {(item.status === "uploading" || item.status === "processing_audio" || item.status === "transcribing") && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-200 uppercase tracking-wide">
+                                      <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> {item.status === "processing_audio" ? "encoding" : item.status}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="col-span-3 flex items-center gap-2 justify-end pr-1">
+                                  {deletingJobId === item.id ? (
+                                    <div className="flex items-center gap-1.5 ml-auto">
+                                      <span className="text-[9px] font-bold text-red-500 uppercase mr-1">Delete?</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          confirmDeleteJob(item.id);
+                                        }}
+                                        className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-[9px] font-bold rounded shadow-sm transition-colors cursor-pointer"
+                                      >
+                                        Yes
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDeletingJobId(null);
+                                        }}
+                                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold rounded border border-slate-200 shadow-sm transition-colors cursor-pointer"
+                                      >
+                                        No
+                                      </button>
                                     </div>
+                                  ) : (
+                                    <>
+                                      {(item.status === "completed" || item.status === "archived") && (
+                                        <>
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleSelectJob(item.id);
+                                            }}
+                                            className="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 text-[10px] font-bold rounded shadow-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer"
+                                          >
+                                            Review
+                                          </button>
+                                          <button 
+                                            onClick={(e) => handleToggleArchive(item.id, e)}
+                                            className="px-2 py-1 bg-white border border-slate-200 hover:border-slate-300 text-[9px] font-bold rounded shadow-sm text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer"
+                                            title={item.status === "archived" ? "Unarchive" : "Archive"}
+                                          >
+                                            <Archive className="h-3 w-3 text-slate-400" />
+                                            {item.status === "archived" ? "Restore" : "Archive"}
+                                          </button>
+                                        </>
+                                      )}
+                                      
+                                      {item.status === "failed" && (
+                                        <span className="text-[9px] text-red-500 font-bold uppercase tracking-wide">Error</span>
+                                      )}
+
+                                      {(item.status === "uploading" || item.status === "processing_audio" || item.status === "transcribing") && (
+                                        <div className="text-[10px] text-blue-600 font-mono font-bold animate-pulse">{item.progress}%</div>
+                                      )}
+
+                                      <button 
+                                        onClick={(e) => handleDeleteJob(item.id, e)}
+                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer ml-auto"
+                                        title="Delete Job"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </button>
+                                    </>
                                   )}
                                 </div>
                               </div>
-                              <div className="col-span-1 text-xs text-slate-600 font-mono">
-                                {item.duration || "--:--"}
-                              </div>
-                              <div className="col-span-2">
-                                {item.status === "completed" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-bold border border-emerald-200 uppercase tracking-wide">
-                                    Ready
-                                  </span>
-                                )}
-                                {item.status === "archived" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-bold border border-slate-200 uppercase tracking-wide">
-                                    Archived
-                                  </span>
-                                )}
-                                {item.status === "failed" && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[9px] font-bold border border-red-200 uppercase tracking-wide">
-                                    Failed
-                                  </span>
-                                )}
-                                {(item.status === "uploading" || item.status === "processing_audio" || item.status === "transcribing") && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-200 uppercase tracking-wide">
-                                    <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> {item.status === "processing_audio" ? "encoding" : item.status}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="col-span-3 flex items-center gap-2 justify-end pr-1">
-                                {deletingJobId === item.id ? (
-                                  <div className="flex items-center gap-1.5 ml-auto">
-                                    <span className="text-[9px] font-bold text-red-500 uppercase mr-1">Delete?</span>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        confirmDeleteJob(item.id);
-                                      }}
-                                      className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-[9px] font-bold rounded shadow-sm transition-colors cursor-pointer"
-                                    >
-                                      Yes
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDeletingJobId(null);
-                                      }}
-                                      className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold rounded border border-slate-200 shadow-sm transition-colors cursor-pointer"
-                                    >
-                                      No
-                                    </button>
+
+                              {/* Mobile card view */}
+                              <div className="sm:hidden flex flex-col gap-2.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className={`w-7 h-7 rounded flex items-center justify-center text-[9px] font-bold font-mono shrink-0 ${
+                                      item.status === "completed" 
+                                        ? "bg-emerald-100 text-emerald-600" 
+                                        : item.status === "failed" 
+                                          ? "bg-red-100 text-red-600"
+                                          : item.status === "archived"
+                                            ? "bg-slate-100 text-slate-400"
+                                            : "bg-blue-100 text-blue-600"
+                                    }`}>
+                                      {item.filename.split(".").pop()?.toUpperCase().slice(0, 4) || "AUD"}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-bold text-slate-800 truncate" title={item.filename}>
+                                        {item.filename}
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1 flex-wrap">
+                                        <span>{(item.fileSize / (1024 * 1024)).toFixed(1)}MB</span>
+                                        <span>•</span>
+                                        <span>{item.duration || "--:--"}</span>
+                                      </div>
+                                    </div>
                                   </div>
-                                ) : (
-                                  <>
-                                    {(item.status === "completed" || item.status === "archived") && (
-                                      <>
-                                        <button 
+                                  <div className="shrink-0">
+                                    {item.status === "completed" && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-bold border border-emerald-200 uppercase tracking-wide">
+                                        Ready
+                                      </span>
+                                    )}
+                                    {item.status === "archived" && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-bold border border-slate-200 uppercase tracking-wide">
+                                        Archived
+                                      </span>
+                                    )}
+                                    {item.status === "failed" && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[9px] font-bold border border-red-200 uppercase tracking-wide">
+                                        Failed
+                                      </span>
+                                    )}
+                                    {(item.status === "uploading" || item.status === "processing_audio" || item.status === "transcribing") && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-200 uppercase tracking-wide">
+                                        <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> {item.progress}%
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Available assets icons on mobile */}
+                                {(item.summary || item.key_takeaways || item.chapters || item.social_media) && (
+                                  <div className="flex items-center gap-1.5 select-none bg-slate-50 p-1.5 rounded border border-slate-100">
+                                    <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider">Assets:</span>
+                                    <div className="flex items-center gap-1">
+                                      {item.summary && (
+                                        <span className="p-0.5 bg-blue-50 border border-blue-100 text-blue-600 rounded flex items-center" title="Summary Available">
+                                          <FileText className="h-2.5 w-2.5" />
+                                        </span>
+                                      )}
+                                      {item.key_takeaways && (
+                                        <span className="p-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded flex items-center" title="Takeaways Available">
+                                          <CheckCircle2 className="h-2.5 w-2.5" />
+                                        </span>
+                                      )}
+                                      {item.chapters && (
+                                        <span className="p-0.5 bg-amber-50 border border-amber-100 text-amber-600 rounded flex items-center" title="Chapters Available">
+                                          <Clock className="h-2.5 w-2.5" />
+                                        </span>
+                                      )}
+                                      {item.social_media && (
+                                        <span className="p-0.5 bg-purple-50 border border-purple-100 text-purple-600 rounded flex items-center" title="Social Share Available">
+                                          <Share2 className="h-2.5 w-2.5" />
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Mobile card actions */}
+                                <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                                  <span className="text-[9px] text-slate-400 font-mono">
+                                    {new Date(item.createdAt).toLocaleDateString()}
+                                  </span>
+
+                                  <div className="flex items-center gap-1.5">
+                                    {deletingJobId === item.id ? (
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[9px] font-bold text-red-500 uppercase mr-1">Delete?</span>
+                                        <button
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            handleSelectJob(item.id);
+                                            confirmDeleteJob(item.id);
                                           }}
-                                          className="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 text-[10px] font-bold rounded shadow-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer"
+                                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-[9px] font-bold rounded shadow-sm cursor-pointer"
                                         >
-                                          Review
+                                          Yes
                                         </button>
-                                        <button 
-                                          onClick={(e) => handleToggleArchive(item.id, e)}
-                                          className="px-2 py-1 bg-white border border-slate-200 hover:border-slate-300 text-[9px] font-bold rounded shadow-sm text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer"
-                                          title={item.status === "archived" ? "Unarchive" : "Archive"}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeletingJobId(null);
+                                          }}
+                                          className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold rounded border border-slate-200 cursor-pointer"
                                         >
-                                          <Archive className="h-3 w-3 text-slate-400" />
-                                          {item.status === "archived" ? "Restore" : "Archive"}
+                                          No
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        {(item.status === "completed" || item.status === "archived") && (
+                                          <>
+                                            <button 
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleSelectJob(item.id);
+                                              }}
+                                              className="px-3 py-1 bg-blue-600 text-white text-[10px] font-bold rounded shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-1 cursor-pointer"
+                                            >
+                                              Review
+                                            </button>
+                                            <button 
+                                              onClick={(e) => handleToggleArchive(item.id, e)}
+                                              className="p-1 text-slate-500 hover:text-slate-700 bg-slate-100 rounded border border-slate-200 transition-colors cursor-pointer"
+                                              title={item.status === "archived" ? "Unarchive" : "Archive"}
+                                            >
+                                              <Archive className="h-3.5 w-3.5" />
+                                            </button>
+                                          </>
+                                        )}
+                                        <button 
+                                          onClick={(e) => handleDeleteJob(item.id, e)}
+                                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                          title="Delete Job"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
                                         </button>
                                       </>
                                     )}
-                                    
-                                    {item.status === "failed" && (
-                                      <span className="text-[9px] text-red-500 font-bold uppercase tracking-wide">Error</span>
-                                    )}
-
-                                    {(item.status === "uploading" || item.status === "processing_audio" || item.status === "transcribing") && (
-                                      <div className="text-[10px] text-blue-600 font-mono font-bold animate-pulse">{item.progress}%</div>
-                                    )}
-
-                                    <button 
-                                      onClick={(e) => handleDeleteJob(item.id, e)}
-                                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer ml-auto"
-                                      title="Delete Job"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                  </>
-                                )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           );
@@ -2027,7 +2402,9 @@ export default function App() {
                 </div>
 
                 {/* Right Panel: Side Panel Stats & Template Info (col-span-4) */}
-                <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+                <div className={`col-span-12 lg:col-span-4 flex-col gap-4 sm:gap-6 ${
+                  mobileDashboardTab === "preview" ? "flex" : "hidden lg:flex"
+                }`}>
                   
                   {/* Workflow stats - Backlog / Mocked
                   <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
@@ -2132,20 +2509,21 @@ export default function App() {
         </div>
 
         {/* Footer / Status Bar */}
-        <footer className="h-10 bg-white border-t border-slate-200 flex items-center justify-between px-6 text-xs text-slate-500 shrink-0 select-none">
+        <footer className="h-10 bg-white border-t border-slate-200 flex items-center justify-between px-3 sm:px-6 text-xs text-slate-500 shrink-0 select-none">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-              ScribeNode Active Engine
+              <span className="hidden xs:inline">ScribeNode Active Engine</span>
+              <span className="xs:hidden font-mono text-[10px]">Active</span>
             </div>
           </div>
           <button
             onClick={() => setShowAboutModal(true)}
-            className="flex items-center gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
+            className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-2.5 sm:px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
             <span className="font-mono text-xs font-bold text-slate-800">v1.2.0</span>
-            <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-2">About & Release Notes</span>
+            <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-1.5 sm:pl-2 hidden xs:inline">About & Release Notes</span>
           </button>
         </footer>
 

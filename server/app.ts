@@ -4,7 +4,7 @@ import fs from "fs";
 import os from "os";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
-import { cleanEnvString, isDisableDefaultItems, getBasicAuthCredentials } from "./config";
+import { cleanEnvString, isDisableDefaultItems, getBasicAuthCredentials, getMaxUploadSizeMB, getMaxUploadSizeBytes } from "./config";
 import { JobsStorage, TranscribeJob, sampleJobsList } from "./storage";
 import { getSystemInstruction, buildTranscriptionPrompt, generateContentWithFallback, DEFAULT_TRANSCRIPTION_MODELS } from "./transcriptionEngine";
 
@@ -53,10 +53,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   const app = express();
 
+  const maxUploadSizeMB = getMaxUploadSizeMB(env);
+  const maxUploadSizeBytes = getMaxUploadSizeBytes(env);
+
   const upload = multer({
     dest: os.tmpdir(),
     limits: {
-      fileSize: 100 * 1024 * 1024,
+      fileSize: maxUploadSizeBytes,
     }
   });
 
@@ -117,7 +120,8 @@ export function createApp(options: CreateAppOptions = {}): Express {
       basicAuthEnabled: authState.enabled,
       disableDefaultItems: isDisableDefaultItems(env),
       hasGeminiKey: Boolean(cleanEnvString(env.GEMINI_API_KEY)),
-      modelStatus
+      modelStatus,
+      maxUploadSizeMB
     });
   });
 
@@ -248,7 +252,23 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
   }
 
-  app.post("/api/transcribe", upload.single("file") as any, async (req, res) => {
+  app.post("/api/transcribe", (req, res, next) => {
+    upload.single("file")(req, res, (err: any) => {
+      if (err) {
+        if (err.code === "LIMIT_FILE_SIZE" || err.message?.includes("File too large")) {
+          return res.status(413).json({
+            error: `File exceeds maximum allowed upload size of ${maxUploadSizeMB}MB. Configure MAX_UPLOAD_SIZE_MB in your environment to increase this limit.`,
+            code: "LIMIT_FILE_SIZE",
+            maxUploadSizeMB
+          });
+        }
+        return res.status(400).json({
+          error: err.message || "Failed to process audio file upload."
+        });
+      }
+      next();
+    });
+  }, async (req, res) => {
     try {
       if (!env.GEMINI_API_KEY) {
         if (req.file?.path && fs.existsSync(req.file.path)) {
@@ -259,6 +279,17 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
       if (!req.file) {
         return res.status(400).json({ error: "Please upload an audio file." });
+      }
+
+      if (req.file.size > maxUploadSizeBytes) {
+        if (req.file.path && fs.existsSync(req.file.path)) {
+          try { fs.unlinkSync(req.file.path); } catch {}
+        }
+        return res.status(413).json({
+          error: `File exceeds maximum allowed upload size of ${maxUploadSizeMB}MB. Configure MAX_UPLOAD_SIZE_MB in your environment to increase this limit.`,
+          code: "LIMIT_FILE_SIZE",
+          maxUploadSizeMB
+        });
       }
 
       const { promptStyle, customPrompt, duration } = req.body;
@@ -493,6 +524,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   // Error handling middleware
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        error: `File exceeds maximum allowed upload size of ${maxUploadSizeMB}MB. Configure MAX_UPLOAD_SIZE_MB in your environment to increase this limit.`,
+        code: 'LIMIT_FILE_SIZE',
+        maxUploadSizeMB
+      });
+    }
     console.error("[EXPRESS ERROR]", err);
     res.status(err.status || 500).json({
       error: err.message || "An unexpected server error occurred during request processing.",

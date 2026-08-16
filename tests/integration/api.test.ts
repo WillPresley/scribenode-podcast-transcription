@@ -60,9 +60,25 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.basicAuthEnabled).toBe(false);
       expect(res.body.disableDefaultItems).toBe(false);
       expect(res.body.hasGeminiKey).toBe(true);
+      expect(res.body.maxUploadSizeMB).toBe(100);
       expect(res.body.modelStatus).toBeDefined();
       expect(res.body.modelStatus.primaryModel).toBe('gemini-3.7-flash');
       expect(res.body.modelStatus.activeModel).toBe('gemini-3.7-flash');
+    });
+
+    it('returns custom MAX_UPLOAD_SIZE_MB in /api/config when configured', async () => {
+      const app = createApp({
+        storage,
+        env: {
+          MAX_UPLOAD_SIZE_MB: '250',
+          GEMINI_API_KEY: 'test-key-123'
+        } as any,
+        skipVite: true
+      });
+
+      const res = await request(app).get('/api/config');
+      expect(res.status).toBe(200);
+      expect(res.body.maxUploadSizeMB).toBe(250);
     });
 
     it('returns active model orchestration status on /api/model-status', async () => {
@@ -289,6 +305,29 @@ describe('API Integration & Route Endpoints', () => {
       const res = await request(app).post('/api/transcribe');
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('Please upload an audio file');
+    });
+
+    it('rejects uploads exceeding MAX_UPLOAD_SIZE_MB with 413 Payload Too Large', async () => {
+      // Configure app with 1MB max limit for testing
+      const app = createApp({
+        storage,
+        env: {
+          GEMINI_API_KEY: 'test-api-key',
+          MAX_UPLOAD_SIZE_MB: '1'
+        } as any,
+        skipVite: true
+      });
+
+      // Create a 1.5MB buffer
+      const largeBuffer = Buffer.alloc(1.5 * 1024 * 1024, 'a');
+
+      const res = await request(app)
+        .post('/api/transcribe')
+        .attach('file', largeBuffer, 'huge_recording.mp3');
+
+      expect(res.status).toBe(413);
+      expect(res.body.error).toContain('exceeds maximum allowed upload size of 1MB');
+      expect(res.body.code).toBe('LIMIT_FILE_SIZE');
     });
   });
 });

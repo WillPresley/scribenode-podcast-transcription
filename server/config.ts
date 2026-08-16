@@ -40,6 +40,29 @@ export const isDisableDefaultItems = (env = process.env): boolean => {
   return parseBooleanEnv(env.DISABLE_DEFAULT_ITEMS, false);
 };
 
+export const DEFAULT_MAX_UPLOAD_SIZE_MB = 100;
+
+export const getMaxUploadSizeMB = (env = process.env): number => {
+  const raw = cleanEnvString(
+    env.MAX_UPLOAD_SIZE_MB ||
+    env.MAX_FILE_SIZE_MB ||
+    env.MAX_UPLOAD_SIZE ||
+    env.MAX_UPLOAD_MB ||
+    env.MAX_FILE_MB
+  );
+  if (!raw) return DEFAULT_MAX_UPLOAD_SIZE_MB;
+
+  const parsed = parseInt(raw, 10);
+  if (isNaN(parsed) || parsed <= 0) {
+    return DEFAULT_MAX_UPLOAD_SIZE_MB;
+  }
+  return parsed;
+};
+
+export const getMaxUploadSizeBytes = (env = process.env): number => {
+  return getMaxUploadSizeMB(env) * 1024 * 1024;
+};
+
 export const getBasicAuthCredentials = (env = process.env): BasicAuthCredentials => {
   const rawEnableFlag = cleanEnvString(env.BASIC_AUTH_ENABLED || env.ENABLE_BASIC_AUTH).toLowerCase();
   const rawDisableFlag = cleanEnvString(env.DISABLE_BASIC_AUTH).toLowerCase();

@@ -5,7 +5,10 @@ import {
   isDisableDefaultItems,
   getBasicAuthCredentials,
   formatDockerTag,
-  getAppVersion
+  getAppVersion,
+  getMaxUploadSizeMB,
+  getMaxUploadSizeBytes,
+  DEFAULT_MAX_UPLOAD_SIZE_MB
 } from '../../server/config';
 
 describe('Server Configuration & Security Guard Engine', () => {
@@ -150,6 +153,38 @@ describe('Server Configuration & Security Guard Engine', () => {
     it('formats sha256: prefixed digest correctly', () => {
       const digest = 'sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
       expect(formatDockerTag('latest', digest)).toBe('latest (sha256:ba7816bf8f01)');
+    });
+  });
+
+  describe('getMaxUploadSizeMB & getMaxUploadSizeBytes', () => {
+    it('returns default 100MB when no environment variable is provided', () => {
+      expect(DEFAULT_MAX_UPLOAD_SIZE_MB).toBe(100);
+      expect(getMaxUploadSizeMB({})).toBe(100);
+      expect(getMaxUploadSizeBytes({})).toBe(100 * 1024 * 1024);
+    });
+
+    it('parses valid numeric string values from MAX_UPLOAD_SIZE_MB', () => {
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: '250' })).toBe(250);
+      expect(getMaxUploadSizeBytes({ MAX_UPLOAD_SIZE_MB: '250' })).toBe(250 * 1024 * 1024);
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: '500' })).toBe(500);
+    });
+
+    it('handles quoted environment variable values', () => {
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: '"300"' })).toBe(300);
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: "'450'" })).toBe(450);
+    });
+
+    it('supports alias variables like MAX_FILE_SIZE_MB, MAX_UPLOAD_SIZE, etc.', () => {
+      expect(getMaxUploadSizeMB({ MAX_FILE_SIZE_MB: '200' })).toBe(200);
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE: '350' })).toBe(350);
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_MB: '150' })).toBe(150);
+    });
+
+    it('falls back safely to 100MB when invalid, zero, or negative numbers are given', () => {
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: '0' })).toBe(100);
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: '-50' })).toBe(100);
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: 'not-a-number' })).toBe(100);
+      expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: '' })).toBe(100);
     });
   });
 });
