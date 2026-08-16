@@ -12,7 +12,11 @@ import {
   formatSecondsToTimecode,
   convertTranscriptToVtt,
   convertTranscriptToSrt,
-  formatModelDisplayName
+  formatModelDisplayName,
+  parseTimestampSeconds,
+  formatPlaybackTime,
+  parseTranscriptSegments,
+  findActiveSegmentIndex
 } from '../../src/utils/transcript';
 import {
   SAMPLE_INTERVIEW_TRANSCRIPT,
@@ -210,6 +214,96 @@ describe('Transcript Formatting & Parsing Engine', () => {
 
     it('formats custom or unexpected model strings cleanly', () => {
       expect(formatModelDisplayName('custom-audio-model-v1')).toBe('Custom Audio Model V1');
+    });
+  });
+
+  describe('Audio Playback Synchronization & Segment Utilities', () => {
+    describe('parseTimestampSeconds', () => {
+      it('parses [MM:SS] format into seconds', () => {
+        expect(parseTimestampSeconds('[01:30]')).toBe(90);
+        expect(parseTimestampSeconds('02:15')).toBe(135);
+        expect(parseTimestampSeconds('[00:00]')).toBe(0);
+      });
+
+      it('parses [HH:MM:SS] format into seconds', () => {
+        expect(parseTimestampSeconds('[01:02:03]')).toBe(3723);
+        expect(parseTimestampSeconds('00:05:30')).toBe(330);
+      });
+
+      it('handles empty or malformed timestamp strings gracefully', () => {
+        expect(parseTimestampSeconds('')).toBe(0);
+        expect(parseTimestampSeconds('invalid')).toBe(0);
+      });
+    });
+
+    describe('formatPlaybackTime', () => {
+      it('formats seconds into MM:SS format', () => {
+        expect(formatPlaybackTime(0)).toBe('00:00');
+        expect(formatPlaybackTime(75)).toBe('01:15');
+        expect(formatPlaybackTime(599)).toBe('09:59');
+      });
+
+      it('formats durations over an hour into HH:MM:SS format', () => {
+        expect(formatPlaybackTime(3665)).toBe('01:01:05');
+      });
+
+      it('handles negative or invalid seconds gracefully', () => {
+        expect(formatPlaybackTime(-10)).toBe('00:00');
+        expect(formatPlaybackTime(NaN)).toBe('00:00');
+      });
+    });
+
+    describe('parseTranscriptSegments', () => {
+      it('extracts structured segments with start and end timestamps', () => {
+        const sample = `
+# Sample Header
+**Hosts:** *Sarah, Alex*
+---
+
+[00:00] **Alex Rivera**: Welcome to the show.
+[00:15] **Sarah Drabner**: Thanks for having me Alex.
+[00:40] Today we talk about AI architecture.
+        `;
+        const segments = parseTranscriptSegments(sample);
+        expect(segments.length).toBe(3);
+        expect(segments[0].timestamp).toBe('[00:00]');
+        expect(segments[0].startSeconds).toBe(0);
+        expect(segments[0].endSeconds).toBe(15);
+        expect(segments[0].speaker).toBe('Alex Rivera');
+
+        expect(segments[1].timestamp).toBe('[00:15]');
+        expect(segments[1].startSeconds).toBe(15);
+        expect(segments[1].speaker).toBe('Sarah Drabner');
+
+        expect(segments[2].startSeconds).toBe(40);
+      });
+
+      it('handles empty input gracefully', () => {
+        expect(parseTranscriptSegments('')).toEqual([]);
+      });
+    });
+
+    describe('findActiveSegmentIndex', () => {
+      const segments = [
+        { id: '1', index: 0, rawText: '', timestamp: '[00:00]', startSeconds: 0, endSeconds: 15, speaker: '', speechText: '' },
+        { id: '2', index: 1, rawText: '', timestamp: '[00:15]', startSeconds: 15, endSeconds: 45, speaker: '', speechText: '' },
+        { id: '3', index: 2, rawText: '', timestamp: '[00:45]', startSeconds: 45, endSeconds: 90, speaker: '', speechText: '' },
+      ];
+
+      it('returns correct segment index for given current time', () => {
+        expect(findActiveSegmentIndex(segments, 5)).toBe(0);
+        expect(findActiveSegmentIndex(segments, 20)).toBe(1);
+        expect(findActiveSegmentIndex(segments, 45)).toBe(2);
+        expect(findActiveSegmentIndex(segments, 80)).toBe(2);
+      });
+
+      it('falls back to last segment index if time exceeds total', () => {
+        expect(findActiveSegmentIndex(segments, 120)).toBe(2);
+      });
+
+      it('returns -1 for empty segment list', () => {
+        expect(findActiveSegmentIndex([], 10)).toBe(-1);
+      });
     });
   });
 });

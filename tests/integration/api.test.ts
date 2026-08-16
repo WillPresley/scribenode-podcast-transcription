@@ -149,6 +149,81 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.error).toBe('Job not found');
     });
 
+    it('streams audio file with 200 OK when no range header is passed', async () => {
+      const testFilePath = path.join(storage.uploadsDir, 'streamable.mp3');
+      fs.writeFileSync(testFilePath, 'fake audio file content for streaming');
+
+      const streamJob: TranscribeJob = {
+        id: 'job-audio-stream',
+        filename: 'streamable.mp3',
+        fileSize: 36,
+        status: 'completed',
+        progress: 100,
+        createdAt: Date.now(),
+        localFilePath: testFilePath,
+        mimeType: 'audio/mpeg',
+        transcript: 'Some test transcript'
+      };
+      storage.set(streamJob.id, streamJob);
+
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app)
+        .get('/api/jobs/job-audio-stream/audio')
+        .buffer(true);
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('audio/mpeg');
+      expect(res.headers['accept-ranges']).toBe('bytes');
+      expect(res.body.toString()).toBe('fake audio file content for streaming');
+    });
+
+    it('handles Range requests with 206 Partial Content for audio seeking', async () => {
+      const testFilePath = path.join(storage.uploadsDir, 'range-seek.mp3');
+      fs.writeFileSync(testFilePath, '0123456789ABCDEF');
+
+      const rangeJob: TranscribeJob = {
+        id: 'job-range-seek',
+        filename: 'range-seek.mp3',
+        fileSize: 16,
+        status: 'completed',
+        progress: 100,
+        createdAt: Date.now(),
+        localFilePath: testFilePath,
+        mimeType: 'audio/mpeg',
+        transcript: 'Some test transcript'
+      };
+      storage.set(rangeJob.id, rangeJob);
+
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app)
+        .get('/api/jobs/job-range-seek/audio')
+        .set('Range', 'bytes=0-9')
+        .buffer(true);
+
+      expect(res.status).toBe(206);
+      expect(res.headers['content-range']).toBe('bytes 0-9/16');
+      expect(res.headers['content-length']).toBe('10');
+      expect(res.body.toString()).toBe('0123456789');
+    });
+
+    it('returns 404 when audio file does not exist on disk', async () => {
+      const missingJob: TranscribeJob = {
+        id: 'job-missing-audio',
+        filename: 'ghost.mp3',
+        fileSize: 100,
+        status: 'completed',
+        progress: 100,
+        createdAt: Date.now(),
+        localFilePath: '/tmp/nonexistent-file-path-123.mp3',
+        transcript: 'Some test transcript'
+      };
+      storage.set(missingJob.id, missingJob);
+
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app).get('/api/jobs/job-missing-audio/audio');
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('Audio file not available on disk');
+    });
+
     it('deletes job and cleans associated local file on DELETE /api/jobs/:id', async () => {
       const testFilePath = path.join(storage.uploadsDir, 'custom-job.audio');
       fs.writeFileSync(testFilePath, 'dummy audio data');

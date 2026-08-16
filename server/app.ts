@@ -329,8 +329,15 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
   });
 
+  const enrichJobWithAudioStatus = (job: TranscribeJob): TranscribeJob => {
+    const hasAudio = Boolean(job.localFilePath && fs.existsSync(job.localFilePath));
+    return { ...job, hasAudioFile: hasAudio };
+  };
+
   app.get("/api/jobs", (req, res) => {
-    const allJobs = storage.values().sort((a, b) => b.createdAt - a.createdAt);
+    const allJobs = storage.values()
+      .map(enrichJobWithAudioStatus)
+      .sort((a, b) => b.createdAt - a.createdAt);
     res.json(allJobs);
   });
 
@@ -339,7 +346,68 @@ export function createApp(options: CreateAppOptions = {}): Express {
     if (!job) {
       return res.status(404).json({ error: "Job not found" });
     }
-    res.json(job);
+    res.json(enrichJobWithAudioStatus(job));
+  });
+
+  app.get("/api/jobs/:id/audio", (req, res) => {
+    const jobId = req.params.id;
+    const job = storage.get(jobId);
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+
+    if (!job.localFilePath || !fs.existsSync(job.localFilePath)) {
+      return res.status(404).json({ error: "Audio file not available on disk" });
+    }
+
+    const filePath = job.localFilePath;
+    try {
+      const stat = fs.statSync(filePath);
+      const fileSize = stat.size;
+      const range = req.headers.range;
+
+      // Determine mime type
+      let mimeType = job.mimeType || "audio/mpeg";
+      if (!job.mimeType) {
+        const ext = path.extname(job.filename).toLowerCase();
+        if (ext === ".wav") mimeType = "audio/wav";
+        else if (ext === ".m4a" || ext === ".mp4") mimeType = "audio/mp4";
+        else if (ext === ".ogg") mimeType = "audio/ogg";
+        else if (ext === ".flac") mimeType = "audio/flac";
+        else if (ext === ".aac") mimeType = "audio/aac";
+      }
+
+      if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+        if (start >= fileSize || end >= fileSize) {
+          res.status(416).setHeader("Content-Range", `bytes */${fileSize}`);
+          return res.end();
+        }
+
+        const chunkSize = end - start + 1;
+        const fileStream = fs.createReadStream(filePath, { start, end });
+        res.writeHead(206, {
+          "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+          "Accept-Ranges": "bytes",
+          "Content-Length": chunkSize,
+          "Content-Type": mimeType,
+        });
+        fileStream.pipe(res);
+      } else {
+        res.writeHead(200, {
+          "Content-Length": fileSize,
+          "Accept-Ranges": "bytes",
+          "Content-Type": mimeType,
+        });
+        fs.createReadStream(filePath).pipe(res);
+      }
+    } catch (err: any) {
+      console.error(`[API] Failed to stream audio for job ${jobId}:`, err);
+      res.status(500).json({ error: "Failed to stream audio file" });
+    }
   });
 
   app.delete("/api/jobs/:id", (req, res) => {

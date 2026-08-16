@@ -21,6 +21,7 @@ export interface TranscribeJob {
   social_media?: string;
   localFilePath?: string;
   mimeType?: string;
+  hasAudioFile?: boolean;
 }
 
 export interface AnalysisResults {

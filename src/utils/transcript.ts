@@ -382,3 +382,136 @@ export const formatModelDisplayName = (modelId?: string): string => {
   }
 };
 
+export interface TranscriptSegment {
+  id: string;
+  index: number;
+  rawText: string;
+  timestamp: string;
+  startSeconds: number;
+  endSeconds: number;
+  speaker: string;
+  speechText: string;
+}
+
+export const parseTimestampSeconds = (timestampStr: string): number => {
+  if (!timestampStr) return 0;
+  const clean = timestampStr.replace(/[[\]]/g, '').trim();
+  const parts = clean.split(':').map(p => parseInt(p, 10));
+  if (parts.some(isNaN)) return 0;
+  
+  if (parts.length === 3) {
+    // HH:MM:SS
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  } else if (parts.length === 2) {
+    // MM:SS
+    return parts[0] * 60 + parts[1];
+  } else if (parts.length === 1) {
+    return parts[0];
+  }
+  return 0;
+};
+
+export const formatPlaybackTime = (totalSeconds: number): string => {
+  if (isNaN(totalSeconds) || totalSeconds < 0) return "00:00";
+  const s = Math.floor(totalSeconds);
+  const hours = Math.floor(s / 3600);
+  const minutes = Math.floor((s % 3600) / 60);
+  const seconds = s % 60;
+
+  const mm = minutes.toString().padStart(2, '0');
+  const ss = seconds.toString().padStart(2, '0');
+
+  if (hours > 0) {
+    const hh = hours.toString().padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  }
+  return `${mm}:${ss}`;
+};
+
+export const parseTranscriptSegments = (rawText: string): TranscriptSegment[] => {
+  if (!rawText) return [];
+  const cleanBody = stripExistingHeader(rawText);
+  const lines = cleanBody.split(/\n+/).map(l => l.trim()).filter(Boolean);
+  const segments: TranscriptSegment[] = [];
+
+  let currentStart = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Parse matches
+    const doubleMatch = line.match(/^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*([^:]+):\s*(.*)/s);
+    const tsOnlyMatch = line.match(/^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*(.*)/s);
+    const speakerOnlyMatch = line.match(/^([^:]+):\s*(.*)/s);
+
+    let timestamp = "";
+    let speaker = "";
+    let speechText = line;
+    let startSec = currentStart;
+
+    if (doubleMatch) {
+      timestamp = `[${doubleMatch[1]}]`;
+      startSec = parseTimestampSeconds(doubleMatch[1]);
+      speaker = doubleMatch[2].replace(/[*_#\[\]`]/g, "").trim();
+      speechText = doubleMatch[3];
+    } else if (tsOnlyMatch) {
+      timestamp = `[${tsOnlyMatch[1]}]`;
+      startSec = parseTimestampSeconds(tsOnlyMatch[1]);
+      speechText = tsOnlyMatch[2];
+    } else if (speakerOnlyMatch && speakerOnlyMatch[1].trim().length < 35 && !speakerOnlyMatch[1].includes("\n")) {
+      const candidate = speakerOnlyMatch[1].replace(/[*_#\[\]`]/g, "").trim();
+      const words = candidate.split(/\s+/);
+      const isKeyword = words.some(w => EXCLUDED_SPEAKER_KEYWORDS.test(w.replace(/[^a-zA-Z]/g, '')));
+      if (!isKeyword && !/[,?!]/.test(candidate)) {
+        speaker = candidate;
+        speechText = speakerOnlyMatch[2];
+      }
+    }
+
+    currentStart = startSec;
+    // Estimate endSeconds heuristic based on word length or until next item
+    const cleanSpeech = stripMarkdown(speechText);
+    const estimatedDuration = Math.max(3, Math.min(15, Math.ceil(cleanSpeech.length / 14)));
+    const endSec = startSec + estimatedDuration;
+
+    segments.push({
+      id: `seg-${i}`,
+      index: i,
+      rawText: line,
+      timestamp,
+      startSeconds: startSec,
+      endSeconds: endSec,
+      speaker,
+      speechText: speechText.trim(),
+    });
+  }
+
+  // Adjust contiguous endSeconds so each cue leads cleanly into the next
+  for (let i = 0; i < segments.length - 1; i++) {
+    if (segments[i + 1].startSeconds > segments[i].startSeconds) {
+      segments[i].endSeconds = segments[i + 1].startSeconds;
+    }
+  }
+
+  return segments;
+};
+
+export const findActiveSegmentIndex = (segments: TranscriptSegment[], currentTime: number): number => {
+  if (!segments || segments.length === 0) return -1;
+  
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (currentTime >= seg.startSeconds && currentTime < seg.endSeconds) {
+      return i;
+    }
+  }
+
+  // Fallback: If currentTime is past the last segment start, highlight last segment
+  if (currentTime >= segments[segments.length - 1].startSeconds) {
+    return segments.length - 1;
+  }
+
+  return 0;
+};
+
+

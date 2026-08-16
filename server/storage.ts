@@ -15,6 +15,7 @@ export interface TranscribeJob {
   duration?: string;
   localFilePath?: string;
   mimeType?: string;
+  hasAudioFile?: boolean;
   modelUsed?: string;
   summary?: string;
   key_takeaways?: string;

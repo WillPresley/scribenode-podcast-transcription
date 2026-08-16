@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   FileAudio,
@@ -34,7 +34,11 @@ import {
   Zap,
   Info,
   ExternalLink,
-  GitBranch
+  GitBranch,
+  Headphones,
+  Radio,
+  Play,
+  Volume2
 } from "lucide-react";
 import { JobStatus, PromptStyle, AnalysisMode, TranscribeJob, AnalysisResults, ModelStatusInfo } from "./types";
 import {
@@ -49,9 +53,14 @@ import {
   convertTranscriptToVtt,
   convertTranscriptToSrt,
   formatModelDisplayName,
+  parseTranscriptSegments,
+  findActiveSegmentIndex,
+  parseTimestampSeconds,
+  TranscriptSegment,
   EXCLUDED_SPEAKER_KEYWORDS
 } from "./utils/transcript";
 import { formatDuration } from "./utils/audio";
+import { AudioPlayer } from "./components/AudioPlayer";
 
 const ScribeNodeLogo = ({ className = "w-9 h-9" }: { className?: string }) => (
   <div className={`flex items-center justify-center rounded-xl bg-blue-600 p-2 shrink-0 shadow-sm ${className}`}>
@@ -323,6 +332,14 @@ export default function App() {
   const parsedLines = previewJob ? getPreviewLines(previewJob.transcript || "") : [];
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
   const [maxUploadSizeMB, setMaxUploadSizeMB] = useState<number>(100);
+
+  // Audio Playback & Transcript Sync States
+  const [showAudioPlayer, setShowAudioPlayer] = useState<boolean>(false);
+  const [playbackCurrentTime, setPlaybackCurrentTime] = useState<number>(0);
+  const [playbackDuration, setPlaybackDuration] = useState<number>(0);
+  const [isAudioPlaying, setIsAudioPlaying] = useState<boolean>(false);
+  const [followTranscript, setFollowTranscript] = useState<boolean>(true);
+  const [seekTargetTime, setSeekTargetTime] = useState<number | null>(null);
   
   // Model Orchestration & Failover status
   const [modelStatus, setModelStatus] = useState<ModelStatusInfo>({
@@ -768,6 +785,32 @@ export default function App() {
     handleSelectJob(sampleKey);
   };
 
+  // Structured Transcript Segments for Audio Sync
+  const transcriptSegments: TranscriptSegment[] = useMemo(() => {
+    return job?.transcript ? parseTranscriptSegments(job.transcript) : [];
+  }, [job?.transcript]);
+
+  const activeSegmentIndex = useMemo(() => {
+    if (!showAudioPlayer || transcriptSegments.length === 0) return -1;
+    return findActiveSegmentIndex(transcriptSegments, playbackCurrentTime);
+  }, [showAudioPlayer, transcriptSegments, playbackCurrentTime]);
+
+  // Auto-scroll to active transcript paragraph during playback when follow mode is enabled
+  useEffect(() => {
+    if (showAudioPlayer && isAudioPlaying && followTranscript && activeSegmentIndex >= 0) {
+      const el = document.getElementById(`transcript-paragraph-${activeSegmentIndex}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  }, [activeSegmentIndex, showAudioPlayer, isAudioPlaying, followTranscript]);
+
+  const handleTimestampClick = (timeStr: string) => {
+    const sec = parseTimestampSeconds(timeStr);
+    setSeekTargetTime(sec);
+    setShowAudioPlayer(true);
+  };
+
   // Reset active search match index when query changes
   useEffect(() => {
     setActiveMatchIndex(0);
@@ -814,8 +857,18 @@ export default function App() {
     return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   };
 
-  // Search highlighter component
-  const HighlightedParagraph = ({ text }: { text: string }) => {
+  // Search & Audio Synced highlighter component
+  const HighlightedParagraph = ({ 
+    text, 
+    idx, 
+    isActivePlaying, 
+    onTimestampClick 
+  }: { 
+    text: string; 
+    idx: number; 
+    isActivePlaying: boolean; 
+    onTimestampClick: (ts: string) => void; 
+  }) => {
     // Skip rendering if line is an existing header or horizontal rule
     if (/^#\s+/.test(text) || /^\*\*Hosts:\*\*/i.test(text) || /^\s*Hosts:/i.test(text) || /^\s*[-*_]{3,}\s*$/.test(text)) {
       return null;
@@ -890,10 +943,31 @@ export default function App() {
     };
 
     return (
-      <p className={`leading-relaxed text-slate-700 py-2 border-l-2 pl-4 transition-all hover:border-slate-300 ${speaker ? speakerColors.border : "border-slate-100"}`}>
+      <p className={`leading-relaxed text-slate-700 py-1.5 border-l-2 pl-3 sm:pl-4 transition-all hover:border-slate-300 ${
+        isActivePlaying 
+          ? "border-l-blue-600 bg-blue-50/40 rounded-r-lg" 
+          : speaker 
+            ? speakerColors.border 
+            : "border-slate-100"
+      }`}>
         {timestamp && (
-          <span className="font-mono text-[10px] text-blue-600 bg-blue-50 border border-blue-100/50 px-2 py-0.5 rounded mr-2 font-medium select-all">
-            {timestamp}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTimestampClick(timestamp);
+            }}
+            className="font-mono text-[10px] text-blue-700 bg-blue-50/90 hover:bg-blue-100 hover:text-blue-800 border border-blue-200/80 px-2 py-0.5 rounded mr-2 font-bold cursor-pointer transition-all hover:scale-105 active:scale-95 group inline-flex items-center gap-1 shadow-2xs select-none"
+            title={`Play audio from ${timestamp}`}
+          >
+            <Play className="h-2.5 w-2.5 fill-blue-600 text-blue-600 opacity-60 group-hover:opacity-100 transition-opacity" />
+            <span>{timestamp}</span>
+          </button>
+        )}
+        {isActivePlaying && (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold bg-blue-600 text-white font-sans mr-2 uppercase tracking-wider animate-pulse shadow-2xs">
+            <Radio className="h-2.5 w-2.5" />
+            <span>PLAYING</span>
           </span>
         )}
         {speaker && (
@@ -1395,8 +1469,26 @@ export default function App() {
                         </button>
                       </div>
 
-                      {/* Export Options */}
-                      <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                      {/* Export & Player Options */}
+                      <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
+                        {/* Audio Player Toggle */}
+                        <button
+                          type="button"
+                          onClick={() => setShowAudioPlayer(prev => !prev)}
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+                            showAudioPlayer
+                              ? "bg-slate-900 text-white border-slate-800"
+                              : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200/80"
+                          }`}
+                          title="Toggle Synced Audio Player"
+                        >
+                          <Headphones className={`h-3 w-3 ${showAudioPlayer ? "text-blue-400" : "text-blue-600"}`} />
+                          <span>{showAudioPlayer ? "Hide Audio" : "Audio Player"}</span>
+                          {isAudioPlaying && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping ml-0.5" />
+                          )}
+                        </button>
+
                         <button
                           onClick={() => copyToClipboard(job.transcript || "")}
                           className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-md transition-colors border border-slate-200/40 bg-white cursor-pointer"
@@ -1419,6 +1511,28 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Synced Native Audio Player Component */}
+                  <AnimatePresence>
+                    {showAudioPlayer && (
+                      <div className="p-3 sm:p-4 bg-slate-950/95 border-b border-slate-800 shrink-0">
+                        <AudioPlayer
+                          job={job}
+                          currentTime={playbackCurrentTime}
+                          duration={playbackDuration}
+                          isPlaying={isAudioPlaying}
+                          onTimeUpdate={(t) => setPlaybackCurrentTime(t)}
+                          onDurationChange={(d) => setPlaybackDuration(d)}
+                          onPlayStateChange={(playing) => setIsAudioPlaying(playing)}
+                          onClose={() => setShowAudioPlayer(false)}
+                          followTranscript={followTranscript}
+                          onToggleFollow={() => setFollowTranscript(prev => !prev)}
+                          seekTargetTime={seekTargetTime}
+                          onSeekHandled={() => setSeekTargetTime(null)}
+                        />
+                      </div>
+                    )}
+                  </AnimatePresence>
 
                   {/* Search bar wrapper */}
                   <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 bg-white shrink-0">
@@ -1486,6 +1600,7 @@ export default function App() {
                     <div className="space-y-4">
                       {stripExistingHeader(job.transcript).split("\n").map(p => p.trim()).filter(Boolean).map((p, idx) => {
                         const isCurrentMatch = searchQuery.trim() && searchMatches[activeMatchIndex] === idx;
+                        const isActivePlaying = showAudioPlayer && activeSegmentIndex === idx;
                         return (
                           <div 
                             key={idx} 
@@ -1493,10 +1608,17 @@ export default function App() {
                             className={`transition-all duration-300 px-2 py-1 rounded-lg ${
                               isCurrentMatch 
                                 ? "bg-amber-50 border border-amber-200 shadow-sm ring-1 ring-amber-300/30 scale-[1.01]" 
-                                : "border border-transparent hover:bg-slate-50/50"
+                                : isActivePlaying
+                                  ? "bg-blue-50/80 border border-blue-200/80 shadow-xs ring-1 ring-blue-300/30"
+                                  : "border border-transparent hover:bg-slate-50/50"
                             }`}
                           >
-                            <HighlightedParagraph text={p} />
+                            <HighlightedParagraph 
+                              text={p} 
+                              idx={idx} 
+                              isActivePlaying={isActivePlaying} 
+                              onTimestampClick={handleTimestampClick} 
+                            />
                           </div>
                         );
                       })}
@@ -1594,9 +1716,41 @@ export default function App() {
                           exit={{ opacity: 0, y: -4 }}
                           className="space-y-4 h-full flex flex-col"
                         >
-                          <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap select-text font-sans flex-1">
-                            {analysisResults[activeAnalysisTab]}
-                          </div>
+                          {activeAnalysisTab === "chapters" && analysisResults["chapters"] ? (
+                            <div className="space-y-1.5 flex-1">
+                              {analysisResults["chapters"].split("\n").map((line, lIdx) => {
+                                const cleanLine = line.trim();
+                                if (!cleanLine) return null;
+                                const tsMatch = cleanLine.match(/(\[?\d{1,2}:\d{2}(?::\d{2})?\]?)/);
+                                if (tsMatch) {
+                                  const ts = tsMatch[1];
+                                  const rest = cleanLine.replace(ts, "").replace(/^[:\-–—\s]+/, "").trim();
+                                  return (
+                                    <div 
+                                      key={lIdx}
+                                      className="flex items-start gap-2 p-1.5 sm:p-2 rounded-lg hover:bg-blue-50/50 border border-slate-100 hover:border-blue-200 transition-colors group"
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => handleTimestampClick(ts)}
+                                        className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-mono text-[10px] font-bold rounded-md border border-blue-200/80 cursor-pointer flex items-center gap-1 shrink-0 transition-all hover:scale-105 select-none shadow-2xs"
+                                        title={`Play audio from ${ts}`}
+                                      >
+                                        <Play className="h-2.5 w-2.5 fill-blue-600 text-blue-600 opacity-70 group-hover:opacity-100" />
+                                        <span>{ts.replace(/[[\]]/g, '')}</span>
+                                      </button>
+                                      <span className="text-xs text-slate-800 font-medium leading-relaxed">{rest}</span>
+                                    </div>
+                                  );
+                                }
+                                return <p key={lIdx} className="text-xs text-slate-700 leading-relaxed font-sans">{cleanLine}</p>;
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap select-text font-sans flex-1">
+                              {analysisResults[activeAnalysisTab]}
+                            </div>
+                          )}
                         </motion.div>
                       ) : loadingAnalysis[activeAnalysisTab] ? (
                         <motion.div
