@@ -56,6 +56,7 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(workflow).toContain('npm run lint');
     expect(workflow).toContain('npm test');
     expect(workflow).toContain('npm run build');
+    expect(workflow).toContain('Authenticate to GitHub Container Registry');
     expect(workflow).toContain('docker buildx create --use');
   });
 
