@@ -125,6 +125,20 @@ export const DEFAULT_TRANSCRIPTION_MODELS = [
   "gemini-flash-latest"
 ];
 
+export function formatGeminiErrorMessage(err: any): string {
+  const msg = err?.message || String(err);
+  if (msg.includes("generativelanguage.googleapis.com") || msg.includes("has not been used in project") || msg.includes("is disabled")) {
+    return `Generative Language API is disabled: Please enable 'generativelanguage.googleapis.com' in your Google Cloud Project (https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com).`;
+  }
+  if (msg.includes("API_KEY_INVALID") || msg.includes("API key not valid")) {
+    return `Invalid Gemini API Key: Please check your GEMINI_API_KEY in .env (get a key from https://aistudio.google.com/app/apikey).`;
+  }
+  if (msg.includes("PERMISSION_DENIED") || msg.includes("403")) {
+    return `Google Cloud Permission Denied (403): Ensure the 'Generative Language API' (generativelanguage.googleapis.com) is enabled for your project in Google Cloud Console.`;
+  }
+  return msg;
+}
+
 export async function generateContentWithFallback(params: {
   aiClient: GoogleGenAI;
   contents: any;

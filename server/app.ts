@@ -6,7 +6,7 @@ import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
 import { cleanEnvString, isDisableDefaultItems, getBasicAuthCredentials, getMaxUploadSizeMB, getMaxUploadSizeBytes } from "./config";
 import { JobsStorage, TranscribeJob, sampleJobsList } from "./storage";
-import { getSystemInstruction, buildTranscriptionPrompt, generateContentWithFallback, DEFAULT_TRANSCRIPTION_MODELS } from "./transcriptionEngine";
+import { getSystemInstruction, buildTranscriptionPrompt, generateContentWithFallback, formatGeminiErrorMessage, DEFAULT_TRANSCRIPTION_MODELS } from "./transcriptionEngine";
 
 export interface ModelStatusInfo {
   primaryModel: string;
@@ -240,7 +240,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
     } catch (err: any) {
       console.error(`[Job ${jobId}] Error:`, err);
       job.status = 'failed';
-      job.error = err.message || "Failed to process the audio file.";
+      job.error = formatGeminiErrorMessage(err);
       storage.set(jobId, job);
       storage.saveToDisk();
 
@@ -586,7 +586,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       res.json({ result: text, modelUsed: model });
     } catch (err: any) {
       console.error("Analysis API error:", err);
-      res.status(500).json({ error: err.message || "Failed to analyze transcript" });
+      res.status(500).json({ error: formatGeminiErrorMessage(err) });
     }
   });
 

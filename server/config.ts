@@ -16,7 +16,7 @@ export const getAppVersion = (): string => {
       if (pkg.version) return pkg.version;
     }
   } catch {}
-  return "1.2.0";
+  return "1.3.0";
 };
 
 export const cleanEnvString = (val: string | undefined): string => {

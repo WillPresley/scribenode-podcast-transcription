@@ -63,13 +63,46 @@
 
 To run ScribeNode, configuration values can be provided via a `.env` file or directly passed as environment variables in Docker Compose / container settings.
 
+### 🔑 Google Gemini API Key & Cloud Setup Guide
+
+ScribeNode connects to Google's Gemini Flash AI model suite (`gemini-3.7-flash`, `gemini-3.6-flash`, etc.) using the official `@google/genai` SDK. For ScribeNode to function properly, your Google Cloud project MUST have the **Generative Language API** (`generativelanguage.googleapis.com`) enabled.
+
+#### Option A: Google AI Studio (Fastest & Recommended)
+1. Navigate to the [Google AI Studio API Key Portal](https://aistudio.google.com/app/apikey).
+2. Click **Create API key**.
+3. Select **Create API key in new project** (or pick an existing Google Cloud project).
+4. Copy your newly created API key (`AIzaSy...`).
+> **Note**: Keys created directly through Google AI Studio have the **Generative Language API** automatically enabled by default!
+
+#### Option B: Google Cloud Console (Custom GCP Projects & Manual Setup)
+If you manage your own Google Cloud organization or wish to create/restrict credentials inside Google Cloud Console:
+1. Open the [Google Cloud Console](https://console.cloud.google.com/).
+2. Select or create your Google Cloud Project.
+3. Open the **API Library** or go directly to the [Generative Language API Library Page](https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com).
+4. Click **ENABLE** to activate the **Generative Language API** (`generativelanguage.googleapis.com`).
+5. Navigate to **APIs & Services > Credentials** in the sidebar.
+6. Click **Create Credentials** $\rightarrow$ **API key**.
+7. *(Recommended Security Best Practice)* Click **Edit API key**, and under **API restrictions**, choose **Restrict key** and select **Generative Language API**.
+8. Paste the key into your `.env` file as `GEMINI_API_KEY="AIzaSy..."`.
+
+#### Troubleshooting Common API Key Issues
+- **`PERMISSION_DENIED` or `API has not been used in project ... or it is disabled`**:
+  Your Google Cloud project does not have the **Generative Language API** activated. Visit [console.cloud.google.com/apis/library/generativelanguage.googleapis.com](https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com) and click **Enable**.
+- **`API_KEY_INVALID`**:
+  Verify that the API key was copied completely with no leading/trailing spaces or typos.
+- **Quota & Billing**:
+  Google AI Studio offers a free quota tier. For high-volume production or enterprise pipelines, attach a Cloud Billing account in Google Cloud Console to ensure continuous throughput.
+
+---
+
 ### `.env` File Reference
 
 Create a `.env` file in the same directory as `docker-compose.yml` or your application root:
 
 ```env
 # 🔑 REQUIRED: Google Gemini API Key
-# Get a key from Google AI Studio: https://aistudio.google.com/app/apikey
+# Required API in Google Cloud: "Generative Language API" (generativelanguage.googleapis.com)
+# Obtain via https://aistudio.google.com/app/apikey or https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com
 GEMINI_API_KEY="AIzaSyYourActualGeminiApiKeyHere"
 
 # 🌐 OPTIONAL: Base URL of your app instance
