@@ -1099,7 +1099,7 @@ export default function App() {
                   className="flex items-center gap-2 hover:text-blue-300 transition-colors cursor-pointer text-slate-300 font-medium"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                  <span>v1.2.0 Release Notes</span>
+                  <span>v1.3.0 Release Notes</span>
                 </button>
               </div>
             </motion.aside>
