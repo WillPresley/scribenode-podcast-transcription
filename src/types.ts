@@ -31,6 +31,16 @@ export interface AnalysisResults {
   social_media?: string;
 }
 
+export type ModelErrorCategory = 'high_demand' | 'rate_limit' | 'config_error' | 'auth_error' | 'timeout' | 'not_found' | 'duration_limit' | 'general';
+
+export interface ModelErrorDetails {
+  rawError?: string;
+  friendlyMessage: string;
+  shortBadge: string;
+  category: ModelErrorCategory;
+  timestamp: number;
+}
+
 export interface ModelStatusInfo {
   primaryModel: string;
   activeModel: string;
@@ -39,4 +49,5 @@ export interface ModelStatusInfo {
   lastUsedModel?: string;
   lastFallbackReason?: string;
   lastTestedTimestamp?: number;
+  modelErrors?: Record<string, ModelErrorDetails>;
 }

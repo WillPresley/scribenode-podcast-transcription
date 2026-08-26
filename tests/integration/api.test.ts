@@ -62,8 +62,8 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.hasGeminiKey).toBe(true);
       expect(res.body.maxUploadSizeMB).toBe(100);
       expect(res.body.modelStatus).toBeDefined();
-      expect(res.body.modelStatus.primaryModel).toBe('gemini-3.7-flash');
-      expect(res.body.modelStatus.activeModel).toBe('gemini-3.7-flash');
+      expect(res.body.modelStatus.primaryModel).toBe('gemini-3.5-transcribe');
+      expect(res.body.modelStatus.activeModel).toBe('gemini-3.5-transcribe');
     });
 
     it('returns custom MAX_UPLOAD_SIZE_MB in /api/config when configured', async () => {
@@ -85,9 +85,10 @@ describe('API Integration & Route Endpoints', () => {
       const app = createApp({ storage, skipVite: true });
       const res = await request(app).get('/api/model-status');
       expect(res.status).toBe(200);
-      expect(res.body.primaryModel).toBe('gemini-3.7-flash');
-      expect(res.body.activeModel).toBe('gemini-3.7-flash');
+      expect(res.body.primaryModel).toBe('gemini-3.5-transcribe');
+      expect(res.body.activeModel).toBe('gemini-3.5-transcribe');
       expect(res.body.status).toBe('optimal');
+      expect(res.body.fallbackModels).toContain('gemini-3.5-transcribe');
       expect(res.body.fallbackModels).toContain('gemini-3.7-flash');
       expect(res.body.fallbackModels).toContain('gemini-3.6-flash');
     });
@@ -324,9 +325,9 @@ describe('API Integration & Route Endpoints', () => {
   });
 
   describe('Downstream Analysis Generation', () => {
-    it('generates summary, key takeaways, chapters, and social media analysis', async () => {
-      const mockGenerateContent = vi.fn().mockImplementation(async ({ contents }) => {
-        return { text: `Generated analysis for query: ${JSON.stringify(contents)}` };
+    it('generates summary, key takeaways, chapters, and social media analysis using gemini-3.7-flash', async () => {
+      const mockGenerateContent = vi.fn().mockImplementation(async ({ model, contents }) => {
+        return { text: `Generated analysis from model ${model} for query: ${JSON.stringify(contents)}` };
       });
       const mockAiClient: any = {
         models: {
@@ -343,7 +344,11 @@ describe('API Integration & Route Endpoints', () => {
 
         expect(res.status).toBe(200);
         expect(res.body.result).toContain('Generated analysis');
+        expect(res.body.result).toContain('gemini-3.7-flash');
       }
+
+      // Check that the first call used gemini-3.7-flash
+      expect(mockGenerateContent.mock.calls[0][0].model).toBe('gemini-3.7-flash');
 
       const updatedJob = storage.get('sample-sarah');
       expect(updatedJob?.summary).toBeDefined();

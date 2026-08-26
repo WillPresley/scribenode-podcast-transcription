@@ -6,17 +6,21 @@ import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
 import { cleanEnvString, isDisableDefaultItems, getBasicAuthCredentials, getMaxUploadSizeMB, getMaxUploadSizeBytes } from "./config";
 import { JobsStorage, TranscribeJob, sampleJobsList } from "./storage";
-import { getSystemInstruction, buildTranscriptionPrompt, generateContentWithFallback, formatGeminiErrorMessage, DEFAULT_TRANSCRIPTION_MODELS } from "./transcriptionEngine";
+import {
+  getSystemInstruction,
+  buildTranscriptionPrompt,
+  generateContentWithFallback,
+  formatGeminiErrorMessage,
+  categorizeModelError,
+  formatFallbackReason,
+  formatModelDisplayName,
+  DEFAULT_TRANSCRIPTION_MODELS,
+  DEFAULT_ANALYSIS_MODELS,
+  getTranscriptionModelsForJob
+} from "./transcriptionEngine";
+import { ModelStatusInfo, ModelErrorDetails } from "../src/types";
 
-export interface ModelStatusInfo {
-  primaryModel: string;
-  activeModel: string;
-  fallbackModels: string[];
-  status: 'optimal' | 'fallback_active' | 'degraded';
-  lastUsedModel?: string;
-  lastFallbackReason?: string;
-  lastTestedTimestamp?: number;
-}
+export type { ModelStatusInfo };
 
 export interface CreateAppOptions {
   storage?: JobsStorage;
@@ -35,7 +39,23 @@ export function createApp(options: CreateAppOptions = {}): Express {
     activeModel: DEFAULT_TRANSCRIPTION_MODELS[0],
     fallbackModels: [...DEFAULT_TRANSCRIPTION_MODELS],
     status: 'optimal',
-    lastTestedTimestamp: Date.now()
+    lastTestedTimestamp: Date.now(),
+    modelErrors: {}
+  };
+
+  const recordModelError = (model: string, rawError: any, friendlyError?: string, shortBadge?: string) => {
+    if (!modelStatus.modelErrors) {
+      modelStatus.modelErrors = {};
+    }
+    const cat = categorizeModelError(rawError);
+    const rawStr = typeof rawError === "string" ? rawError : (rawError?.message || String(rawError || ""));
+    modelStatus.modelErrors[model] = {
+      rawError: rawStr.slice(0, 200),
+      friendlyMessage: friendlyError || cat.friendlyMessage,
+      shortBadge: shortBadge || cat.shortBadge,
+      category: cat.category,
+      timestamp: Date.now()
+    };
   };
 
   const updateModelStatus = (selectedModel: string, reason?: string) => {
@@ -44,10 +64,14 @@ export function createApp(options: CreateAppOptions = {}): Express {
     modelStatus.lastTestedTimestamp = Date.now();
     if (selectedModel !== modelStatus.primaryModel) {
       modelStatus.status = 'fallback_active';
-      modelStatus.lastFallbackReason = reason || `Automated failover active from ${modelStatus.primaryModel} to ${selectedModel}`;
+      modelStatus.lastFallbackReason = reason || `Automated failover active from ${formatModelDisplayName(modelStatus.primaryModel)} to ${formatModelDisplayName(selectedModel)}`;
     } else {
       modelStatus.status = 'optimal';
       modelStatus.lastFallbackReason = undefined;
+      // If primary model succeeded, clear any recorded error on it
+      if (modelStatus.modelErrors?.[selectedModel]) {
+        delete modelStatus.modelErrors[selectedModel];
+      }
     }
   };
 
@@ -190,24 +214,16 @@ export function createApp(options: CreateAppOptions = {}): Express {
       job.progress = 75;
       storage.set(jobId, job);
 
-      const instruction = getSystemInstruction(promptStyle);
-      const promptText = buildTranscriptionPrompt(promptStyle, customPrompt);
+      const transcriptionModelsToTry = getTranscriptionModelsForJob(job.duration);
 
       const { response, model } = await generateContentWithFallback({
         aiClient: getAIClient(),
-        contents: [
-          {
-            fileData: {
-              fileUri: file.uri,
-              mimeType: file.mimeType
-            }
-          },
-          {
-            text: promptText
-          }
-        ],
+        modelsToTry: transcriptionModelsToTry,
+        promptStyle,
+        customPrompt,
+        fileUri: file.uri,
+        mimeType: file.mimeType,
         config: {
-          systemInstruction: instruction,
           temperature: 0.2,
         },
         onModelSelected: (selectedModel) => {
@@ -215,9 +231,12 @@ export function createApp(options: CreateAppOptions = {}): Express {
           storage.set(jobId, job);
           updateModelStatus(selectedModel);
         },
-        onFallbackTransition: (fromModel, toModel, reason) => {
-          console.warn(`[Failover] Transcription model failover: ${fromModel} -> ${toModel}. Reason: ${reason}`);
-          updateModelStatus(toModel, `Failover from ${fromModel} (${reason.slice(0, 80)})`);
+        onModelError: (failedModel, rawError, friendlyError, shortBadge) => {
+          recordModelError(failedModel, rawError, friendlyError, shortBadge);
+        },
+        onFallbackTransition: (fromModel, toModel, reason, friendlyReason) => {
+          console.warn(`[Failover] Transcription model failover: ${fromModel} -> ${toModel}. Reason: ${friendlyReason || reason}`);
+          updateModelStatus(toModel, friendlyReason || `Failover from ${fromModel}: ${reason.slice(0, 80)}`);
         }
       });
 
@@ -243,6 +262,12 @@ export function createApp(options: CreateAppOptions = {}): Express {
       job.error = formatGeminiErrorMessage(err);
       storage.set(jobId, job);
       storage.saveToDisk();
+
+      const categorized = categorizeModelError(err);
+      if (categorized.category === "high_demand") {
+        modelStatus.status = 'degraded';
+        modelStatus.lastFallbackReason = "All AI models are currently experiencing high demand. Please try again later.";
+      }
 
       try {
         if (fs.existsSync(tempFilePath)) {
@@ -557,6 +582,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
       const { response, model } = await generateContentWithFallback({
         aiClient: getAIClient(),
+        modelsToTry: DEFAULT_ANALYSIS_MODELS,
         contents: [
           { text: `Podcast Transcript:\n\n${job.transcript}` },
           { text: prompt }
@@ -567,9 +593,12 @@ export function createApp(options: CreateAppOptions = {}): Express {
         onModelSelected: (selectedModel) => {
           updateModelStatus(selectedModel);
         },
-        onFallbackTransition: (fromModel, toModel, reason) => {
-          console.warn(`[Failover] Analysis model failover: ${fromModel} -> ${toModel}. Reason: ${reason}`);
-          updateModelStatus(toModel, `Failover from ${fromModel} (${reason.slice(0, 80)})`);
+        onModelError: (failedModel, rawError, friendlyError, shortBadge) => {
+          recordModelError(failedModel, rawError, friendlyError, shortBadge);
+        },
+        onFallbackTransition: (fromModel, toModel, reason, friendlyReason) => {
+          console.warn(`[Failover] Analysis model failover: ${fromModel} -> ${toModel}. Reason: ${friendlyReason || reason}`);
+          updateModelStatus(toModel, friendlyReason || `Failover from ${fromModel}: ${reason.slice(0, 80)}`);
         }
       });
 

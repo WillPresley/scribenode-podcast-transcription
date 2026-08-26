@@ -199,6 +199,7 @@ describe('Transcript Formatting & Parsing Engine', () => {
 
   describe('formatModelDisplayName', () => {
     it('formats recognized model IDs into clean human-readable titles', () => {
+      expect(formatModelDisplayName('gemini-3.5-transcribe')).toBe('Gemini 3.5 Transcribe');
       expect(formatModelDisplayName('gemini-3.7-flash')).toBe('Gemini 3.7 Flash');
       expect(formatModelDisplayName('gemini-3.6-flash')).toBe('Gemini 3.6 Flash');
       expect(formatModelDisplayName('gemini-3.5-flash')).toBe('Gemini 3.5 Flash');
@@ -208,8 +209,8 @@ describe('Transcript Formatting & Parsing Engine', () => {
     });
 
     it('handles empty or undefined inputs gracefully with fallback', () => {
-      expect(formatModelDisplayName(undefined)).toBe('Gemini 3.7 Flash');
-      expect(formatModelDisplayName('')).toBe('Gemini 3.7 Flash');
+      expect(formatModelDisplayName(undefined)).toBe('Gemini 3.5 Transcribe');
+      expect(formatModelDisplayName('')).toBe('Gemini 3.5 Transcribe');
     });
 
     it('formats custom or unexpected model strings cleanly', () => {

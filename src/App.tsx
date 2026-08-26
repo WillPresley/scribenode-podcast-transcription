@@ -368,9 +368,10 @@ export default function App() {
   
   // Model Orchestration & Failover status
   const [modelStatus, setModelStatus] = useState<ModelStatusInfo>({
-    primaryModel: "gemini-3.7-flash",
-    activeModel: "gemini-3.7-flash",
+    primaryModel: "gemini-3.5-transcribe",
+    activeModel: "gemini-3.5-transcribe",
     fallbackModels: [
+      "gemini-3.5-transcribe",
       "gemini-3.7-flash",
       "gemini-3.6-flash",
       "gemini-3.5-flash",
@@ -637,7 +638,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
+        modelUsed: modelStatus.activeModel || "gemini-3.5-transcribe",
         duration: durationStr,
       });
 
@@ -1260,12 +1261,20 @@ export default function App() {
                 <span className="relative flex h-2 w-2">
                   <span
                     className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                      modelStatus.status === "optimal" ? "bg-emerald-400" : "bg-amber-400"
+                      modelStatus.status === "optimal" 
+                        ? "bg-emerald-400" 
+                        : modelStatus.status === "fallback_active" 
+                          ? "bg-amber-400" 
+                          : "bg-red-400"
                     }`}
                   />
                   <span
                     className={`relative inline-flex rounded-full h-2 w-2 ${
-                      modelStatus.status === "optimal" ? "bg-emerald-500" : "bg-amber-500"
+                      modelStatus.status === "optimal" 
+                        ? "bg-emerald-500" 
+                        : modelStatus.status === "fallback_active" 
+                          ? "bg-amber-500" 
+                          : "bg-red-500"
                     }`}
                   />
                 </span>
@@ -1278,6 +1287,10 @@ export default function App() {
                   {modelStatus.status === "fallback_active" ? (
                     <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 text-amber-800 rounded border border-amber-200">
                       Fallback
+                    </span>
+                  ) : modelStatus.status === "degraded" ? (
+                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-red-100 text-red-800 rounded border border-red-200">
+                      High Demand
                     </span>
                   ) : (
                     <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 rounded border border-blue-200/60">
@@ -1330,19 +1343,35 @@ export default function App() {
                         className={`px-2 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider border ${
                           modelStatus.status === "optimal"
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "bg-amber-50 text-amber-700 border-amber-200"
+                            : modelStatus.status === "fallback_active"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-red-50 text-red-700 border-red-200"
                         }`}
                       >
-                        {modelStatus.status === "optimal" ? "Ready" : "Failover Active"}
+                        {modelStatus.status === "optimal" 
+                          ? "Ready" 
+                          : modelStatus.status === "fallback_active" 
+                            ? "Failover Active" 
+                            : "All Models Busy"}
                       </span>
                     </div>
 
                     {modelStatus.lastFallbackReason && (
-                      <div className="mt-2.5 p-2 bg-amber-50 border border-amber-200/80 rounded-md text-[11px] text-amber-800 flex items-start gap-2">
-                        <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
-                        <div className="leading-tight">
-                          <span className="font-bold">Failover note: </span>
-                          {modelStatus.lastFallbackReason}
+                      <div className={`mt-2.5 p-2.5 rounded-lg text-[11px] flex items-start gap-2 border ${
+                        modelStatus.status === "degraded"
+                          ? "bg-red-50/90 border-red-200 text-red-900"
+                          : "bg-amber-50/90 border-amber-200 text-amber-900"
+                      }`}>
+                        <AlertCircle className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${
+                          modelStatus.status === "degraded" ? "text-red-600" : "text-amber-600"
+                        }`} />
+                        <div className="leading-snug">
+                          <div className="font-bold text-[11px]">
+                            {modelStatus.status === "degraded" ? "High Demand Notice" : "Failover Status"}
+                          </div>
+                          <div className="text-[10px] mt-0.5 text-slate-700">
+                            {modelStatus.lastFallbackReason}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1353,32 +1382,50 @@ export default function App() {
                         <span>Fallback Execution Sequence</span>
                         <span className="text-[9px] font-normal text-slate-400 lowercase">automatic failover</span>
                       </div>
-                      <div className="space-y-1.5 text-xs font-medium max-h-48 overflow-y-auto pr-1">
+                      <div className="space-y-2 text-xs font-medium max-h-56 overflow-y-auto pr-1">
                         {modelStatus.fallbackModels.map((m, idx) => {
                           const isActive = modelStatus.activeModel === m;
                           const isPrimary = modelStatus.primaryModel === m;
+                          const modelError = modelStatus.modelErrors?.[m];
                           return (
                             <div
                               key={m}
-                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-md border text-[11px] transition-colors ${
+                              className={`p-2 rounded-lg border text-[11px] transition-colors ${
                                 isActive
-                                  ? "bg-blue-50/80 border-blue-200 text-blue-900 font-bold"
-                                  : "bg-slate-50/50 border-slate-100 text-slate-600"
+                                  ? "bg-blue-50/90 border-blue-200 text-blue-900 font-bold"
+                                  : modelError
+                                    ? "bg-amber-50/30 border-amber-200/70 text-slate-700"
+                                    : "bg-slate-50/50 border-slate-100 text-slate-600"
                               }`}
                             >
-                              <div className="flex items-center gap-2 truncate pr-2">
-                                <span className="font-mono text-[10px] text-slate-400 w-3 shrink-0">{idx + 1}.</span>
-                                <span className="truncate">{formatModelDisplayName(m)}</span>
-                                {isPrimary && (
-                                  <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded shrink-0">
-                                    Flagship
-                                  </span>
-                                )}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 truncate pr-2">
+                                  <span className="font-mono text-[10px] text-slate-400 w-3 shrink-0">{idx + 1}.</span>
+                                  <span className="truncate">{formatModelDisplayName(m)}</span>
+                                  {isPrimary && (
+                                    <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded shrink-0">
+                                      Flagship
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {modelError && (
+                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tight bg-amber-100/90 text-amber-800 border border-amber-300/80">
+                                      {modelError.shortBadge}
+                                    </span>
+                                  )}
+                                  {isActive && (
+                                    <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
+                                      <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Active
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              {isActive && (
-                                <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold shrink-0">
-                                  <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Active
-                                </span>
+                              {modelError && (
+                                <div className="mt-1 pl-5 text-[10px] text-amber-800 font-normal leading-snug flex items-center gap-1">
+                                  <AlertCircle className="h-3 w-3 text-amber-600 shrink-0" />
+                                  <span>{modelError.friendlyMessage}</span>
+                                </div>
                               )}
                             </div>
                           );
@@ -2690,19 +2737,43 @@ export default function App() {
                           <div className="p-4 bg-red-950/30 border border-red-900/40 rounded-lg text-red-400">
                             <div className="flex items-center gap-2 mb-1.5 font-bold text-xs uppercase tracking-wider">
                               <AlertCircle className="h-4 w-4 shrink-0" />
-                              <span>Pipeline Failed</span>
+                              <span>Pipeline Error</span>
                             </div>
                             <p className="text-[11px] leading-relaxed text-slate-300 mb-3">
-                              {previewJob.error || "The transcription pipeline failed for this audio track. This can happen due to non-vocal audio, invalid API keys, or disabled Google Cloud APIs."}
+                              {previewJob.error || "The transcription pipeline failed for this audio track. Please check model capacity or API configuration."}
                             </p>
-                            <button
-                              type="button"
-                              onClick={openApiSetupGuide}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 hover:bg-blue-600/50 transition-colors cursor-pointer"
-                            >
-                              <Key className="h-3.5 w-3.5 text-blue-400" />
-                              Google Cloud & API Setup Guide
-                            </button>
+                            
+                            {(previewJob.error?.toLowerCase().includes("high demand") || 
+                              previewJob.error?.toLowerCase().includes("busy") || 
+                              previewJob.error?.toLowerCase().includes("503") ||
+                              previewJob.error?.toLowerCase().includes("quota") ||
+                              previewJob.error?.toLowerCase().includes("rate limit")) && (
+                              <div className="mb-3 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[11px] text-amber-300 flex items-center gap-1.5">
+                                <Clock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                                <span>High demand across AI endpoints. Standoff delays and fallbacks were attempted. Please wait a moment and retry.</span>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {previewJob.hasAudioFile && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRetranscribe(previewJob.id, promptStyle)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-600/50 transition-colors cursor-pointer"
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5 text-emerald-400" />
+                                  Try Again
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={openApiSetupGuide}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded bg-blue-600/30 text-blue-300 border border-blue-500/40 hover:bg-blue-600/50 transition-colors cursor-pointer"
+                              >
+                                <Key className="h-3.5 w-3.5 text-blue-400" />
+                                Google Cloud & API Setup Guide
+                              </button>
+                            </div>
                           </div>
                         ) : (
                           parsedLines.map((line, idx) => (
