@@ -5,7 +5,7 @@
 [![Docker](https://img.shields.io/badge/docker-v1.4.1-blue.svg)](Dockerfile)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**ScribeNode** is a full-stack, high-throughput AI audio transcription and speech intelligence web application. Powered by Google's Gemini Flash AI model suite, ScribeNode transforms raw podcast recordings, meeting audio, interviews, and voice notes into polished clean-verbatim transcripts, structured chapters, executive summaries, and actionable key takeaways.
+**ScribeNode** is a full-stack, high-throughput AI audio transcription and speech intelligence web application. Powered by Google's specialized Gemini Audio and Flash AI model suite (`gemini-3.5-transcribe` and `gemini-3.7-flash`), ScribeNode transforms raw podcast recordings, meeting audio, interviews, and voice notes into polished clean-verbatim transcripts, structured chapters, executive summaries, and actionable key takeaways.
 
 > **Note on Development**: This project was built using AI-assisted pair programming ("vibecoded") and then manually audited, refined, and tested for code quality, type safety, and container security.
 
@@ -14,10 +14,14 @@
 ## Key Features
 
 - 🎧 **Broad Format & Configurable Uploads**: Transcribe MP3, WAV, M4A, OGG, and FLAC audio files with configurable file size limits (`MAX_UPLOAD_SIZE_MB`, defaults to 100MB).
+- 🎙️ **Dedicated Audio Transcription Engine**: Native transcription with `gemini-3.5-transcribe` featuring native acoustic processing, speaker diarization, and disfluency filtering.
+- 🔄 **Intelligent Multi-Tier Failover Cascade**: Seamless automatic failover across `gemini-3.5-transcribe` $\rightarrow$ `gemini-3.7-flash` $\rightarrow$ `gemini-3.6-flash` $\rightarrow$ `gemini-3.5-flash` $\rightarrow$ `gemini-3.5-flash-lite` $\rightarrow$ `gemini-3.1-flash-lite` $\rightarrow$ `gemini-flash-latest`.
+- ⏱️ **Duration-Aware Routing (59m Threshold)**: Automatic bypass of transcribe-only models for audio recordings longer than 59 minutes (3540s) directly to `gemini-3.7-flash`.
+- 🩺 **Per-Model Diagnostics & Error Translation**: Live Model Orchestration inspector translating raw 503/429/400/403 errors into human-friendly explanations with one-click recovery.
 - 📱 **Adaptive Mobile Workspace**: Full responsive mobile navigation drawer, segmented workspace tabs, and touch-friendly controls with zero desktop layout regression.
 - ⚡ **Clean Verbatim Transcription**: Specialized prompting removes speech disfluencies, filler words (*uh*, *um*, *like*), stutters, and false starts while preserving technical domain terms.
 - 👥 **Speaker Diarization & Name Detection**: Contextually identifies speaker names and formats dialogue seamlessly with bold speaker labels and timestamps.
-- 📌 **Automated Chaptering & Intelligence**: Generates timestamped chapters, high-level summaries, key bulleted takeaways, and actionable next steps.
+- 📌 **Automated Chaptering & Intelligence**: Generates timestamped chapters, high-level summaries, key bulleted takeaways, and actionable next steps powered by `gemini-3.7-flash`.
 - 🔍 **Interactive Live Viewer & Audio Sync**: Live transcript filtering, full-text search, jump-to-timestamp playback, and text-selection inspection.
 - 📥 **Export & Sharing Options**: Download transcripts and intelligence assets in Markdown (`.md`) or Plain Text (`.txt`), with instant copy-to-clipboard support.
 - 🔒 **Private Homelab & Basic Auth Ready**: Native support for HTTP Basic Authentication and Docker containerization for secure private self-hosting.
@@ -30,7 +34,8 @@
 | :--- | :--- |
 | **Frontend** | React 19, Vite 8, Tailwind CSS v4, Lucide React Icons, Motion v12 |
 | **Backend** | Node.js (v24 LTS & v26), Express 5, Multer File Upload |
-| **AI Engine** | Google Gen AI SDK (`@google/genai`), Gemini 3.7 Flash / 3.6 Flash / 3.5 Flash |
+| **AI Audio Engine** | Google Gen AI SDK (`@google/genai`), Gemini 3.5 Transcribe (`gemini-3.5-transcribe`) |
+| **AI Reasoning & Analysis** | Google Gemini 3.7 Flash (`gemini-3.7-flash`), Gemini 3.6 Flash, Gemini 3.5 Flash / Flash Lite |
 | **Bundler & Build** | ESBuild (Node CJS bundling), Vite 8 |
 | **Container & CI/CD** | Docker (`node:26-alpine`), Docker Compose, GitHub Actions (Node 24 / 26), GHCR |
 
@@ -39,23 +44,30 @@
 ## Pipeline & Architecture
 
 ```
-┌────────────────────────────┐     ┌────────────────────────────┐     ┌────────────────────────────┐
-│        Audio Ingest        │ ──> │       Express Server       │ ──> │   Gemini Flash AI Engine   │
-│     (MP3 / WAV / M4A)      │     │      (Multer / Stream)     │     │   (Clean Verbatim Model)   │
-└────────────────────────────┘     └────────────────────────────┘     └────────────────────────────┘
-                                                                                    │
-                                                                                    ▼
-┌────────────────────────────┐     ┌────────────────────────────┐     ┌────────────────────────────┐
-│       Export & Share       │ <── │       Interactive UI       │ <── │    Diarized Transcript     │
-│   (MD / TXT / Clipboard)   │     │    (React / Audio Sync)    │     │   + Chapters + Summaries   │
-└────────────────────────────┘     └────────────────────────────┘     └────────────────────────────┘
+┌────────────────────────────┐     ┌────────────────────────────┐     ┌────────────────────────────────────┐
+│        Audio Ingest        │ ──> │       Express Server       │ ──> │   Gemini Audio & Flash AI Engine   │
+│ (MP3 / WAV / M4A / FLAC)   │     │      (Multer / Stream)     │     │ (gemini-3.5-transcribe / 3.7-flash)│
+└────────────────────────────┘     └────────────────────────────┘     └────────────────────────────────────┘
+                                                                                        │
+                                                                                        ▼
+┌────────────────────────────┐     ┌────────────────────────────┐     ┌────────────────────────────────────┐
+│       Export & Share       │ <── │       Interactive UI       │ <── │        Diarized Transcript         │
+│   (MD / TXT / Clipboard)   │     │    (React / Audio Sync)    │     │       + Chapters + Summaries       │
+└────────────────────────────┘     └────────────────────────────┘     └────────────────────────────────────┘
 ```
 
-1. **Upload & Ingestion**: Audio files are uploaded to the Express backend via streaming multipart forms.
-2. **Model Cascade Pipeline**: The server routes audio payloads through Gemini 3.7 Flash as the primary flagship model, automatically failing over to Gemini 3.6 Flash, 3.5 Flash, or Flash Lite if rate limits or transient service interruptions occur.
-3. **Live Active Model Indication**: The application dynamically tracks and displays the active model status with visual indicators and orchestration diagnostics.
-4. **Structuring & Diarization**: The raw transcript is processed into timed segments with identified speaker labels and structured chapters.
-5. **State Persistence**: Processing jobs, transcripts, chapters, and audio files are persisted to `/app/uploads/jobs.json` within the mounted volume (`scribenode_uploads`), preserving all transcript data across container restarts and rebuilds.
+1. **Upload & Ingestion**: Audio files are uploaded to the Express backend via streaming multipart forms with configurable payload limits (`MAX_UPLOAD_SIZE_MB`).
+2. **Duration-Aware Model Selection**:
+   - For audio recordings **up to 59 minutes (3540 seconds)**, the engine routes directly to **`gemini-3.5-transcribe`**, Google's specialized audio model optimized for speech recognition, diarization, and clean-verbatim output.
+   - For recordings **longer than 59 minutes**, the engine automatically routes directly to **`gemini-3.7-flash`** as primary to respect transcribe duration thresholds.
+3. **Resilient Multi-Tier Fallback Cascade**: If the primary model encounters temporary capacity constraints (503), quota limits (429), or parameter incompatibilities, the engine automatically fails over through:
+   $$\text{gemini-3.5-transcribe} \longrightarrow \text{gemini-3.7-flash} \longrightarrow \text{gemini-3.6-flash} \longrightarrow \text{gemini-3.5-flash} \longrightarrow \text{gemini-3.5-flash-lite} \longrightarrow \text{gemini-3.1-flash-lite} \longrightarrow \text{gemini-flash-latest}$$
+4. **Dynamic Parameter & Prompt Adaptation**:
+   - When calling `gemini-3.5-transcribe` with an audio `fileUri`, developer `systemInstruction` parameters are automatically omitted to comply with model parameter requirements, and formatting rules are injected into prompt directives (`buildTranscribeModelPrompt`).
+   - When falling back to general reasoning models (`gemini-3.7-flash`), full system instructions (`BASE_TRANSCRIPTION_STANDARDS`) are passed.
+5. **Downstream Intelligence Generation**: Executive summaries, timestamped chapters, bulleted key takeaways, and social media posts are processed using **`gemini-3.7-flash`** (with fallback to Flash reasoning models). `gemini-3.5-transcribe` is strictly reserved for acoustic audio transcription.
+6. **Live Orchestration & Friendly Diagnostics**: The UI tracks individual model health in real time, translating raw API errors into clear diagnostic messages (*"Model demand too high, try again later"*, *"Rate limit reached"*, *"Configuration parameters adapted"*) with instant one-click recovery.
+7. **State Persistence**: Processing jobs, transcripts, chapters, and audio files are persisted to `/app/uploads/jobs.json` within the mounted volume (`scribenode_uploads`), preserving all transcript data across container restarts and rebuilds.
 
 ---
 
@@ -65,7 +77,7 @@ To run ScribeNode, configuration values can be provided via a `.env` file or dir
 
 ### 🔑 Google Gemini API Key & Cloud Setup Guide
 
-ScribeNode connects to Google's Gemini Flash AI model suite (`gemini-3.7-flash`, `gemini-3.6-flash`, etc.) using the official `@google/genai` SDK. For ScribeNode to function properly, your Google Cloud project MUST have the **Generative Language API** (`generativelanguage.googleapis.com`) enabled.
+ScribeNode connects to Google's specialized Gemini Audio and Flash AI model suite (`gemini-3.5-transcribe`, `gemini-3.7-flash`, `gemini-3.6-flash`, etc.) using the official `@google/genai` SDK. For ScribeNode to function properly, your Google Cloud project MUST have the **Generative Language API** (`generativelanguage.googleapis.com`) enabled.
 
 #### Option A: Google AI Studio (Fastest & Recommended)
 1. Navigate to the [Google AI Studio API Key Portal](https://aistudio.google.com/app/apikey).
@@ -342,7 +354,7 @@ npm run test:coverage
   - **Transcript Engine**: Speaker inference, title normalization, header stripping, speaker bolding, Markdown clean-verbatim rules, SRT subtitle formatting, WebVTT generation, and chapter breakdown.
   - **Audio Math & Optimization**: Duration formatting, timestamp conversion, sample rate & PCM bit depth calculations.
   - **Security & Config Guard**: Environment variable parsing, quote stripping, boolean flags normalization, HTTP Basic Auth credential validator.
-  - **AI Model Cascade**: Prompt builders, system instruction formatting, and exponential backoff retry/fallback mechanics.
+  - **AI Model Cascade & Fallback Engine**: Model registry verification (`gemini-3.5-transcribe`, `gemini-3.7-flash`), duration threshold checks (59m transcribe bypass), dynamic parameter adaptation (developer instruction sanitization for transcribe models), exponential backoff retry/fallback mechanics, per-model failover tracking, and friendly error categorization.
   - **Storage & Disk Persistence**: JSON database persistence, preseeded sample items lifecycle, garbage collection for orphaned uploads and temporary files.
 - **Integration Tests (`tests/integration/`)**:
   - **API Endpoints**: Health probes (`/api/health`, `/healthz`), configuration (`/api/config`), Jobs CRUD, archive toggle (`/api/jobs/:id/archive`), sample job retranscription, analysis generation (`/api/jobs/:id/analyze`), and Basic Auth enforcement.
