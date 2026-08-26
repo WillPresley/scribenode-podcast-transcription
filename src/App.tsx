@@ -1136,7 +1136,7 @@ export default function App() {
                   className="flex items-center gap-2 hover:text-blue-300 transition-colors cursor-pointer text-slate-400 hover:text-slate-200 font-medium"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>v1.3.0 Release Notes</span>
+                  <span>v1.4.0 Release Notes</span>
                 </button>
               </div>
             </motion.aside>
@@ -2832,7 +2832,7 @@ export default function App() {
             className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-2.5 sm:px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800">v1.3.0</span>
+            <span className="font-mono text-xs font-bold text-slate-800">v1.4.0</span>
             <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-1.5 sm:pl-2 hidden xs:inline">About & Release Notes</span>
           </button>
         </footer>
@@ -2856,7 +2856,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-base sm:text-lg text-white tracking-tight">Scribe<span className="text-blue-300">Node</span></h2>
                         <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                          v1.3.0
+                          v1.4.0
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -2908,7 +2908,7 @@ export default function App() {
                     }`}
                   >
                     <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    <span>What's New v1.3.0</span>
+                    <span>What's New v1.4.0</span>
                   </button>
                 </div>
 
@@ -3130,26 +3130,36 @@ export default function App() {
                       <div>
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
                           <Zap className="w-4 h-4 text-amber-500" />
-                          What's New in v1.3.0
+                          What's New in v1.4.0
                         </h3>
                         <ul className="space-y-3 border-l-2 border-blue-200 pl-3.5">
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Mobile-Responsive Workspace & Segmented Tabs:</span>
-                            <p className="text-slate-600 mt-0.5">Comprehensive mobile UX overhaul featuring a responsive navigation drawer, segmented mobile tabs for Dashboard views and Editor Workspaces, touch-optimized cards, and zero desktop regressions.</p>
+                            <span className="font-bold text-slate-900">Intelligent Error Categorization & Friendly Feedback:</span>
+                            <p className="text-slate-600 mt-0.5">Raw 503, 429, 400, and 403 API responses are automatically translated into human-readable diagnostics (e.g. <em>"Model demand too high, try again later"</em> or <em>"Configuration parameters adapted"</em>) across pipeline monitors and popovers.</p>
                           </li>
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Configurable Maximum Upload Size:</span>
-                            <p className="text-slate-600 mt-0.5">Added server-wide <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">MAX_UPLOAD_SIZE_MB</code> configuration support across Multer and API endpoints, dynamic frontend dropzone feedback, and graceful HTTP 413 error handling.</p>
+                            <span className="font-bold text-slate-900">Granular Per-Model Failover Status Diagnostics:</span>
+                            <p className="text-slate-600 mt-0.5">The Model Orchestration inspector now tracks individual statuses and error badges across the full model cascade sequence, highlighting active failovers and root causes in real-time.</p>
                           </li>
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Container Packaging & GHCR Workflow Hardening:</span>
-                            <p className="text-slate-600 mt-0.5">Clean credential isolation for Docker logins, automated tag synchronization on container builds, and full compatibility across Node 24 LTS and Node 26.</p>
+                            <span className="font-bold text-slate-900">Dedicated Audio Transcription Model Pipeline:</span>
+                            <p className="text-slate-600 mt-0.5">Integrated <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">gemini-3.5-transcribe</code> with dynamic parameter adaptation (developer instruction sanitization for audio models) alongside seamless fallback to Gemini 3.7 Flash and Flash Lite.</p>
                           </li>
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Gemini 3.7 Flash Resilient Pipeline:</span>
-                            <p className="text-slate-600 mt-0.5">Automated high-throughput speech transcription and structured downstream intelligence generation with multi-tiered model fallback cascade and live diagnostics.</p>
+                            <span className="font-bold text-slate-900">One-Click Pipeline Retry & High-Demand Recovery:</span>
+                            <p className="text-slate-600 mt-0.5">Added an instant <strong>Try Again</strong> recovery action within the preview panel and enhanced header health indicators (Ready, Fallback, High Demand).</p>
                           </li>
                         </ul>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-100">
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+                          Previous Milestones
+                        </h4>
+                        <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1.5 border border-slate-200/60">
+                          <div className="font-bold text-slate-800">v1.3.0 — Mobile-Responsive Overhaul & Upload Sizing</div>
+                          <p className="text-[10px] text-slate-500">Segmented mobile tabs, drawer navigation, configurable <code className="font-mono">MAX_UPLOAD_SIZE_MB</code>, and GHCR container deployment workflow hardening.</p>
+                        </div>
                       </div>
 
                       {/* Open Source Repository */}

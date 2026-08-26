@@ -1,8 +1,8 @@
 # <img src="public/logos/scribenode-logo-color.svg" alt="ScribeNode Logo" width="38" height="38" valign="middle" /> ScribeNode — AI Speech & Transcript Engine
 
-[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](package.json)
 [![Node](https://img.shields.io/badge/node-v24_LTS_%7C_v26-brightgreen.svg)](package.json)
-[![Docker](https://img.shields.io/badge/docker-v1.3.0-blue.svg)](Dockerfile)
+[![Docker](https://img.shields.io/badge/docker-v1.4.0-blue.svg)](Dockerfile)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **ScribeNode** is a full-stack, high-throughput AI audio transcription and speech intelligence web application. Powered by Google's Gemini Flash AI model suite, ScribeNode transforms raw podcast recordings, meeting audio, interviews, and voice notes into polished clean-verbatim transcripts, structured chapters, executive summaries, and actionable key takeaways.
