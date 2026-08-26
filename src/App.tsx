@@ -1136,7 +1136,7 @@ export default function App() {
                   className="flex items-center gap-2 hover:text-blue-300 transition-colors cursor-pointer text-slate-400 hover:text-slate-200 font-medium"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>v1.4.0 Release Notes</span>
+                  <span>v1.4.1 Release Notes</span>
                 </button>
               </div>
             </motion.aside>
@@ -1213,17 +1213,6 @@ export default function App() {
           >
             <Key className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span className="truncate">Google Cloud & API Setup</span>
-          </button>
-          <button
-            type="button"
-            onClick={openReleaseNotes}
-            className="flex items-center justify-between text-slate-400 hover:text-slate-200 transition-colors cursor-pointer text-[11px] px-1.5 py-0.5 rounded hover:bg-slate-800/40"
-          >
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
-              <span>v1.3.0 Notes</span>
-            </span>
-            <span className="text-[9px] font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">Release</span>
           </button>
         </div>
       </aside>
@@ -2832,7 +2821,7 @@ export default function App() {
             className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-2.5 sm:px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800">v1.4.0</span>
+            <span className="font-mono text-xs font-bold text-slate-800">v1.4.1</span>
             <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-1.5 sm:pl-2 hidden xs:inline">About & Release Notes</span>
           </button>
         </footer>
@@ -2856,7 +2845,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-base sm:text-lg text-white tracking-tight">Scribe<span className="text-blue-300">Node</span></h2>
                         <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                          v1.4.0
+                          v1.4.1
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -2908,7 +2897,7 @@ export default function App() {
                     }`}
                   >
                     <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    <span>What's New v1.4.0</span>
+                    <span>What's New v1.4.1</span>
                   </button>
                 </div>
 
@@ -3130,7 +3119,7 @@ export default function App() {
                       <div>
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
                           <Zap className="w-4 h-4 text-amber-500" />
-                          What's New in v1.4.0
+                          What's New in v1.4.1
                         </h3>
                         <ul className="space-y-3 border-l-2 border-blue-200 pl-3.5">
                           <li className="relative">
