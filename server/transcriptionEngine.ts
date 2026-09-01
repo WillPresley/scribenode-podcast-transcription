@@ -1,4 +1,55 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, AudioTranscriptionConfigMode, AudioTranscriptionConfig } from "@google/genai";
+
+export { AudioTranscriptionConfigMode };
+export type { AudioTranscriptionConfig };
+
+/**
+ * Maps ScribeNode prompt styles to @google/genai AudioTranscriptionConfigMode.
+ * 'verbatim' maps to AudioTranscriptionConfigMode.VERBATIM.
+ * 'clean', 'combined', 'timestamped', 'custom' map to AudioTranscriptionConfigMode.SMART (disfluency & filler filtering).
+ */
+export function mapPromptStyleToTranscriptionMode(promptStyle?: string): AudioTranscriptionConfigMode {
+  if (!promptStyle) return AudioTranscriptionConfigMode.SMART;
+  switch (promptStyle) {
+    case 'verbatim':
+      return AudioTranscriptionConfigMode.VERBATIM;
+    case 'clean':
+    case 'combined':
+    case 'timestamped':
+    case 'custom':
+    default:
+      return AudioTranscriptionConfigMode.SMART;
+  }
+}
+
+/**
+ * Helper to construct a structured AudioTranscriptionConfig object for speech recognition.
+ */
+export function buildAudioTranscriptionConfig(options?: {
+  promptStyle?: string;
+  languageCodes?: string[];
+  customVocabulary?: string[];
+  diarization?: boolean;
+  wordTimestamp?: boolean;
+}): AudioTranscriptionConfig {
+  const config: AudioTranscriptionConfig = {};
+  if (options?.promptStyle) {
+    config.mode = mapPromptStyleToTranscriptionMode(options.promptStyle);
+  }
+  if (options?.languageCodes && options.languageCodes.length > 0) {
+    config.languageCodes = options.languageCodes;
+  }
+  if (options?.customVocabulary && options.customVocabulary.length > 0) {
+    config.customVocabulary = options.customVocabulary;
+  }
+  if (options?.diarization !== undefined) {
+    config.diarization = options.diarization;
+  }
+  if (options?.wordTimestamp !== undefined) {
+    config.wordTimestamp = options.wordTimestamp;
+  }
+  return config;
+}
 
 export const BASE_TRANSCRIPTION_STANDARDS = `# Role & Operational Goal
 You are an expert audio transcriptionist and content editor. Your task is to convert provided audio/video recordings into clean, highly readable, publication-ready Markdown transcripts.

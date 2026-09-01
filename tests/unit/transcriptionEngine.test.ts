@@ -15,7 +15,10 @@ import {
   generateContentWithFallback,
   categorizeModelError,
   formatFallbackReason,
-  formatAllModelsFailedMessage
+  formatAllModelsFailedMessage,
+  AudioTranscriptionConfigMode,
+  mapPromptStyleToTranscriptionMode,
+  buildAudioTranscriptionConfig
 } from '../../server/transcriptionEngine';
 
 describe('Transcription Engine & AI Fallback Mechanics', () => {
@@ -446,6 +449,48 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       const failureMsg = formatAllModelsFailedMessage(new Error('503 High Demand'));
       expect(failureMsg).toContain('All AI transcription models are currently experiencing high demand');
       expect(failureMsg).toContain('try your transcription again later');
+    });
+  });
+
+  describe('AudioTranscriptionConfigMode & Configuration Helpers (GenAI 2.19.0)', () => {
+    it('exports AudioTranscriptionConfigMode enum values correctly', () => {
+      expect(AudioTranscriptionConfigMode.VERBATIM).toBe('VERBATIM');
+      expect(AudioTranscriptionConfigMode.SMART).toBe('SMART');
+      expect(AudioTranscriptionConfigMode.MODE_UNSPECIFIED).toBe('MODE_UNSPECIFIED');
+    });
+
+    it('maps prompt styles to correct AudioTranscriptionConfigMode', () => {
+      expect(mapPromptStyleToTranscriptionMode('verbatim')).toBe(AudioTranscriptionConfigMode.VERBATIM);
+      expect(mapPromptStyleToTranscriptionMode('clean')).toBe(AudioTranscriptionConfigMode.SMART);
+      expect(mapPromptStyleToTranscriptionMode('combined')).toBe(AudioTranscriptionConfigMode.SMART);
+      expect(mapPromptStyleToTranscriptionMode('timestamped')).toBe(AudioTranscriptionConfigMode.SMART);
+      expect(mapPromptStyleToTranscriptionMode('custom')).toBe(AudioTranscriptionConfigMode.SMART);
+      expect(mapPromptStyleToTranscriptionMode(undefined)).toBe(AudioTranscriptionConfigMode.SMART);
+    });
+
+    it('builds structured AudioTranscriptionConfig with mode and options', () => {
+      const config = buildAudioTranscriptionConfig({
+        promptStyle: 'verbatim',
+        languageCodes: ['en-US', 'es-ES'],
+        customVocabulary: ['ScribeNode', 'Kubernetes'],
+        diarization: true,
+        wordTimestamp: true
+      });
+
+      expect(config.mode).toBe(AudioTranscriptionConfigMode.VERBATIM);
+      expect(config.languageCodes).toEqual(['en-US', 'es-ES']);
+      expect(config.customVocabulary).toEqual(['ScribeNode', 'Kubernetes']);
+      expect(config.diarization).toBe(true);
+      expect(config.wordTimestamp).toBe(true);
+    });
+
+    it('builds minimal AudioTranscriptionConfig when options omitted', () => {
+      const emptyConfig = buildAudioTranscriptionConfig();
+      expect(emptyConfig).toEqual({});
+
+      const smartConfig = buildAudioTranscriptionConfig({ promptStyle: 'clean' });
+      expect(smartConfig.mode).toBe(AudioTranscriptionConfigMode.SMART);
+      expect(smartConfig.languageCodes).toBeUndefined();
     });
   });
 });
