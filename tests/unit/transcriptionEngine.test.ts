@@ -13,19 +13,28 @@ import {
   buildTranscriptionPrompt,
   buildTranscribeModelPrompt,
   generateContentWithFallback,
+  extractResponseText,
   categorizeModelError,
   formatFallbackReason,
   formatAllModelsFailedMessage,
   AudioTranscriptionConfigMode,
   mapPromptStyleToTranscriptionMode,
-  buildAudioTranscriptionConfig
+  buildAudioTranscriptionConfig,
+  formatSecondsToTimestamp,
+  parseOffsetToSeconds,
+  splitIntoParagraphs,
+  inferSpeakerNamesFromTranscript,
+  formatTurnsToMarkdown,
+  buildStructuringPrompt,
+  cleanFallbackTranscript,
+  refineTranscriptWithLLM
 } from '../../server/transcriptionEngine';
 
 describe('Transcription Engine & AI Fallback Mechanics', () => {
   describe('Model Definitions & Duration Thresholds', () => {
-    it('defines primary transcription model as gemini-3.5-transcribe', () => {
-      expect(PRIMARY_TRANSCRIPTION_MODEL).toBe('gemini-3.5-transcribe');
-      expect(DEFAULT_TRANSCRIPTION_MODELS[0]).toBe('gemini-3.5-transcribe');
+    it('defines primary transcription model as gemini-3.7-flash', () => {
+      expect(PRIMARY_TRANSCRIPTION_MODEL).toBe('gemini-3.7-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS[0]).toBe('gemini-3.7-flash');
     });
 
     it('defines primary downstream analysis model as gemini-3.7-flash', () => {
@@ -67,35 +76,32 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
   });
 
   describe('getTranscriptionModelsForJob', () => {
-    it('returns gemini-3.5-transcribe as primary when audio duration is <= 59 minutes', () => {
+    it('returns gemini-3.7-flash as primary across transcription workloads', () => {
       const models59m = getTranscriptionModelsForJob('59:00');
-      expect(models59m[0]).toBe('gemini-3.5-transcribe');
-      expect(models59m[1]).toBe('gemini-3.7-flash');
+      expect(models59m[0]).toBe('gemini-3.7-flash');
+      expect(models59m[1]).toBe('gemini-3.6-flash');
 
       const models30m = getTranscriptionModelsForJob('30:00');
-      expect(models30m[0]).toBe('gemini-3.5-transcribe');
+      expect(models30m[0]).toBe('gemini-3.7-flash');
     });
 
-    it('returns gemini-3.5-transcribe as primary when audio duration is unknown or undefined', () => {
+    it('returns gemini-3.7-flash as primary when audio duration is unknown or undefined', () => {
       const modelsUndefined = getTranscriptionModelsForJob(undefined);
-      expect(modelsUndefined[0]).toBe('gemini-3.5-transcribe');
+      expect(modelsUndefined[0]).toBe('gemini-3.7-flash');
 
       const modelsPlaceholder = getTranscriptionModelsForJob('--:--');
-      expect(modelsPlaceholder[0]).toBe('gemini-3.5-transcribe');
+      expect(modelsPlaceholder[0]).toBe('gemini-3.7-flash');
     });
 
-    it('falls back to gemini-3.7-flash and bypasses gemini-3.5-transcribe when audio > 59 minutes', () => {
+    it('maintains robust cascade across all audio durations', () => {
       const models59m1s = getTranscriptionModelsForJob('59:01');
       expect(models59m1s[0]).toBe('gemini-3.7-flash');
-      expect(models59m1s).not.toContain('gemini-3.5-transcribe');
 
       const models1h = getTranscriptionModelsForJob('01:00:00');
       expect(models1h[0]).toBe('gemini-3.7-flash');
-      expect(models1h).not.toContain('gemini-3.5-transcribe');
 
       const modelsNumeric = getTranscriptionModelsForJob(3600);
       expect(modelsNumeric[0]).toBe('gemini-3.7-flash');
-      expect(modelsNumeric).not.toContain('gemini-3.5-transcribe');
     });
   });
 
@@ -171,7 +177,7 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
     it('builds combined mode default prompt', () => {
       const prompt = buildTranscriptionPrompt('combined');
       expect(prompt).toContain('ONE H1 title line');
-      expect(prompt).toContain('speaker turns and macro timestamps');
+      expect(prompt).toContain('timestamped speaker turns');
     });
 
     it('builds timestamped mode default prompt', () => {
@@ -225,7 +231,7 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       const secondCallArgs = mockGenerateContent.mock.calls[1][0];
       expect(secondCallArgs.model).toBe('gemini-3.7-flash');
       expect(secondCallArgs.config?.systemInstruction).toContain(BASE_TRANSCRIPTION_STANDARDS);
-      expect(secondCallArgs.contents[1].text).toContain('speaker turns and macro timestamps');
+      expect(secondCallArgs.contents[1].text).toContain('timestamped speaker turns');
     });
 
     it('successfully calls first model when available', async () => {
@@ -410,6 +416,39 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(call2Args.config?.temperature).toBe(0.2);
     });
 
+    it('automatically fails over to next model when primary model returns an empty or whitespace response', async () => {
+      const transitions: any[] = [];
+      const mockGenerateContent = vi.fn()
+        .mockResolvedValueOnce({ text: "   " }) // empty/whitespace response from 3.5-transcribe
+        .mockResolvedValueOnce({ text: "# The Complete Podcast Transcript\n\n**Hosts:** *Mark*\n\n---" }); // fallback succeeds
+
+      const mockAiClient: any = {
+        models: {
+          generateContent: mockGenerateContent
+        }
+      };
+
+      const result = await generateContentWithFallback({
+        aiClient: mockAiClient,
+        contents: [{ text: 'User audio prompt' }],
+        modelsToTry: ['gemini-3.5-transcribe', 'gemini-3.7-flash'],
+        maxRetries: 0,
+        initialDelayMs: 1,
+        onFallbackTransition: (from, to, reason, friendlyReason) => {
+          transitions.push({ from, to, reason, friendlyReason });
+        }
+      });
+
+      expect(result.model).toBe('gemini-3.7-flash');
+      expect(result.text).toContain('# The Complete Podcast Transcript');
+      expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+      expect(transitions.length).toBe(1);
+      expect(transitions[0].from).toBe('gemini-3.5-transcribe');
+      expect(transitions[0].to).toBe('gemini-3.7-flash');
+      expect(transitions[0].reason).toContain('returned empty or blank text response');
+      expect(transitions[0].friendlyReason).toContain('Empty response from Gemini 3.5 Transcribe');
+    });
+
     it('throws error when all fallback models fail', async () => {
       const mockGenerateContent = vi.fn().mockRejectedValue(new Error('Fatal API Quota Error'));
       const mockAiClient: any = {
@@ -483,6 +522,13 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(result.shortBadge).toBe('API key / 403 issue');
     });
 
+    it('categorizes empty or blank response errors', () => {
+      const result = categorizeModelError('Model gemini-3.5-transcribe returned empty or blank text response');
+      expect(result.category).toBe('empty_response');
+      expect(result.friendlyMessage).toBe('Model returned empty response, automated failover active');
+      expect(result.shortBadge).toBe('Empty response');
+    });
+
     it('formats clean fallback reasons based on model error category', () => {
       const highDemandReason = formatFallbackReason('gemini-3.5-transcribe', 'gemini-3.7-flash', '503 Service Unavailable');
       expect(highDemandReason).toContain('Model demand too high on Gemini 3.5 Transcribe');
@@ -490,6 +536,9 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
 
       const configReason = formatFallbackReason('gemini-3.5-transcribe', 'gemini-3.7-flash', '400 Developer instruction is not enabled');
       expect(configReason).toContain('Configuration issue on Gemini 3.5 Transcribe');
+
+      const emptyReason = formatFallbackReason('gemini-3.5-transcribe', 'gemini-3.7-flash', 'Model returned empty response');
+      expect(emptyReason).toBe('Empty response from Gemini 3.5 Transcribe – automated failover to Gemini 3.7 Flash active.');
     });
 
     it('formats clean summary when all models fail', () => {
@@ -538,6 +587,253 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       const smartConfig = buildAudioTranscriptionConfig({ promptStyle: 'clean' });
       expect(smartConfig.mode).toBe(AudioTranscriptionConfigMode.SMART);
       expect(smartConfig.languageCodes).toBeUndefined();
+    });
+  });
+
+  describe('Audio Transcription Formatting & Helper Utilities', () => {
+    it('formats seconds to timestamp strings accurately', () => {
+      expect(formatSecondsToTimestamp(0)).toBe('[00:00]');
+      expect(formatSecondsToTimestamp(5)).toBe('[00:05]');
+      expect(formatSecondsToTimestamp(65)).toBe('[01:05]');
+      expect(formatSecondsToTimestamp(3665)).toBe('[01:01:05]');
+    });
+
+    it('parses offset strings or numbers to seconds accurately', () => {
+      expect(parseOffsetToSeconds('0s')).toBe(0);
+      expect(parseOffsetToSeconds('5.2s')).toBe(5.2);
+      expect(parseOffsetToSeconds('125.400s')).toBe(125.4);
+      expect(parseOffsetToSeconds(45)).toBe(45);
+      expect(parseOffsetToSeconds(undefined)).toBe(0);
+    });
+
+    it('splits monolithic text into clean paragraphs at sentence boundaries', () => {
+      const wallOfText = "First sentence here. Second sentence follows. Third sentence wraps up. Fourth sentence begins new thought. Fifth sentence continues. Sixth sentence finishes.";
+      const paras = splitIntoParagraphs(wallOfText, 3);
+      expect(paras.length).toBe(2);
+      expect(paras[0]).toContain("First sentence here.");
+      expect(paras[1]).toContain("Fourth sentence begins");
+    });
+
+    it('infers human speaker names from conversational introductions', () => {
+      const turns = [
+        {
+          speakerId: 'spk_0',
+          text: "Hello, I'm Johna Till Johnson, CEO of Nemertes, and I'm here with my co-host John Burke."
+        },
+        {
+          speakerId: 'spk_1',
+          text: "John Burke, CTO of Nemertes. Thanks Johna."
+        }
+      ];
+      const names = inferSpeakerNamesFromTranscript(turns);
+      expect(names.get('spk_0')).toBe('Johna Till Johnson');
+      expect(names.get('spk_1')).toBe('John Burke');
+    });
+
+    it('formats turns to combined Markdown structure with timestamps and speaker tags', () => {
+      const turns = [
+        {
+          speakerId: 'spk_0',
+          speakerName: 'Johna Till Johnson',
+          startTimeSeconds: 0,
+          text: "Welcome to Heavy Strategy."
+        },
+        {
+          speakerId: 'spk_1',
+          speakerName: 'John Burke',
+          startTimeSeconds: 6,
+          text: "Great to be here."
+        }
+      ];
+      const markdown = formatTurnsToMarkdown(turns, 'combined', 'Heavy Strategy Ep 240');
+      expect(markdown).toContain('# Heavy Strategy Ep 240');
+      expect(markdown).toContain('**Hosts:** *Johna Till Johnson, John Burke*');
+      expect(markdown).toContain('[00:00] **Johna Till Johnson**: Welcome to Heavy Strategy.');
+      expect(markdown).toContain('[00:06] **John Burke**: Great to be here.');
+    });
+  });
+
+  describe('extractResponseText utility', () => {
+    it('extracts direct text property', () => {
+      expect(extractResponseText({ text: 'Valid transcript text' })).toBe('Valid transcript text');
+    });
+
+    it('extracts from candidates and content parts', () => {
+      const resp = {
+        candidates: [
+          {
+            content: {
+              parts: [
+                { text: '# Episode Title\n\n' },
+                { text: '**Hosts:** *Mark*\n\n---' }
+              ]
+            }
+          }
+        ]
+      };
+      expect(extractResponseText(resp)).toBe('# Episode Title\n\n**Hosts:** *Mark*\n\n---');
+    });
+
+    it('handles string primitives', () => {
+      expect(extractResponseText('Plain transcript string')).toBe('Plain transcript string');
+    });
+
+    it('extracts text from audioTranscription parts returned by gemini-3.5-transcribe', () => {
+      const respWithAudioTranscription = {
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  audioTranscription: {
+                    text: '# Podcast Title\n\n**Hosts:** *Sarah, John*\n\n---\n\n[00:00] **Sarah**: Welcome back everyone.',
+                    speakerLabel: 'Sarah'
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      };
+      expect(extractResponseText(respWithAudioTranscription)).toBe('# Podcast Title\n\n**Hosts:** *Sarah, John*\n\n---\n\n[00:00] **Sarah**: Welcome back everyone.');
+    });
+
+    it('extracts and joins multiple audioTranscription segments', () => {
+      const respWithMultipleParts = {
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  audioTranscription: {
+                    text: '[00:00] **Host**: Welcome to today\'s episode.'
+                  }
+                },
+                {
+                  audioTranscription: {
+                    text: '[01:15] **Guest**: Thanks for having me here today.'
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      };
+      const result = extractResponseText(respWithMultipleParts);
+      expect(result).toContain('[00:00] **Host**: Welcome to today\'s episode.');
+      expect(result).toContain('[01:15] **Guest**: Thanks for having me here today.');
+    });
+
+    it('extracts text from word-level audioTranscription parts if text field is missing', () => {
+      const respWithWords = {
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  audioTranscription: {
+                    words: [
+                      { word: 'Hello', startOffset: '0s', endOffset: '0.5s' },
+                      { word: 'world', startOffset: '0.6s', endOffset: '1.0s' }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      };
+      expect(extractResponseText(respWithWords)).toBe('Hello world');
+    });
+
+    it('ignores thought parts during transcription text extraction', () => {
+      const respWithThought = {
+        candidates: [
+          {
+            content: {
+              parts: [
+                { text: 'Internal chain of thought reasoning...', thought: true },
+                { text: '# Episode Transcript\n\nFinal spoken content.' }
+              ]
+            }
+          }
+        ]
+      };
+      expect(extractResponseText(respWithThought)).toBe('# Episode Transcript\n\nFinal spoken content.');
+    });
+
+    it('returns empty string for null, undefined, empty candidates or empty text', () => {
+      expect(extractResponseText(null)).toBe('');
+      expect(extractResponseText(undefined)).toBe('');
+      expect(extractResponseText({ text: '   ' })).toBe('');
+      expect(extractResponseText({ candidates: [] })).toBe('');
+      expect(extractResponseText({ candidates: [{ content: { parts: [{ text: '' }] } }] })).toBe('');
+    });
+  });
+
+  describe('Post-Processing Structuring & Refinement Utilities', () => {
+    it('builds comprehensive structuring prompt for downstream LLM pass', () => {
+      const prompt = buildStructuringPrompt(
+        "Hello I'm Johna Till Johnson and here with John Burke.",
+        'combined',
+        'Heavy Strategy Ep 134',
+        'Preserve all tech acronyms.'
+      );
+      expect(prompt).toContain('TASK: STRUCTURE, DIARIZE, AND REFINE AUDIO TRANSCRIPTION');
+      expect(prompt).toContain('Heavy Strategy Ep 134');
+      expect(prompt).toContain('Preserve all tech acronyms.');
+      expect(prompt).toContain('RAW TRANSCRIPT:');
+      expect(prompt).toContain("Hello I'm Johna Till Johnson");
+    });
+
+    it('cleans fallback transcript and infers host names without fabricating fake speaker lists', () => {
+      const rawText = "Hello, I'm Johna Till Johnson, CEO of Nemertes, and with my co-host John Burke. Today we're talking about AI strategy. Uh, it's very important to consider.";
+      const cleaned = cleanFallbackTranscript(rawText, 'combined', 'AI Strategy Episode');
+      expect(cleaned).toContain('# AI Strategy Episode');
+      expect(cleaned).toContain('**Hosts:** *Johna Till Johnson, John Burke*');
+      expect(cleaned).toContain('---');
+      expect(cleaned).toContain("Today we're talking about AI strategy.");
+      expect(cleaned).not.toContain('Speaker 62');
+    });
+
+    it('returns already-structured markdown immediately without re-calling LLM', async () => {
+      const structured = '# Strategy Mid-Course Corrections\n**Hosts:** *Johna Till Johnson, John Burke*\n\n---\n\n[00:00] **Johna Till Johnson**: Hello.';
+      const mockClient: any = {
+        models: {
+          generateContent: vi.fn()
+        }
+      };
+      const result = await refineTranscriptWithLLM({
+        aiClient: mockClient,
+        rawTranscript: structured,
+        promptStyle: 'combined'
+      });
+      expect(result).toBe(structured);
+      expect(mockClient.models.generateContent).not.toHaveBeenCalled();
+    });
+
+    it('refines raw transcript via downstream LLM model', async () => {
+      const raw = "Hello I'm Johna and John is here.";
+      const formattedOutput = "# Episode 1\n**Hosts:** *Johna, John*\n\n---\n\n[00:00] **Johna**: Hello.\n\n[00:05] **John**: Hi.";
+      const mockClient: any = {
+        models: {
+          generateContent: vi.fn().mockResolvedValue({
+            text: formattedOutput
+          })
+        }
+      };
+      const result = await refineTranscriptWithLLM({
+        aiClient: mockClient,
+        rawTranscript: raw,
+        promptStyle: 'combined',
+        modelsToTry: ['gemini-3.7-flash']
+      });
+      expect(result).toBe(formattedOutput);
+      expect(mockClient.models.generateContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'gemini-3.7-flash'
+        })
+      );
     });
   });
 });

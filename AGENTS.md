@@ -49,13 +49,11 @@ Before declaring any coding task complete, execute the following verification lo
 
 ## 9. AI Model Hierarchy, Routing & Cross-Project Synchronization (CRITICAL)
 - **Strict Model Registry & Topology**:
-  - **Primary Audio Transcription Model**: `gemini-3.5-transcribe` (specialized for audio, native diarization, and clean-verbatim parsing for recordings $\le 59$ minutes / 3540 seconds).
-  - **Primary Downstream & Extended Analysis Model**: `gemini-3.7-flash` (used for executive summaries, structured chapters, takeaways, social assets, and long-audio transcription $> 59$ minutes).
-  - **Full Multi-Tier Fallback Cascade**: `gemini-3.5-transcribe` $\rightarrow$ `gemini-3.7-flash` $\rightarrow$ `gemini-3.6-flash` $\rightarrow$ `gemini-3.5-flash` $\rightarrow$ `gemini-3.5-flash-lite` $\rightarrow$ `gemini-3.1-flash-lite` $\rightarrow$ `gemini-flash-latest`.
-  - **Model Exclusions**: `gemini-3.5-transcribe` MUST NEVER be used for downstream analysis, text-only generation, or audio files exceeding 59 minutes.
+  - **Primary Audio Transcription & Multimodal Reasoning Model**: `gemini-3.7-flash` (high-fidelity audio comprehension, native speaker diarization, clean-verbatim parsing, and rich Markdown formatting).
+  - **Primary Downstream & Extended Analysis Model**: `gemini-3.7-flash` (executive summaries, structured chapters, key takeaways, and social assets).
+  - **Full Multi-Tier Fallback Cascade**: `gemini-3.7-flash` $\rightarrow$ `gemini-3.6-flash` $\rightarrow$ `gemini-3.5-flash` $\rightarrow$ `gemini-3.5-flash-lite` $\rightarrow$ `gemini-3.1-flash-lite` $\rightarrow$ `gemini-flash-latest`.
 - **Dynamic Parameter & Prompt Adaptation**:
-  - `gemini-3.5-transcribe` does NOT support developer `systemInstruction` when passing audio `fileUri`. The engine must automatically omit `systemInstruction` (preventing HTTP 400 parameter errors) and inject formatting directives into the user prompt (`buildTranscribeModelPrompt`).
-  - General models (`gemini-3.7-flash`, etc.) retain full developer system instructions (`BASE_TRANSCRIPTION_STANDARDS` / `getSystemInstruction()`).
+  - Multimodal audio transcription directly passes developer system instructions (`BASE_TRANSCRIPTION_STANDARDS` / `getSystemInstruction()`) alongside prompt directives (`buildTranscriptionPrompt`), ensuring publication-grade output layout and speaker detection in a single pass.
 - **Human-Readable Error Categorization**:
   - All raw API errors (503/UNAVAILABLE, 429/RESOURCE_EXHAUSTED, 400/INVALID_ARGUMENT, 403/PERMISSION_DENIED, 504/DEADLINE_EXCEEDED) must be translated into human-friendly diagnostic messages and short badges (`categorizeModelError`) across backend logging and frontend UI monitors.
 - **Cross-Project Consistency**:

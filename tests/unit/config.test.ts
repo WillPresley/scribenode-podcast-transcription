@@ -15,7 +15,7 @@ describe('Server Configuration & Security Guard Engine', () => {
   describe('getAppVersion', () => {
     it('returns the current version matching package.json', () => {
       const version = getAppVersion();
-      expect(version).toBe('1.4.1');
+      expect(version).toBe('1.4.5');
     });
   });
 

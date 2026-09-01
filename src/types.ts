@@ -31,7 +31,7 @@ export interface AnalysisResults {
   social_media?: string;
 }
 
-export type ModelErrorCategory = 'high_demand' | 'rate_limit' | 'config_error' | 'auth_error' | 'timeout' | 'not_found' | 'duration_limit' | 'general';
+export type ModelErrorCategory = 'high_demand' | 'rate_limit' | 'config_error' | 'auth_error' | 'timeout' | 'not_found' | 'duration_limit' | 'empty_response' | 'general';
 
 export interface ModelErrorDetails {
   rawError?: string;

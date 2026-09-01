@@ -10,6 +10,7 @@ import {
   getSystemInstruction,
   buildTranscriptionPrompt,
   generateContentWithFallback,
+  extractResponseText,
   formatGeminiErrorMessage,
   categorizeModelError,
   formatFallbackReason,
@@ -216,11 +217,14 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
       const transcriptionModelsToTry = getTranscriptionModelsForJob(job.duration);
 
-      const { response, model } = await generateContentWithFallback({
+      const audioTitle = job.filename ? job.filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : undefined;
+
+      const { response, model, text: generatedTranscript } = await generateContentWithFallback({
         aiClient: getAIClient(),
         modelsToTry: transcriptionModelsToTry,
         promptStyle,
         customPrompt,
+        audioTitle,
         fileUri: file.uri,
         mimeType: file.mimeType,
         config: {
@@ -240,8 +244,8 @@ export function createApp(options: CreateAppOptions = {}): Express {
         }
       });
 
-      const transcript = response.text;
-      if (!transcript) {
+      const transcript = generatedTranscript || extractResponseText(response, promptStyle, audioTitle);
+      if (!transcript || !transcript.trim()) {
         throw new Error("Received empty response from transcription model.");
       }
 
@@ -580,7 +584,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
         return res.status(400).json({ error: "Invalid analysis mode" });
       }
 
-      const { response, model } = await generateContentWithFallback({
+      const { response, model, text: generatedAnalysis } = await generateContentWithFallback({
         aiClient: getAIClient(),
         modelsToTry: DEFAULT_ANALYSIS_MODELS,
         contents: [
@@ -602,7 +606,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
         }
       });
 
-      const text = response.text;
+      const text = generatedAnalysis || extractResponseText(response);
       
       if (mode === 'summary') job.summary = text;
       else if (mode === 'key_takeaways') job.key_takeaways = text;
