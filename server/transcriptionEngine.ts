@@ -589,6 +589,7 @@ export async function generateContentWithFallback(params: {
         // If fileUri and promptStyle are specified, dynamically assemble optimal payload per model
         if (params.fileUri && params.promptStyle) {
           if (isTranscribeModel) {
+            // Transcribe models: NEVER pass developer systemInstruction (avoids HTTP 400 parameter errors)
             delete modelConfig.systemInstruction;
             if (Object.keys(modelConfig).length === 0) {
               modelConfig = undefined;
@@ -605,6 +606,11 @@ export async function generateContentWithFallback(params: {
               }
             ];
           } else {
+            // Non-transcribe models (gemini-3.7-flash, gemini-3.6-flash, etc.):
+            // 1. Strictly remove transcribe-only configurations (audioTranscriptionConfig, audioTimestamp)
+            delete modelConfig.audioTranscriptionConfig;
+            delete modelConfig.audioTimestamp;
+            // 2. Inject comprehensive developer system instruction
             modelConfig = {
               systemInstruction: getSystemInstruction(params.promptStyle),
               ...modelConfig
@@ -622,33 +628,44 @@ export async function generateContentWithFallback(params: {
             ];
           }
         } else {
-          // Fallback for custom or direct contents calls: sanitize systemInstruction for transcribe models
-          if (isTranscribeModel && modelConfig?.systemInstruction) {
-            const sysInstruction = typeof modelConfig.systemInstruction === "string"
-              ? modelConfig.systemInstruction
-              : modelConfig.systemInstruction?.parts?.map((p: any) => p.text).join("\n") || "";
+          // Fallback for custom or direct contents calls:
+          if (isTranscribeModel) {
+            // Sanitize systemInstruction for transcribe models
+            if (modelConfig?.systemInstruction) {
+              const sysInstruction = typeof modelConfig.systemInstruction === "string"
+                ? modelConfig.systemInstruction
+                : modelConfig.systemInstruction?.parts?.map((p: any) => p.text).join("\n") || "";
 
-            delete modelConfig.systemInstruction;
-            if (Object.keys(modelConfig).length === 0) {
+              delete modelConfig.systemInstruction;
+
+              if (sysInstruction && typeof sysInstruction === "string" && sysInstruction.trim()) {
+                if (Array.isArray(modelContents)) {
+                  let prepended = false;
+                  modelContents = modelContents.map((item: any) => {
+                    if (!prepended && item && typeof item.text === "string") {
+                      prepended = true;
+                      return { ...item, text: `${sysInstruction}\n\n${item.text}` };
+                    }
+                    return item;
+                  });
+                  if (!prepended) {
+                    modelContents = [{ text: sysInstruction }, ...modelContents];
+                  }
+                } else if (typeof modelContents === "string") {
+                  modelContents = `${sysInstruction}\n\n${modelContents}`;
+                }
+              }
+            }
+            if (modelConfig && Object.keys(modelConfig).length === 0) {
               modelConfig = undefined;
             }
-
-            if (sysInstruction && typeof sysInstruction === "string" && sysInstruction.trim()) {
-              if (Array.isArray(modelContents)) {
-                let prepended = false;
-                modelContents = modelContents.map((item: any) => {
-                  if (!prepended && item && typeof item.text === "string") {
-                    prepended = true;
-                    return { ...item, text: `${sysInstruction}\n\n${item.text}` };
-                  }
-                  return item;
-                });
-                if (!prepended) {
-                  modelContents = [{ text: sysInstruction }, ...modelContents];
-                }
-              } else if (typeof modelContents === "string") {
-                modelContents = `${sysInstruction}\n\n${modelContents}`;
-              }
+          } else {
+            // General reasoning models: strictly strip transcribe-specific fields
+            if (modelConfig?.audioTranscriptionConfig) {
+              delete modelConfig.audioTranscriptionConfig;
+            }
+            if (modelConfig?.audioTimestamp) {
+              delete modelConfig.audioTimestamp;
             }
           }
         }

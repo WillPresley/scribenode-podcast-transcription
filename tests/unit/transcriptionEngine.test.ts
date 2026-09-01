@@ -363,6 +363,53 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(callArgs.config?.systemInstruction).toBe('Developer instruction');
     });
 
+    it('strictly isolates transcribe parameters on fileUri audio transcription with fallback', async () => {
+      const mockGenerateContent = vi.fn()
+        .mockRejectedValueOnce(new Error('503 Service Unavailable'))
+        .mockImplementationOnce(async ({ model, contents, config }) => {
+          return { text: `OK from ${model}`, configReceived: config, contentsReceived: contents };
+        });
+
+      const mockAiClient: any = {
+        models: {
+          generateContent: mockGenerateContent
+        }
+      };
+
+      const result = await generateContentWithFallback({
+        aiClient: mockAiClient,
+        fileUri: 'https://generativelanguage.googleapis.com/v1beta/files/test-audio',
+        mimeType: 'audio/mp3',
+        promptStyle: 'clean',
+        config: {
+          audioTranscriptionConfig: { mode: AudioTranscriptionConfigMode.SMART },
+          audioTimestamp: true,
+          temperature: 0.2
+        },
+        modelsToTry: ['gemini-3.5-transcribe', 'gemini-3.7-flash'],
+        maxRetries: 0,
+        initialDelayMs: 1
+      });
+
+      expect(result.model).toBe('gemini-3.7-flash');
+      expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+
+      // Call 1: gemini-3.5-transcribe (primary)
+      const call1Args = mockGenerateContent.mock.calls[0][0];
+      expect(call1Args.model).toBe('gemini-3.5-transcribe');
+      expect(call1Args.config?.systemInstruction).toBeUndefined();
+
+      // Call 2: gemini-3.7-flash (fallback)
+      const call2Args = mockGenerateContent.mock.calls[1][0];
+      expect(call2Args.model).toBe('gemini-3.7-flash');
+      // Transcribe-only configurations must be strictly stripped for non-transcribe models
+      expect(call2Args.config?.audioTranscriptionConfig).toBeUndefined();
+      expect(call2Args.config?.audioTimestamp).toBeUndefined();
+      // Developer systemInstruction must be present
+      expect(call2Args.config?.systemInstruction).toBeDefined();
+      expect(call2Args.config?.temperature).toBe(0.2);
+    });
+
     it('throws error when all fallback models fail', async () => {
       const mockGenerateContent = vi.fn().mockRejectedValue(new Error('Fatal API Quota Error'));
       const mockAiClient: any = {
