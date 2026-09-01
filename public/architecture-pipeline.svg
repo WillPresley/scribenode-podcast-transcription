@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" width="100%" height="100%" fill="none" style="background-color: #ffffff; border-radius: 8px;">
+  <defs>
+    <style>
+      .node-box { fill: #ffffff; stroke: #0f172a; stroke-width: 1.75; rx: 8px; }
+      .node-num { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; font-weight: 700; fill: #2563eb; }
+      .node-num-bg { fill: #eff6ff; stroke: #bfdbfe; stroke-width: 1; rx: 4px; }
+      .node-title { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 14px; font-weight: 700; fill: #0f172a; }
+      .node-desc { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 12px; font-weight: 500; fill: #475569; }
+      .flow-arrow { stroke: #0f172a; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+      .icon-stroke { stroke: #0f172a; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    </style>
+    <marker id="arrow-right" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 1 2 L 7 5 L 1 8" fill="none" stroke="#0f172a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+    </marker>
+    <marker id="arrow-down" viewBox="0 0 10 10" refX="5" refY="6" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 2 1 L 5 7 L 8 1" fill="none" stroke="#0f172a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+    </marker>
+    <marker id="arrow-left" viewBox="0 0 10 10" refX="4" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 7 2 L 1 5 L 7 8" fill="none" stroke="#0f172a" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" />
+    </marker>
+  </defs>
+
+  <!-- Background Canvas Frame -->
+  <rect x="1" y="1" width="958" height="298" rx="8" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+
+  <!-- ================= ROW 1 (Left to Right) ================= -->
+
+  <!-- Node 1: Audio Ingest -->
+  <g transform="translate(40, 32)">
+    <rect class="node-box" x="0" y="0" width="260" height="96" />
+    <!-- Step Badge -->
+    <rect class="node-num-bg" x="14" y="14" width="24" height="18" />
+    <text class="node-num" x="22" y="27">01</text>
+    <!-- Icon: Audio Wave / Mic -->
+    <g transform="translate(224, 14)">
+      <path class="icon-stroke" d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+      <path class="icon-stroke" d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" />
+    </g>
+    <text class="node-title" x="14" y="54">Audio Ingest</text>
+    <text class="node-desc" x="14" y="74">MP3 · WAV · M4A · FLAC · OGG</text>
+    <text class="node-desc" x="14" y="90" fill="#64748b" font-size="11px">Configurable upload limit (100MB+)</text>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <line class="flow-arrow" x1="300" y1="80" x2="344" y2="80" marker-end="url(#arrow-right)" />
+
+  <!-- Node 2: Express Server -->
+  <g transform="translate(350, 32)">
+    <rect class="node-box" x="0" y="0" width="260" height="96" />
+    <!-- Step Badge -->
+    <rect class="node-num-bg" x="14" y="14" width="24" height="18" />
+    <text class="node-num" x="22" y="27">02</text>
+    <!-- Icon: Server / Route -->
+    <g transform="translate(224, 14)">
+      <rect class="icon-stroke" x="2" y="2" width="20" height="8" rx="2" />
+      <rect class="icon-stroke" x="2" y="14" width="20" height="8" rx="2" />
+      <line class="icon-stroke" x1="6" y1="6" x2="6.01" y2="6" />
+      <line class="icon-stroke" x1="6" y1="18" x2="6.01" y2="18" />
+    </g>
+    <text class="node-title" x="14" y="54">Express Backend</text>
+    <text class="node-desc" x="14" y="74">Multer Stream · Security Guards</text>
+    <text class="node-desc" x="14" y="90" fill="#64748b" font-size="11px">Persistence &amp; API Orchestration</text>
+  </g>
+
+  <!-- Arrow 2 -> 3 -->
+  <line class="flow-arrow" x1="610" y1="80" x2="654" y2="80" marker-end="url(#arrow-right)" />
+
+  <!-- Node 3: Gemini Audio & Flash AI Engine -->
+  <g transform="translate(660, 32)">
+    <rect class="node-box" x="0" y="0" width="260" height="96" />
+    <!-- Step Badge -->
+    <rect class="node-num-bg" x="14" y="14" width="24" height="18" />
+    <text class="node-num" x="22" y="27">03</text>
+    <!-- Icon: Sparkles / Brain -->
+    <g transform="translate(224, 14)">
+      <path class="icon-stroke" d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
+    </g>
+    <text class="node-title" x="14" y="54">Gemini Flash AI Engine</text>
+    <text class="node-desc" x="14" y="74">gemini-3.7-flash (Primary)</text>
+    <text class="node-desc" x="14" y="90" fill="#64748b" font-size="11px">Multimodal reasoning &amp; diarization</text>
+  </g>
+
+  <!-- ================= CONNECTOR (Row 1 -> Row 2) ================= -->
+  <!-- Downward Arrow from Node 3 to Node 4 -->
+  <line class="flow-arrow" x1="790" y1="128" x2="790" y2="166" marker-end="url(#arrow-down)" />
+
+  <!-- ================= ROW 2 (Right to Left) ================= -->
+
+  <!-- Node 4: Diarized Intelligence -->
+  <g transform="translate(660, 172)">
+    <rect class="node-box" x="0" y="0" width="260" height="96" />
+    <!-- Step Badge -->
+    <rect class="node-num-bg" x="14" y="14" width="24" height="18" />
+    <text class="node-num" x="22" y="27">04</text>
+    <!-- Icon: Document / List -->
+    <g transform="translate(224, 14)">
+      <path class="icon-stroke" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline class="icon-stroke" points="14 2 14 8 20 8" />
+      <line class="icon-stroke" x1="8" y1="13" x2="16" y2="13" />
+      <line class="icon-stroke" x1="8" y1="17" x2="14" y2="17" />
+    </g>
+    <text class="node-title" x="14" y="54">Diarized Transcript</text>
+    <text class="node-desc" x="14" y="74">Clean Verbatim · Macro Timestamps</text>
+    <text class="node-desc" x="14" y="90" fill="#64748b" font-size="11px">+ Chapters, Summaries &amp; Takeaways</text>
+  </g>
+
+  <!-- Arrow 4 -> 5 -->
+  <line class="flow-arrow" x1="660" y1="220" x2="616" y2="220" marker-end="url(#arrow-left)" />
+
+  <!-- Node 5: Interactive UI -->
+  <g transform="translate(350, 172)">
+    <rect class="node-box" x="0" y="0" width="260" height="96" />
+    <!-- Step Badge -->
+    <rect class="node-num-bg" x="14" y="14" width="24" height="18" />
+    <text class="node-num" x="22" y="27">05</text>
+    <!-- Icon: Layout / Monitor -->
+    <g transform="translate(224, 14)">
+      <rect class="icon-stroke" x="2" y="3" width="20" height="14" rx="2" />
+      <line class="icon-stroke" x1="8" y1="21" x2="16" y2="21" />
+      <line class="icon-stroke" x1="12" y1="17" x2="12" y2="21" />
+    </g>
+    <text class="node-title" x="14" y="54">Interactive UI</text>
+    <text class="node-desc" x="14" y="74">React 19 · Audio Sync Player</text>
+    <text class="node-desc" x="14" y="90" fill="#64748b" font-size="11px">Adaptive mobile &amp; desktop workspace</text>
+  </g>
+
+  <!-- Arrow 5 -> 6 -->
+  <line class="flow-arrow" x1="350" y1="220" x2="306" y2="220" marker-end="url(#arrow-left)" />
+
+  <!-- Node 6: Export & Share -->
+  <g transform="translate(40, 172)">
+    <rect class="node-box" x="0" y="0" width="260" height="96" />
+    <!-- Step Badge -->
+    <rect class="node-num-bg" x="14" y="14" width="24" height="18" />
+    <text class="node-num" x="22" y="27">06</text>
+    <!-- Icon: Export / Download -->
+    <g transform="translate(224, 14)">
+      <path class="icon-stroke" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline class="icon-stroke" points="7 10 12 15 17 10" />
+      <line class="icon-stroke" x1="12" y1="15" x2="12" y2="3" />
+    </g>
+    <text class="node-title" x="14" y="54">Export &amp; Share</text>
+    <text class="node-desc" x="14" y="74">Markdown · TXT · WebVTT · SRT</text>
+    <text class="node-desc" x="14" y="90" fill="#64748b" font-size="11px">One-click copy &amp; bundle downloads</text>
+  </g>
+</svg>

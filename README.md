@@ -42,18 +42,9 @@
 
 ## Pipeline & Architecture
 
-```
-┌────────────────────────────┐     ┌────────────────────────────┐     ┌────────────────────────────────────┐
-│        Audio Ingest        │ ──> │       Express Server       │ ──> │   Gemini Audio & Flash AI Engine   │
-│ (MP3 / WAV / M4A / FLAC)   │     │      (Multer / Stream)     │     │   (gemini-3.7-flash / 3.6-flash)   │
-└────────────────────────────┘     └────────────────────────────┘     └────────────────────────────────────┘
-                                                                                        │
-                                                                                        ▼
-┌────────────────────────────┐     ┌────────────────────────────┐     ┌────────────────────────────────────┐
-│       Export & Share       │ <── │       Interactive UI       │ <── │        Diarized Transcript         │
-│   (MD / TXT / Clipboard)   │     │    (React / Audio Sync)    │     │       + Chapters + Summaries       │
-└────────────────────────────┘     └────────────────────────────┘     └────────────────────────────────────┘
-```
+<p align="center">
+  <img src="docs/images/architecture-pipeline.svg" alt="ScribeNode Pipeline & Architecture" width="100%" />
+</p>
 
 1. **Upload & Ingestion**: Audio files are uploaded to the Express backend via streaming multipart forms with configurable payload limits (`MAX_UPLOAD_SIZE_MB`).
 2. **Multimodal Audio Comprehension**: The engine routes directly to **`gemini-3.7-flash`**, combining acoustic processing with contextual reasoning to recognize domain vocabulary, infer human speaker names, and generate structured clean-verbatim transcripts in a single pass.
@@ -72,7 +63,7 @@ To run ScribeNode, configuration values can be provided via a `.env` file or dir
 
 ### 🔑 Google Gemini API Key & Cloud Setup Guide
 
-ScribeNode connects to Google's specialized Gemini Audio and Flash AI model suite (`gemini-3.5-transcribe`, `gemini-3.7-flash`, `gemini-3.6-flash`, etc.) using the official `@google/genai` SDK. For ScribeNode to function properly, your Google Cloud project MUST have the **Generative Language API** (`generativelanguage.googleapis.com`) enabled.
+ScribeNode connects to Google's specialized Gemini Audio and Flash AI model suite (`gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, etc.) using the official `@google/genai` SDK. For ScribeNode to function properly, your Google Cloud project MUST have the **Generative Language API** (`generativelanguage.googleapis.com`) enabled.
 
 #### Option A: Google AI Studio (Fastest & Recommended)
 1. Navigate to the [Google AI Studio API Key Portal](https://aistudio.google.com/app/apikey).
