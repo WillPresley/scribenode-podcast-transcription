@@ -15,7 +15,7 @@
 
 - 🎧 **Broad Format & Configurable Uploads**: Transcribe MP3, WAV, M4A, OGG, and FLAC audio files with configurable file size limits (`MAX_UPLOAD_SIZE_MB`, defaults to 100MB).
 - 🎙️ **High-Fidelity Audio Transcription**: Multimodal transcription with `gemini-3.7-flash` featuring conversational reasoning, speaker diarization, and clean-verbatim parsing.
-- 🔄 **Intelligent Multi-Tier Failover Cascade**: Seamless automatic failover across `gemini-3.7-flash` $\rightarrow$ `gemini-3.6-flash` $\rightarrow$ `gemini-3.5-flash` $\rightarrow$ `gemini-3.5-flash-lite` $\rightarrow$ `gemini-3.1-flash-lite` $\rightarrow$ `gemini-flash-latest`.
+- 🔄 **Intelligent Multi-Tier Failover Cascade**: Seamless automatic failover across `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-flash-latest`.
 - 🩺 **Per-Model Diagnostics & Error Translation**: Live Model Orchestration inspector translating raw 503/429/400/403 errors into human-friendly explanations with one-click recovery.
 - 📱 **Adaptive Mobile Workspace**: Full responsive mobile navigation drawer, segmented workspace tabs, and touch-friendly controls with zero desktop layout regression.
 - ⚡ **Clean Verbatim Transcription**: Specialized prompting removes speech disfluencies, filler words (*uh*, *um*, *like*), stutters, and false starts while preserving technical domain terms.
@@ -49,7 +49,7 @@
 1. **Upload & Ingestion**: Audio files are uploaded to the Express backend via streaming multipart forms with configurable payload limits (`MAX_UPLOAD_SIZE_MB`).
 2. **Multimodal Audio Comprehension**: The engine routes directly to **`gemini-3.7-flash`**, combining acoustic processing with contextual reasoning to recognize domain vocabulary, infer human speaker names, and generate structured clean-verbatim transcripts in a single pass.
 3. **Resilient Multi-Tier Fallback Cascade**: If the primary model encounters temporary capacity constraints (503), quota limits (429), or parameter incompatibilities, the engine automatically fails over through:
-   $$\text{gemini-3.7-flash} \longrightarrow \text{gemini-3.6-flash} \longrightarrow \text{gemini-3.5-flash} \longrightarrow \text{gemini-3.5-flash-lite} \longrightarrow \text{gemini-3.1-flash-lite} \longrightarrow \text{gemini-flash-latest}$$
+   `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-flash-latest`
 4. **Developer System Instructions**: Full system instructions (`BASE_TRANSCRIPTION_STANDARDS` / `getSystemInstruction()`) guide model outputs to strict, publication-ready Markdown.
 5. **Downstream Intelligence Generation**: Executive summaries, timestamped chapters, bulleted key takeaways, and social media posts are processed using **`gemini-3.7-flash`** (with fallback across Flash reasoning models).
 6. **Live Orchestration & Friendly Diagnostics**: The UI tracks individual model health in real time, translating raw API errors into clear diagnostic messages (*"Model demand too high, try again later"*, *"Rate limit reached"*, *"Configuration parameters adapted"*) with instant one-click recovery.
@@ -340,7 +340,7 @@ npm run test:coverage
   - **Transcript Engine**: Speaker inference, title normalization, header stripping, speaker bolding, Markdown clean-verbatim rules, SRT subtitle formatting, WebVTT generation, and chapter breakdown.
   - **Audio Math & Optimization**: Duration formatting, timestamp conversion, sample rate & PCM bit depth calculations.
   - **Security & Config Guard**: Environment variable parsing, quote stripping, boolean flags normalization, HTTP Basic Auth credential validator.
-  - **AI Model Cascade & Fallback Engine**: Model registry verification (`gemini-3.7-flash` primary multimodal engine), dynamic system instruction injection, exponential backoff retry/fallback mechanics across the Flash cascade (`gemini-3.7-flash` $\rightarrow$ `3.6-flash` $\rightarrow$ `3.5-flash`), per-model failover tracking, and friendly error categorization.
+  - **AI Model Cascade & Fallback Engine**: Model registry verification (`gemini-3.7-flash` primary multimodal engine), dynamic system instruction injection, exponential backoff retry/fallback mechanics across the Flash cascade (`gemini-3.7-flash` ➡️ `3.6-flash` ➡️ `3.5-flash`), per-model failover tracking, and friendly error categorization.
   - **Storage & Disk Persistence**: JSON database persistence, preseeded sample items lifecycle, garbage collection for orphaned uploads and temporary files.
 - **Integration Tests (`tests/integration/`)**:
   - **API Endpoints**: Health probes (`/api/health`, `/healthz`), configuration (`/api/config`), Jobs CRUD, archive toggle (`/api/jobs/:id/archive`), sample job retranscription, analysis generation (`/api/jobs/:id/analyze`), and Basic Auth enforcement.

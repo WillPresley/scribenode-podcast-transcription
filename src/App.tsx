@@ -3136,7 +3136,7 @@ export default function App() {
                           </li>
                           <li className="relative">
                             <span className="font-bold text-slate-900">Granular Per-Model Failover Status Diagnostics:</span>
-                            <p className="text-slate-600 mt-0.5">The Model Orchestration inspector tracks individual statuses and error badges across the full model cascade sequence (<code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">gemini-3.7-flash</code> $\rightarrow$ <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">3.6-flash</code> $\rightarrow$ <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">3.5-flash</code>), highlighting active failovers in real-time.</p>
+                            <p className="text-slate-600 mt-0.5">The Model Orchestration inspector tracks individual statuses and error badges across the full model cascade sequence (<code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">gemini-3.7-flash</code> ➡️ <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">3.6-flash</code> ➡️ <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">3.5-flash</code>), highlighting active failovers in real-time.</p>
                           </li>
                           <li className="relative">
                             <span className="font-bold text-slate-900">One-Click Pipeline Retry & High-Demand Recovery:</span>
