@@ -176,9 +176,17 @@ export function getSystemInstruction(style: string): string {
  * This model natively performs disfluency removal, multi-speaker diarization, and timestamping.
  * The prompt focuses on precise Markdown schema, speaker attribution, and clean layout.
  */
-export function buildTranscribeModelPrompt(promptStyle: string, customPrompt?: string): string {
+export function buildTranscribeModelPrompt(promptStyle: string, customPrompt?: string, customVocabulary?: string[] | string): string {
+  let vocabInstruction = "";
+  if (customVocabulary) {
+    const terms = Array.isArray(customVocabulary) ? customVocabulary.filter(Boolean).join(", ") : customVocabulary.trim();
+    if (terms) {
+      vocabInstruction = `\n\nDomain Glossary & Vocabulary Hints:\nPlease accurately transcribe and prioritize spelling for these key terms, host/guest names, and domain vocabulary: ${terms}.`;
+    }
+  }
+
   if (customPrompt && customPrompt.trim()) {
-    return `${customPrompt.trim()}
+    return `${customPrompt.trim()}${vocabInstruction}
 
 Output Format Requirements:
 - Start directly with exactly one H1 title (# Title).
@@ -188,7 +196,7 @@ Output Format Requirements:
 
   switch (promptStyle) {
     case 'combined':
-      return `Transcribe this audio recording into a clean, publication-ready Markdown transcript.
+      return `Transcribe this audio recording into a clean, publication-ready Markdown transcript.${vocabInstruction}
 
 Document Layout:
 # [Title of Recording]
@@ -208,7 +216,7 @@ Formatting Rules:
 5. Return pure Markdown directly with no preambles, meta-commentary, or markdown code-block fences.`;
 
     case 'timestamped':
-      return `Transcribe this audio recording into a clean, publication-ready Markdown transcript with paragraph timestamps.
+      return `Transcribe this audio recording into a clean, publication-ready Markdown transcript with paragraph timestamps.${vocabInstruction}
 
 Document Layout:
 # [Title of Recording]
@@ -228,7 +236,7 @@ Formatting Rules:
 5. Return pure Markdown directly with no preambles or commentary.`;
 
     case 'verbatim':
-      return `Transcribe this audio recording into a clean, publication-ready Markdown transcript with speaker identification.
+      return `Transcribe this audio recording into a clean, publication-ready Markdown transcript with speaker identification.${vocabInstruction}
 
 Document Layout:
 # [Title of Recording]
@@ -249,7 +257,7 @@ Formatting Rules:
 
     case 'clean':
     default:
-      return `Transcribe this audio recording into a clean, publication-ready Markdown transcript.
+      return `Transcribe this audio recording into a clean, publication-ready Markdown transcript.${vocabInstruction}
 
 Document Layout:
 # [Title of Recording]
@@ -273,20 +281,102 @@ Formatting Rules:
  * Prompt generator for general reasoning fallback models (gemini-3.7-flash, gemini-3.6-flash, etc.).
  * Paired with getSystemInstruction() for comprehensive clean-verbatim rules.
  */
-export function buildTranscriptionPrompt(promptStyle: string, customPrompt?: string): string {
+export function buildTranscriptionPrompt(promptStyle: string, customPrompt?: string, customVocabulary?: string[] | string): string {
+  let basePrompt = "";
   if (customPrompt && customPrompt.trim()) {
-    return customPrompt.trim();
+    basePrompt = customPrompt.trim();
+  } else if (promptStyle === 'combined') {
+    basePrompt = "Please transcribe this audio recording into clean, publication-ready Markdown starting with exactly ONE H1 title line (# Title), followed by the identified hosts (**Hosts:** *Name 1, Name 2*), a horizontal divider (---), and timestamped speaker turns ([MM:SS] **Speaker Name**:), adhering strictly to the clean verbatim standards.";
+  } else if (promptStyle === 'timestamped') {
+    basePrompt = "Please transcribe this recording in Markdown format starting with exactly ONE H1 title line (# Title), followed by macro timestamps [MM:SS] or [HH:MM:SS] at natural paragraph breaks, adhering strictly to the polished clean verbatim transcription standards.";
+  } else if (promptStyle === 'verbatim') {
+    basePrompt = "Please transcribe this recording in Markdown format starting with exactly ONE H1 title line (# Title), with clearly identified speaker turns, adhering strictly to the polished clean verbatim transcription standards.";
+  } else {
+    basePrompt = "Please transcribe this entire recording following the strict polished clean verbatim standards. Do not summarize or skip spoken content.";
   }
-  if (promptStyle === 'combined') {
-    return "Please transcribe this audio recording into clean, publication-ready Markdown starting with exactly ONE H1 title line (# Title), followed by the identified hosts (**Hosts:** *Name 1, Name 2*), a horizontal divider (---), and timestamped speaker turns ([MM:SS] **Speaker Name**:), adhering strictly to the clean verbatim standards.";
+
+  if (customVocabulary) {
+    const terms = Array.isArray(customVocabulary) ? customVocabulary.filter(Boolean).join(", ") : customVocabulary.trim();
+    if (terms) {
+      basePrompt += `\n\nDomain Glossary & Vocabulary Hints:\nPlease prioritize accuracy for these domain terms, proper nouns, and technical keywords: ${terms}.`;
+    }
   }
-  if (promptStyle === 'timestamped') {
-    return "Please transcribe this recording in Markdown format starting with exactly ONE H1 title line (# Title), followed by macro timestamps [MM:SS] or [HH:MM:SS] at natural paragraph breaks, adhering strictly to the polished clean verbatim transcription standards.";
+
+  return basePrompt;
+}
+
+/**
+ * Renames a speaker throughout a transcript in a safe, syntactically clean manner.
+ * Supports timestamped lines [MM:SS] **Speaker Name**:, verbatim lines **Speaker Name**:,
+ * and the **Hosts:** *Host 1, Host 2* line.
+ */
+export function renameSpeakerInTranscript(transcript: string, oldName: string, newName: string): string {
+  if (!transcript || !oldName || !newName || oldName.trim() === newName.trim()) {
+    return transcript || "";
   }
-  if (promptStyle === 'verbatim') {
-    return "Please transcribe this recording in Markdown format starting with exactly ONE H1 title line (# Title), with clearly identified speaker turns, adhering strictly to the polished clean verbatim transcription standards.";
+  const cleanOld = oldName.trim();
+  const cleanNew = newName.trim();
+  const escapedOld = cleanOld.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  let updated = transcript;
+
+  // 1. Replace timestamped speaker tags: [MM:SS] **Old Name**: -> [MM:SS] **New Name**:
+  const timestampRegex = new RegExp(`(\\[\\d{1,2}:\\d{2}(?::\\d{2})?\\]\\s*\\*\\*)${escapedOld}(\\*\\*:)`, "g");
+  updated = updated.replace(timestampRegex, `$1${cleanNew}$2`);
+
+  // 2. Replace non-timestamped speaker tags: **Old Name**: -> **New Name**:
+  const boldSpeakerRegex = new RegExp(`(^|\\n)(\\*\\*)${escapedOld}(\\*\\*:)`, "g");
+  updated = updated.replace(boldSpeakerRegex, `$1$2${cleanNew}$3`);
+
+  // 3. Replace in Hosts line: **Hosts:** *Old Name* or **Hosts:** *..., Old Name, ...*
+  const hostsRegex = /(\*\*Hosts:\*\*\s*\*?)([^\n*]+)(\*?)/gi;
+  updated = updated.replace(hostsRegex, (match, prefix, namesStr, suffix) => {
+    const names = namesStr.split(",").map((n: string) => n.trim());
+    const newNames = names.map((n: string) => (n.toLowerCase() === cleanOld.toLowerCase() ? cleanNew : n));
+    return `${prefix}${newNames.join(", ")}${suffix}`;
+  });
+
+  return updated;
+}
+
+/**
+ * Extracts distinct identified speakers from a Markdown transcript.
+ */
+export function extractSpeakersFromTranscript(transcript: string): string[] {
+  if (!transcript) return [];
+  const speakersSet = new Set<string>();
+
+  // Extract from timestamped tags [MM:SS] **Speaker Name**:
+  const tsRegex = /\[\d{1,2}:\\d{2}(?::\d{2})?\]\s*\*\*([^*]+)\*\*:/g;
+  let match: RegExpExecArray | null;
+  while ((match = tsRegex.exec(transcript)) !== null) {
+    const spk = match[1].trim();
+    if (spk && !speakersSet.has(spk)) {
+      speakersSet.add(spk);
+    }
   }
-  return "Please transcribe this entire recording following the strict polished clean verbatim standards. Do not summarize or skip spoken content.";
+
+  // Extract from bold tags **Speaker Name**:
+  const boldRegex = /(?:^|\n)\*\*([^*]+)\*\*:/g;
+  while ((match = boldRegex.exec(transcript)) !== null) {
+    const spk = match[1].trim();
+    if (spk && !spk.toLowerCase().startsWith("hosts") && !speakersSet.has(spk)) {
+      speakersSet.add(spk);
+    }
+  }
+
+  // Extract from Hosts line if present
+  const hostsMatch = transcript.match(/\*\*Hosts:\*\*\s*\*?([^\n*]+)\*?/i);
+  if (hostsMatch && hostsMatch[1]) {
+    const names = hostsMatch[1].split(",").map(n => n.trim()).filter(Boolean);
+    for (const name of names) {
+      if (name && !speakersSet.has(name)) {
+        speakersSet.add(name);
+      }
+    }
+  }
+
+  return Array.from(speakersSet);
 }
 
 export const PRIMARY_TRANSCRIPTION_MODEL = "gemini-3.7-flash";
@@ -1115,7 +1205,7 @@ export async function generateContentWithFallback(params: {
                 }
               },
               {
-                text: buildTranscribeModelPrompt(params.promptStyle, params.customPrompt)
+                text: buildTranscribeModelPrompt(params.promptStyle, params.customPrompt, params.customVocabulary)
               }
             ];
           } else {
@@ -1136,7 +1226,7 @@ export async function generateContentWithFallback(params: {
                 }
               },
               {
-                text: buildTranscriptionPrompt(params.promptStyle, params.customPrompt)
+                text: buildTranscriptionPrompt(params.promptStyle, params.customPrompt, params.customVocabulary)
               }
             ];
           }

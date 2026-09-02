@@ -410,4 +410,109 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.code).toBe('LIMIT_FILE_SIZE');
     });
   });
+
+  describe('Transcript Editing & Speaker Renaming (v1.5.0)', () => {
+    it('updates transcript via PATCH /api/jobs/:id/transcript and resets dependent insights', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      const res = await request(app)
+        .patch('/api/jobs/sample-sarah/transcript')
+        .send({ transcript: '# Updated Sarah Drabner Interview\n\n[00:00] **Sarah Drabner**: Hello world edited.' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.job.transcript).toContain('Hello world edited.');
+
+      const saved = storage.get('sample-sarah');
+      expect(saved?.transcript).toContain('Hello world edited.');
+      expect(saved?.summary).toBeUndefined(); // reset
+    });
+
+    it('returns 400 when updating transcript with invalid or empty payload', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      const res = await request(app)
+        .patch('/api/jobs/sample-sarah/transcript')
+        .send({ transcript: '   ' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Transcript content is required');
+    });
+
+    it('renames speaker across transcript via POST /api/jobs/:id/rename-speaker', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      const res = await request(app)
+        .post('/api/jobs/sample-sarah/rename-speaker')
+        .send({ oldName: 'Sarah Drabner', newName: 'Dr. Sarah Drabner' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.job.transcript).toContain('Dr. Sarah Drabner');
+      expect(res.body.job.transcript).not.toContain('**Sarah Drabner**:');
+
+      const saved = storage.get('sample-sarah');
+      expect(saved?.transcript).toContain('Dr. Sarah Drabner');
+    });
+
+    it('returns 400 when oldName or newName is missing on rename-speaker', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      const res = await request(app)
+        .post('/api/jobs/sample-sarah/rename-speaker')
+        .send({ oldName: 'Sarah Drabner' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Both oldName and newName are required');
+    });
+  });
+
+  describe('RSS Feed Preview & Remote Ingestion (v1.5.0)', () => {
+    it('returns 400 when feedUrl is missing on POST /api/rss/preview', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app).post('/api/rss/preview').send({});
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Please provide a valid podcast RSS feed URL');
+    });
+
+    it('returns 400 when url is missing on /api/transcribe-remote', async () => {
+      const app = createApp({
+        storage,
+        env: { GEMINI_API_KEY: 'test-api-key' } as any,
+        skipVite: true
+      });
+      const res = await request(app).post('/api/transcribe-remote').send({});
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Please provide a valid audio or episode URL');
+    });
+
+    it('accepts audioUrl or url with custom episodeTitle and glossary', async () => {
+      const app = createApp({
+        storage,
+        env: { GEMINI_API_KEY: 'test-api-key' } as any,
+        skipVite: true
+      });
+      const res = await request(app).post('/api/transcribe-remote').send({
+        audioUrl: 'https://example.com/podcast/HS134.mp3',
+        episodeTitle: 'HS134: Dodging the AI Iceberg: Midcourse Corrections',
+        glossary: 'Johna Till Johnson, John Burke, Nemertes'
+      });
+      expect(res.status).toBe(200);
+      expect(res.body.jobId).toBeDefined();
+
+      const created = storage.get(res.body.jobId);
+      expect(created?.filename).toBe('HS134: Dodging the AI Iceberg: Midcourse Corrections');
+      expect(created?.glossary).toBe('Johna Till Johnson, John Burke, Nemertes');
+      expect(created?.sourceUrl).toBe('https://example.com/podcast/HS134.mp3');
+    });
+
+    it('returns 500 on /api/transcribe-remote if GEMINI_API_KEY is missing', async () => {
+      const app = createApp({ storage, env: {} as any, skipVite: true });
+      const res = await request(app)
+        .post('/api/transcribe-remote')
+        .send({ url: 'https://example.com/audio.mp3' });
+      expect(res.status).toBe(500);
+      expect(res.body.error).toContain('GEMINI_API_KEY is not configured');
+    });
+  });
 });

@@ -21,6 +21,12 @@ export interface TranscribeJob {
   key_takeaways?: string;
   chapters?: string;
   social_media?: string;
+  glossary?: string;
+  customVocabulary?: string[];
+  sourceType?: 'upload' | 'rss' | 'url';
+  sourceUrl?: string;
+  feedTitle?: string;
+  episodeTitle?: string;
 }
 
 export const sampleJobsList: TranscribeJob[] = [

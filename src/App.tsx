@@ -40,9 +40,12 @@ import {
   Play,
   Volume2,
   Key,
-  Check
+  Check,
+  Globe,
+  Edit3,
+  Users
 } from "lucide-react";
-import { JobStatus, PromptStyle, AnalysisMode, TranscribeJob, AnalysisResults, ModelStatusInfo } from "./types";
+import { JobStatus, PromptStyle, AnalysisMode, TranscribeJob, AnalysisResults, ModelStatusInfo, RssEpisode } from "./types";
 import {
   inferPodcastTitle,
   inferSpeakers,
@@ -63,6 +66,10 @@ import {
 } from "./utils/transcript";
 import { formatDuration } from "./utils/audio";
 import { AudioPlayer } from "./components/AudioPlayer";
+import { RssFeedPicker } from "./components/RssFeedPicker";
+import { GlossaryInput } from "./components/GlossaryInput";
+import { SpeakerRenameModal } from "./components/SpeakerRenameModal";
+import { TranscriptEditor } from "./components/TranscriptEditor";
 
 const ScribeNodeLogo = ({ className = "w-9 h-9" }: { className?: string }) => (
   <div className={`flex items-center justify-center rounded-xl bg-blue-600 p-2 shrink-0 shadow-sm ${className}`}>
@@ -310,6 +317,16 @@ export default function App() {
   const [isPending, setIsPending] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
   
+  // Audio Ingestion Source & Domain Vocabulary
+  const [inputSource, setInputSource] = useState<'upload' | 'rss' | 'url'>('upload');
+  const [glossary, setGlossary] = useState<string>("");
+  const [directAudioUrl, setDirectAudioUrl] = useState<string>("");
+  const [directEpisodeTitle, setDirectEpisodeTitle] = useState<string>("");
+
+  // Inline Quick Edit & Speaker Renaming states
+  const [isEditingTranscript, setIsEditingTranscript] = useState<boolean>(false);
+  const [showRenameModal, setShowRenameModal] = useState<boolean>(false);
+
   // Job and polling states
   const [job, setJob] = useState<TranscribeJob | null>(null);
   const [jobsList, setJobsList] = useState<TranscribeJob[]>([]);
@@ -600,6 +617,9 @@ export default function App() {
       if (promptStyle === "custom") {
         formData.append("customPrompt", customPrompt);
       }
+      if (glossary.trim()) {
+        formData.append("glossary", glossary.trim());
+      }
 
       const response = await fetch("/api/transcribe", {
         method: "POST",
@@ -638,8 +658,9 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: modelStatus.activeModel || "gemini-3.5-transcribe",
+        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
         duration: durationStr,
+        glossary: glossary.trim() || undefined,
       });
 
       startPolling(data.jobId);
@@ -649,6 +670,149 @@ export default function App() {
       setOptimizationStatus("");
       setIsPending(false);
     }
+  };
+
+  const handleSelectRssEpisode = async (episode: RssEpisode, feedTitle: string) => {
+    setIsPending(true);
+    setErrorMessage("");
+    try {
+      const response = await fetch("/api/transcribe-remote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: episode.audioUrl,
+          audioUrl: episode.audioUrl,
+          episodeTitle: episode.title,
+          feedTitle,
+          promptStyle,
+          customPrompt: promptStyle === "custom" ? customPrompt : undefined,
+          glossary: glossary.trim() || undefined,
+        })
+      });
+
+      if (!response.ok) {
+        let errMsg = "Failed to start RSS episode transcription.";
+        try {
+          const errorData = await response.json();
+          errMsg = errorData.error || errMsg;
+        } catch (e) {
+          errMsg = `Server error ${response.status}`;
+        }
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      setJob({
+        id: data.jobId,
+        filename: episode.title,
+        fileSize: episode.fileSize || 0,
+        status: "uploading",
+        progress: 10,
+        createdAt: Date.now(),
+        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
+        duration: episode.duration,
+        sourceType: "rss",
+        sourceUrl: episode.audioUrl,
+        feedTitle,
+        episodeTitle: episode.title,
+        glossary: glossary.trim() || undefined,
+      });
+
+      startPolling(data.jobId);
+    } catch (err: any) {
+      console.error("RSS Ingest Error:", err);
+      setErrorMessage(err.message || "Failed to start remote RSS transcription.");
+      setIsPending(false);
+    }
+  };
+
+  const handleStartDirectUrlTranscription = async () => {
+    if (!directAudioUrl.trim()) {
+      setErrorMessage("Please enter an audio file URL.");
+      return;
+    }
+
+    setIsPending(true);
+    setErrorMessage("");
+    try {
+      const response = await fetch("/api/transcribe-remote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: directAudioUrl.trim(),
+          audioUrl: directAudioUrl.trim(),
+          episodeTitle: directEpisodeTitle.trim() || undefined,
+          promptStyle,
+          customPrompt: promptStyle === "custom" ? customPrompt : undefined,
+          glossary: glossary.trim() || undefined,
+        })
+      });
+
+      if (!response.ok) {
+        let errMsg = "Failed to start remote audio transcription.";
+        try {
+          const errorData = await response.json();
+          errMsg = errorData.error || errMsg;
+        } catch (e) {
+          errMsg = `Server error ${response.status}`;
+        }
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      const derivedName = directEpisodeTitle.trim() || directAudioUrl.split("/").pop()?.split("?")[0] || "Remote Audio";
+      setJob({
+        id: data.jobId,
+        filename: derivedName,
+        fileSize: 0,
+        status: "uploading",
+        progress: 10,
+        createdAt: Date.now(),
+        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
+        sourceType: "url",
+        sourceUrl: directAudioUrl.trim(),
+        glossary: glossary.trim() || undefined,
+      });
+
+      startPolling(data.jobId);
+    } catch (err: any) {
+      console.error("Direct URL Ingest Error:", err);
+      setErrorMessage(err.message || "Failed to start remote audio transcription.");
+      setIsPending(false);
+    }
+  };
+
+  const handleSaveTranscript = async (newText: string) => {
+    if (!job) return;
+    const res = await fetch(`/api/jobs/${job.id}/transcript`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript: newText })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to save transcript.");
+    }
+    const updated = await res.json();
+    setJob(updated);
+    setIsEditingTranscript(false);
+    fetchJobsList();
+  };
+
+  const handleRenameSpeaker = async (oldName: string, newName: string) => {
+    if (!job) return;
+    const res = await fetch(`/api/jobs/${job.id}/rename-speaker`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ oldName, newName })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Failed to rename speaker.");
+    }
+    const updated = await res.json();
+    setJob(updated);
+    fetchJobsList();
   };
 
   const generateAnalysis = async (mode: AnalysisMode) => {
@@ -814,6 +978,11 @@ export default function App() {
   // Structured Transcript Segments for Audio Sync
   const transcriptSegments: TranscriptSegment[] = useMemo(() => {
     return job?.transcript ? parseTranscriptSegments(job.transcript) : [];
+  }, [job?.transcript]);
+
+  // Detected Speakers for Quick Renaming
+  const detectedSpeakers = useMemo(() => {
+    return job?.transcript ? inferSpeakers(job.transcript) : [];
   }, [job?.transcript]);
 
   const activeSegmentIndex = useMemo(() => {
@@ -1136,7 +1305,7 @@ export default function App() {
                   className="flex items-center gap-2 hover:text-blue-300 transition-colors cursor-pointer text-slate-400 hover:text-slate-200 font-medium"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>v1.4.5 Release Notes</span>
+                  <span>v1.5.0 Release Notes</span>
                 </button>
               </div>
             </motion.aside>
@@ -1520,97 +1689,180 @@ export default function App() {
                   mobileWorkspaceTab === "transcript" ? "flex" : "hidden lg:flex"
                 }`}>
                   
-                  {/* File Metadata Row */}
-                  <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col gap-2.5 sm:gap-3.5 shrink-0">
-                    {/* Row 1: Document Details */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-0.5 flex items-center gap-1.5">
-                          ACTIVE TRANSCRIPT
+                  {/* File Metadata & Actions Header */}
+                  <div className="p-3.5 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col gap-3 shrink-0">
+                    {/* Tier 1: Document Details (Left) + Export / Copy Actions (Right) */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1 flex items-center flex-wrap gap-1.5">
+                          <span>ACTIVE TRANSCRIPT</span>
+                          {job.sourceType === "rss" && (
+                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[9px] font-bold flex items-center gap-1 border border-amber-200">
+                              <Radio className="h-2.5 w-2.5" /> PODCAST RSS
+                            </span>
+                          )}
+                          {job.sourceType === "url" && (
+                            <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded text-[9px] font-bold flex items-center gap-1 border border-indigo-200">
+                              <Globe className="h-2.5 w-2.5" /> AUDIO STREAM
+                            </span>
+                          )}
                           {job.modelUsed && (
-                            <span className="px-1.5 py-0.5 bg-slate-200/80 text-slate-700 rounded text-[9px] font-mono border border-slate-300/40 select-all font-semibold uppercase">
+                            <span className="px-1.5 py-0.5 bg-slate-200/90 text-slate-700 rounded text-[9px] font-mono border border-slate-300/60 select-all font-semibold uppercase">
                               {job.modelUsed}
                             </span>
                           )}
+                          {job.duration && job.duration !== "--:--" && (
+                            <span className="text-[10px] text-slate-400 font-mono font-medium">
+                              · {job.duration}
+                            </span>
+                          )}
                         </div>
-                        <div className="text-xs font-semibold text-slate-800 truncate" title={job.filename}>{job.filename}</div>
+                        <div className="text-sm font-bold text-slate-900 truncate leading-snug" title={job.filename}>
+                          {job.filename}
+                        </div>
+                      </div>
+
+                      {/* Export & Copy Cluster */}
+                      <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-2xs shrink-0 self-start sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboardWithFeedback(job.transcript || "", "transcript-top")}
+                          className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
+                            copiedSnippet === "transcript-top"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+                          }`}
+                          title="Copy full transcript text to clipboard"
+                        >
+                          {copiedSnippet === "transcript-top" ? (
+                            <>
+                              <Check className="h-3 w-3 text-emerald-600" />
+                              <span>Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3 text-slate-500" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                        <span className="w-px h-3.5 bg-slate-200" />
+                        <button
+                          type="button"
+                          onClick={() => downloadFile(job.transcript || "", "txt", "transcript")}
+                          className="px-2 py-1 text-[11px] font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-md transition-all flex items-center gap-1 cursor-pointer"
+                          title="Download plain text (.txt)"
+                        >
+                          <Download className="h-3 w-3 text-slate-400" />
+                          <span>TXT</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadFile(job.transcript || "", "md", "transcript")}
+                          className="px-2 py-1 text-[11px] font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-md transition-all flex items-center gap-1 cursor-pointer"
+                          title="Download formatted Markdown (.md)"
+                        >
+                          <Download className="h-3 w-3 text-slate-400" />
+                          <span>MD</span>
+                        </button>
                       </div>
                     </div>
 
-                    {/* Row 2: Actions Bar */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 sm:pt-2.5 border-t border-slate-200/60">
-                      {/* Re-run preset option */}
+                    {/* Tier 2: Studio Tools (Left) + Clean Re-Run Controller (Right) */}
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-2.5 border-t border-slate-200/70">
+                      {/* Left Side: Studio & Editing Tools */}
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[8px] font-extrabold text-slate-500 uppercase px-1.5 py-0.5 bg-slate-200/60 rounded-md tracking-wider">Re-run Audio:</span>
+                        {/* Quick Edit Toggle */}
                         <button
-                          onClick={() => handleRetranscribe(job.id, "clean")}
-                          className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 cursor-pointer transition-colors"
-                          title="Re-run as Clean (No timestamps/speakers)"
+                          type="button"
+                          onClick={() => setIsEditingTranscript(prev => !prev)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+                            isEditingTranscript
+                              ? "bg-amber-50 text-amber-800 border-amber-300 ring-1 ring-amber-400/40"
+                              : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300"
+                          }`}
+                          title="Edit transcript text manually"
                         >
-                          Clean
+                          <Edit3 className={`h-3.5 w-3.5 ${isEditingTranscript ? "text-amber-600" : "text-amber-500"}`} />
+                          <span>{isEditingTranscript ? "Close Editor" : "Quick Edit"}</span>
                         </button>
-                        <button
-                          onClick={() => handleRetranscribe(job.id, "timestamped")}
-                          className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 cursor-pointer transition-colors"
-                          title="Re-run with Timestamps"
-                        >
-                          Timestamps
-                        </button>
-                        <button
-                          onClick={() => handleRetranscribe(job.id, "verbatim")}
-                          className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 cursor-pointer transition-colors"
-                          title="Re-run with Speakers"
-                        >
-                          Speakers
-                        </button>
-                        <button
-                          onClick={() => handleRetranscribe(job.id, "combined")}
-                          className="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold rounded shadow-sm cursor-pointer transition-colors flex items-center gap-0.5"
-                          title="Re-run with Combined format"
-                        >
-                          <Sparkles className="h-2.5 w-2.5" /> Combined
-                        </button>
-                      </div>
 
-                      {/* Export & Player Options */}
-                      <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
+                        {/* Speaker Rename Modal Trigger */}
+                        {detectedSpeakers.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowRenameModal(true)}
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300 hover:text-blue-700"
+                            title="Rename speakers across the entire transcript"
+                          >
+                            <Users className="h-3.5 w-3.5 text-blue-600" />
+                            <span>Rename Speaker</span>
+                            <span className="ml-0.5 px-1.5 py-0.2 bg-blue-50 text-blue-700 border border-blue-200/60 rounded text-[10px] font-mono font-bold">
+                              {detectedSpeakers.length}
+                            </span>
+                          </button>
+                        )}
+
                         {/* Audio Player Toggle */}
                         <button
                           type="button"
                           onClick={() => setShowAudioPlayer(prev => !prev)}
-                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md shadow-xs transition-all flex items-center gap-1.5 cursor-pointer border ${
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer border ${
                             showAudioPlayer
-                              ? "bg-slate-900 text-white border-slate-800"
-                              : "bg-white hover:bg-slate-100 text-slate-700 border-slate-200/80"
+                              ? "bg-slate-900 text-white border-slate-900"
+                              : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300"
                           }`}
                           title="Toggle Synced Audio Player"
                         >
-                          <Headphones className={`h-3 w-3 ${showAudioPlayer ? "text-blue-400" : "text-blue-600"}`} />
+                          <Headphones className={`h-3.5 w-3.5 ${showAudioPlayer ? "text-blue-400" : "text-blue-600"}`} />
                           <span>{showAudioPlayer ? "Hide Audio" : "Audio Player"}</span>
                           {isAudioPlaying && (
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping ml-0.5" />
                           )}
                         </button>
+                      </div>
 
-                        <button
-                          onClick={() => copyToClipboard(job.transcript || "")}
-                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-md transition-colors border border-slate-200/40 bg-white cursor-pointer"
-                          title="Copy Transcript"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => downloadFile(job.transcript || "", "txt", "transcript")}
-                          className="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-[10px] font-bold rounded shadow-sm transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Download className="h-3 w-3" /> TXT
-                        </button>
-                        <button
-                          onClick={() => downloadFile(job.transcript || "", "md", "transcript")}
-                          className="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-[10px] font-bold rounded shadow-sm transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                          <Download className="h-3 w-3" /> Markdown
-                        </button>
+                      {/* Right Side: Re-run Segmented Preset Controller */}
+                      <div className="flex items-center gap-1.5 self-start lg:self-auto flex-wrap sm:flex-nowrap">
+                        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                          <RotateCcw className="h-3 w-3 text-slate-400" />
+                          <span>Re-run:</span>
+                        </span>
+                        <div className="inline-flex p-0.5 bg-slate-200/80 rounded-lg border border-slate-300/60 shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={() => handleRetranscribe(job.id, "clean")}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all text-slate-700 hover:text-slate-900 hover:bg-white/70 cursor-pointer"
+                            title="Re-run as Clean (No timestamps/speakers)"
+                          >
+                            Clean
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRetranscribe(job.id, "timestamped")}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all text-slate-700 hover:text-slate-900 hover:bg-white/70 cursor-pointer"
+                            title="Re-run with Timestamps"
+                          >
+                            Timestamps
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRetranscribe(job.id, "verbatim")}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all text-slate-700 hover:text-slate-900 hover:bg-white/70 cursor-pointer"
+                            title="Re-run with Speakers"
+                          >
+                            Speakers
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRetranscribe(job.id, "combined")}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all bg-white text-blue-700 shadow-2xs hover:bg-blue-50 cursor-pointer flex items-center gap-1 border border-slate-200/60"
+                            title="Re-run with Combined format (Timestamps + Speakers)"
+                          >
+                            <Sparkles className="h-2.5 w-2.5 text-amber-500" />
+                            <span>Combined</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1637,96 +1889,109 @@ export default function App() {
                     )}
                   </AnimatePresence>
 
-                  {/* Search bar wrapper */}
-                  <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 bg-white shrink-0">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search words within transcription..."
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pl-9 pr-24 text-xs focus:ring-1 focus:ring-blue-500 outline-none placeholder-slate-400 transition-all text-slate-800"
+                  {/* Inline Transcript Editor vs Read-only Paragraph List */}
+                  {isEditingTranscript ? (
+                    <div className="flex-1 overflow-hidden p-3 sm:p-4">
+                      <TranscriptEditor
+                        initialText={job.transcript || ""}
+                        onSave={handleSaveTranscript}
+                        onCancel={() => setIsEditingTranscript(false)}
                       />
-                      {searchQuery && (
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-slate-100/90 px-2 py-0.5 rounded-md border border-slate-200/50 shadow-sm">
-                          <span className="text-[9px] font-mono font-bold text-slate-500 select-none mr-1.5 shrink-0">
-                            {searchMatches.length > 0 ? `${activeMatchIndex + 1}/${searchMatches.length}` : '0/0'}
-                          </span>
-                          <button
-                            onClick={handlePrevMatch}
-                            disabled={searchMatches.length === 0}
-                            className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed flex items-center justify-center"
-                            title="Previous Match"
-                          >
-                            <ChevronUp className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={handleNextMatch}
-                            disabled={searchMatches.length === 0}
-                            className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed flex items-center justify-center"
-                            title="Next Match"
-                          >
-                            <ChevronDown className="h-3 w-3" />
-                          </button>
-                          <div className="h-2.5 w-[1px] bg-slate-300 mx-0.5" />
-                          <button
-                            onClick={() => setSearchQuery("")}
-                            className="p-0.5 hover:bg-slate-200 rounded text-slate-400 hover:text-slate-600 cursor-pointer flex items-center justify-center"
-                            title="Clear search"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      )}
                     </div>
-                  </div>
-
-                  {/* Real Transcript text lines */}
-                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4" id="transcript-scroll-area">
-                    {(() => {
-                      const title = inferPodcastTitle(job.filename, job.transcript);
-                      const speakers = inferSpeakers(job.transcript);
-                      return (
-                        <div className="pb-3 border-b border-slate-200/80 mb-3">
-                          <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">{title}</h2>
-                          {speakers.length > 0 && (
-                            <p className="text-xs text-slate-600 mt-1">
-                              <span className="font-bold text-slate-800">Hosts: </span>
-                              <span className="italic text-slate-700">{speakers.join(", ")}</span>
-                            </p>
+                  ) : (
+                    <>
+                      {/* Search bar wrapper */}
+                      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 bg-white shrink-0">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                          <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search words within transcription..."
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pl-9 pr-24 text-xs focus:ring-1 focus:ring-blue-500 outline-none placeholder-slate-400 transition-all text-slate-800"
+                          />
+                          {searchQuery && (
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-slate-100/90 px-2 py-0.5 rounded-md border border-slate-200/50 shadow-sm">
+                              <span className="text-[9px] font-mono font-bold text-slate-500 select-none mr-1.5 shrink-0">
+                                {searchMatches.length > 0 ? `${activeMatchIndex + 1}/${searchMatches.length}` : '0/0'}
+                              </span>
+                              <button
+                                onClick={handlePrevMatch}
+                                disabled={searchMatches.length === 0}
+                                className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed flex items-center justify-center"
+                                title="Previous Match"
+                              >
+                                <ChevronUp className="h-3 w-3" />
+                              </button>
+                              <button
+                                onClick={handleNextMatch}
+                                disabled={searchMatches.length === 0}
+                                className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed flex items-center justify-center"
+                                title="Next Match"
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                              </button>
+                              <div className="h-2.5 w-[1px] bg-slate-300 mx-0.5" />
+                              <button
+                                onClick={() => setSearchQuery("")}
+                                className="p-0.5 hover:bg-slate-200 rounded text-slate-400 hover:text-slate-600 cursor-pointer flex items-center justify-center"
+                                title="Clear search"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
                           )}
                         </div>
-                      );
-                    })()}
+                      </div>
 
-                    <div className="space-y-4">
-                      {stripExistingHeader(job.transcript).split("\n").map(p => p.trim()).filter(Boolean).map((p, idx) => {
-                        const isCurrentMatch = searchQuery.trim() && searchMatches[activeMatchIndex] === idx;
-                        const isActivePlaying = showAudioPlayer && activeSegmentIndex === idx;
-                        return (
-                          <div 
-                            key={idx} 
-                            id={`transcript-paragraph-${idx}`}
-                            className={`transition-all duration-300 px-2 py-1 rounded-lg ${
-                              isCurrentMatch 
-                                ? "bg-amber-50 border border-amber-200 shadow-sm ring-1 ring-amber-300/30 scale-[1.01]" 
-                                : isActivePlaying
-                                  ? "bg-blue-50/80 border border-blue-200/80 shadow-xs ring-1 ring-blue-300/30"
-                                  : "border border-transparent hover:bg-slate-50/50"
-                            }`}
-                          >
-                            <HighlightedParagraph 
-                              text={p} 
-                              idx={idx} 
-                              isActivePlaying={isActivePlaying} 
-                              onTimestampClick={handleTimestampClick} 
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                      {/* Real Transcript text lines */}
+                      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4" id="transcript-scroll-area">
+                        {(() => {
+                          const title = inferPodcastTitle(job.filename, job.transcript);
+                          const speakers = inferSpeakers(job.transcript);
+                          return (
+                            <div className="pb-3 border-b border-slate-200/80 mb-3">
+                              <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">{title}</h2>
+                              {speakers.length > 0 && (
+                                <p className="text-xs text-slate-600 mt-1">
+                                  <span className="font-bold text-slate-800">Hosts: </span>
+                                  <span className="italic text-slate-700">{speakers.join(", ")}</span>
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
+
+                        <div className="space-y-4">
+                          {stripExistingHeader(job.transcript).split("\n").map(p => p.trim()).filter(Boolean).map((p, idx) => {
+                            const isCurrentMatch = searchQuery.trim() && searchMatches[activeMatchIndex] === idx;
+                            const isActivePlaying = showAudioPlayer && activeSegmentIndex === idx;
+                            return (
+                              <div 
+                                key={idx} 
+                                id={`transcript-paragraph-${idx}`}
+                                className={`transition-all duration-300 px-2 py-1 rounded-lg ${
+                                  isCurrentMatch 
+                                    ? "bg-amber-50 border border-amber-200 shadow-sm ring-1 ring-amber-300/30 scale-[1.01]" 
+                                    : isActivePlaying
+                                      ? "bg-blue-50/80 border border-blue-200/80 shadow-xs ring-1 ring-blue-300/30"
+                                      : "border border-transparent hover:bg-slate-50/50"
+                                }`}
+                              >
+                                <HighlightedParagraph 
+                                  text={p} 
+                                  idx={idx} 
+                                  isActivePlaying={isActivePlaying} 
+                                  onTimestampClick={handleTimestampClick} 
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                 </div>
 
@@ -2073,6 +2338,46 @@ export default function App() {
                     /* UPLOAD & CONFIGURATION CARD */
                     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-5">
                       
+                      {/* INGESTION SOURCE TAB SWITCHER */}
+                      <div className="flex border-b border-slate-200 bg-slate-50/80 rounded-t-xl overflow-hidden -mx-5 -mt-5 mb-5">
+                        <button
+                          type="button"
+                          onClick={() => setInputSource("upload")}
+                          className={`flex-1 py-3 px-3 text-xs font-bold flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer ${
+                            inputSource === "upload"
+                              ? "border-blue-600 text-blue-600 bg-white"
+                              : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                          }`}
+                        >
+                          <UploadCloud className="w-4 h-4" />
+                          <span>Upload File</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInputSource("rss")}
+                          className={`flex-1 py-3 px-3 text-xs font-bold flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer ${
+                            inputSource === "rss"
+                              ? "border-blue-600 text-blue-600 bg-white"
+                              : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                          }`}
+                        >
+                          <Radio className="w-4 h-4 text-orange-500" />
+                          <span>Podcast RSS Feed</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setInputSource("url")}
+                          className={`flex-1 py-3 px-3 text-xs font-bold flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer ${
+                            inputSource === "url"
+                              ? "border-blue-600 text-blue-600 bg-white"
+                              : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                          }`}
+                        >
+                          <Globe className="w-4 h-4 text-emerald-500" />
+                          <span>Direct Audio URL</span>
+                        </button>
+                      </div>
+
                       {errorMessage && (
                         <div className="p-3 bg-red-50 border border-red-200/80 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-red-700 text-xs">
                           <div className="flex gap-2.5 items-start">
@@ -2092,238 +2397,413 @@ export default function App() {
                         </div>
                       )}
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        
-                        {/* Step 1: File selection */}
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Step 1: Choose Audio File</label>
-                          <div
-                            onDragEnter={handleDrag}
-                            onDragOver={handleDrag}
-                            onDragLeave={handleDrag}
-                            onDrop={handleDrop}
-                            onClick={() => fileInputRef.current?.click()}
-                            className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[140px] ${
-                              dragActive 
-                                ? "border-blue-500 bg-blue-50/40" 
-                                : file 
-                                  ? "border-emerald-500 bg-emerald-50/10 hover:border-emerald-600" 
-                                  : "border-slate-200 hover:border-blue-400 hover:bg-slate-50/50"
-                            }`}
-                          >
-                            <input
-                              ref={fileInputRef}
-                              type="file"
-                              accept="audio/*"
-                              onChange={handleFileSelect}
-                              className="hidden"
-                            />
-
-                            {file ? (
-                              <div className="space-y-1.5 flex flex-col items-center">
-                                <FileAudio className="h-8 w-8 text-emerald-600 animate-pulse" />
-                                <div className="max-w-[200px]">
-                                  <p className="font-semibold text-slate-800 text-xs truncate">{file.name}</p>
-                                  <p className="text-[9px] text-slate-400 font-mono">
-                                    {(file.size / (1024 * 1024)).toFixed(1)} MB
-                                  </p>
-                                </div>
-                                <span className="inline-block text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-                                  Selected
-                                </span>
-                              </div>
-                            ) : (
-                              <div className="space-y-2 flex flex-col items-center">
-                                <UploadCloud className="h-6 w-6 text-blue-500" />
-                                <div>
-                                  <p className="font-bold text-slate-700 text-xs">Drag & drop podcast audio</p>
-                                  <p className="text-[10px] text-slate-400 mt-0.5">MP3, WAV, M4A, OGG, FLAC (max {maxUploadSizeMB}MB)</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Client-side Audio Optimization Box */}
-                          <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 mt-2.5 space-y-3">
-                            <div className="flex items-start gap-2.5">
-                              <input
-                                type="checkbox"
-                                id="optimize-audio-checkbox"
-                                checked={optimizeAudio}
-                                onChange={(e) => setOptimizeAudio(e.target.checked)}
-                                className="mt-0.5 h-3.5 w-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
-                              />
-                              <div className="space-y-0.5">
-                                <label htmlFor="optimize-audio-checkbox" className="text-[10px] font-bold text-slate-700 cursor-pointer flex items-center gap-1.5">
-                                  Optimize & Compress Audio <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[8px] font-mono rounded font-extrabold uppercase tracking-wider">Recommended</span>
-                                </label>
-                                <p className="text-[9px] text-slate-500 leading-normal">
-                                  Resamples and downmixes audio locally before upload to stay under network limits and ensure lightning-fast transfers.
-                                </p>
+                      {/* INGESTION BODY BY SOURCE */}
+                      {inputSource === "rss" ? (
+                        <div className="space-y-4">
+                          <RssFeedPicker onSelectEpisode={handleSelectRssEpisode} isPending={isPending} />
+                          
+                          {/* Formatting & Glossary below RSS */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+                            {/* Formatting Workflow */}
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Formatting Preset</label>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptStyle("clean")}
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    promptStyle === "clean" 
+                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600" : "text-slate-400"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800">Clean</div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptStyle("timestamped")}
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    promptStyle === "timestamped" 
+                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600" : "text-slate-400"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800">Timestamps</div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptStyle("verbatim")}
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    promptStyle === "verbatim" 
+                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600" : "text-slate-400"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800">Speakers</div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptStyle("combined")}
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    promptStyle === "combined" 
+                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600" : "text-slate-400"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800">Combined</div>
+                                </button>
                               </div>
                             </div>
 
-                            {optimizeAudio && (
-                              <div className="pl-6 pt-1.5 space-y-2 border-t border-slate-200/60 mt-2">
-                                <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Compression Profile</label>
-                                <div className="grid grid-cols-2 gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => setAudioOptimizationProfile('auto')}
-                                    className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
-                                      audioOptimizationProfile === 'auto'
-                                        ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
-                                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
-                                    }`}
-                                  >
-                                    Auto Smart Limit (Safe)
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setAudioOptimizationProfile('high')}
-                                    className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
-                                      audioOptimizationProfile === 'high'
-                                        ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
-                                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
-                                    }`}
-                                  >
-                                    High Quality (16kHz, 16-bit)
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setAudioOptimizationProfile('standard')}
-                                    className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
-                                      audioOptimizationProfile === 'standard'
-                                        ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
-                                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
-                                    }`}
-                                  >
-                                    Balanced (12kHz, 16-bit)
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setAudioOptimizationProfile('compact')}
-                                    className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
-                                      audioOptimizationProfile === 'compact'
-                                        ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
-                                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
-                                    }`}
-                                  >
-                                    Voice Compact (8kHz, 8-bit)
-                                  </button>
-                                </div>
-                                <p className="text-[8px] text-slate-400 italic">
-                                  {audioOptimizationProfile === 'auto' && "Automatically shrinks large/long files to stay safely under the 25MB container network limit."}
-                                  {audioOptimizationProfile === 'high' && "Uses high-fidelity 16kHz sample rate with 16-bit resolution. Great for short podcasts."}
-                                  {audioOptimizationProfile === 'standard' && "Optimized 12kHz, 16-bit mono profile. Cuts file size in half with great speech legibility."}
-                                  {audioOptimizationProfile === 'compact' && "8kHz, 8-bit ultra-light mono profile. Shrinks even massive 2-hour podcasts down to ~15-20MB!"}
-                                </p>
-                              </div>
-                            )}
+                            {/* Glossary */}
+                            <GlossaryInput value={glossary} onChange={setGlossary} />
                           </div>
                         </div>
+                      ) : inputSource === "url" ? (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                                <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                                Audio Stream URL (.mp3 / .wav / .m4a)
+                              </label>
+                              <input
+                                type="url"
+                                value={directAudioUrl}
+                                onChange={(e) => setDirectAudioUrl(e.target.value)}
+                                placeholder="https://example.com/audio/episode-42.mp3"
+                                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 font-mono focus:ring-1 focus:ring-blue-500 outline-none"
+                              />
 
-                        {/* Step 2: Formats Selector */}
-                        <div className="space-y-2 flex flex-col justify-between">
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Step 2: Formatting Workflow</label>
-                            
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setPromptStyle("clean")}
-                                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                                  promptStyle === "clean" 
-                                    ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                    : "border-slate-200 bg-white hover:bg-slate-50"
-                                }`}
-                              >
-                                <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600" : "text-slate-400"}`} />
-                                <div className="text-[10px] font-bold text-slate-800">Clean</div>
-                              </button>
+                              <div>
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                  Optional Episode Title
+                                </label>
+                                <input
+                                  type="text"
+                                  value={directEpisodeTitle}
+                                  onChange={(e) => setDirectEpisodeTitle(e.target.value)}
+                                  placeholder="e.g. Episode 42: Next-Gen AI"
+                                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:ring-1 focus:ring-blue-500 outline-none mt-1"
+                                />
+                              </div>
+                            </div>
 
-                              <button
-                                type="button"
-                                onClick={() => setPromptStyle("timestamped")}
-                                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                                  promptStyle === "timestamped" 
-                                    ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                    : "border-slate-200 bg-white hover:bg-slate-50"
-                                }`}
-                              >
-                                <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600" : "text-slate-400"}`} />
-                                <div className="text-[10px] font-bold text-slate-800">Timestamps</div>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setPromptStyle("verbatim")}
-                                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                                  promptStyle === "verbatim" 
-                                    ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                    : "border-slate-200 bg-white hover:bg-slate-50"
-                                }`}
-                              >
-                                <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600" : "text-slate-400"}`} />
-                                <div className="text-[10px] font-bold text-slate-800">Speakers</div>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setPromptStyle("combined")}
-                                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
-                                  promptStyle === "combined" 
-                                    ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                    : "border-slate-200 bg-white hover:bg-slate-50"
-                                }`}
-                                title="Combines Speaker tags, precise Timestamps, and fully cleaned text"
-                              >
-                                <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600" : "text-slate-400"}`} />
-                                <div className="text-[10px] font-bold text-slate-800">Combined</div>
-                              </button>
+                            {/* Formats Selector */}
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Formatting Preset</label>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptStyle("clean")}
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    promptStyle === "clean" 
+                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600" : "text-slate-400"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800">Clean</div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptStyle("timestamped")}
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    promptStyle === "timestamped" 
+                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600" : "text-slate-400"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800">Timestamps</div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptStyle("verbatim")}
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    promptStyle === "verbatim" 
+                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600" : "text-slate-400"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800">Speakers</div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPromptStyle("combined")}
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    promptStyle === "combined" 
+                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600" : "text-slate-400"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800">Combined</div>
+                                </button>
+                              </div>
                             </div>
                           </div>
+
+                          <GlossaryInput value={glossary} onChange={setGlossary} />
 
                           <button
                             type="button"
-                            onClick={() => setPromptStyle(promptStyle === "custom" ? "clean" : "custom")}
-                            className={`text-[10px] font-bold inline-flex items-center gap-1 hover:underline text-left mt-2 ${
-                              promptStyle === "custom" ? "text-blue-600" : "text-slate-400"
+                            onClick={handleStartDirectUrlTranscription}
+                            disabled={!directAudioUrl.trim() || isPending}
+                            className={`w-full py-2.5 px-4 rounded-lg text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all ${
+                              !directAudioUrl.trim() 
+                                ? "bg-slate-300 cursor-not-allowed" 
+                                : "bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] cursor-pointer"
                             }`}
                           >
-                            <Sparkles className="h-3 w-3" />
-                            {promptStyle === "custom" ? "Disable Custom Prompt" : "Use Custom Transcription Prompt"}
+                            <Sparkles className="h-3.5 w-3.5" /> Initialize Remote URL Transcription
                           </button>
                         </div>
+                      ) : (
+                        /* Standard File Upload Tab */
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            
+                            {/* Step 1: File selection */}
+                            <div className="space-y-2">
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Step 1: Choose Audio File</label>
+                              <div
+                                onDragEnter={handleDrag}
+                                onDragOver={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDrop={handleDrop}
+                                onClick={() => fileInputRef.current?.click()}
+                                className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[140px] ${
+                                  dragActive 
+                                    ? "border-blue-500 bg-blue-50/40" 
+                                    : file 
+                                      ? "border-emerald-500 bg-emerald-50/10 hover:border-emerald-600" 
+                                      : "border-slate-200 hover:border-blue-400 hover:bg-slate-50/50"
+                                }`}
+                              >
+                                <input
+                                  ref={fileInputRef}
+                                  type="file"
+                                  accept="audio/*"
+                                  onChange={handleFileSelect}
+                                  className="hidden"
+                                />
 
-                      </div>
+                                {file ? (
+                                  <div className="space-y-1.5 flex flex-col items-center">
+                                    <FileAudio className="h-8 w-8 text-emerald-600 animate-pulse" />
+                                    <div className="max-w-[200px]">
+                                      <p className="font-semibold text-slate-800 text-xs truncate">{file.name}</p>
+                                      <p className="text-[9px] text-slate-400 font-mono">
+                                        {(file.size / (1024 * 1024)).toFixed(1)} MB
+                                      </p>
+                                    </div>
+                                    <span className="inline-block text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                                      Selected
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2 flex flex-col items-center">
+                                    <UploadCloud className="h-6 w-6 text-blue-500" />
+                                    <div>
+                                      <p className="font-bold text-slate-700 text-xs">Drag & drop podcast audio</p>
+                                      <p className="text-[10px] text-slate-400 mt-0.5">MP3, WAV, M4A, OGG, FLAC (max {maxUploadSizeMB}MB)</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
 
-                      {/* Custom Prompt Expanded */}
-                      {promptStyle === "custom" && (
-                        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-                          <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Enter Custom Transcription Prompt</label>
-                          <textarea
-                            value={customPrompt}
-                            onChange={(e) => setCustomPrompt(e.target.value)}
-                            placeholder="Example: Transcribe only the first 5 minutes, correct names, and output paragraphs in English."
-                            className="w-full text-xs bg-white border border-slate-200 rounded-md p-2 h-14 focus:ring-1 focus:ring-blue-500 outline-none leading-normal text-slate-800"
-                          />
+                              {/* Client-side Audio Optimization Box */}
+                              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 mt-2.5 space-y-3">
+                                <div className="flex items-start gap-2.5">
+                                  <input
+                                    type="checkbox"
+                                    id="optimize-audio-checkbox"
+                                    checked={optimizeAudio}
+                                    onChange={(e) => setOptimizeAudio(e.target.checked)}
+                                    className="mt-0.5 h-3.5 w-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                                  />
+                                  <div className="space-y-0.5">
+                                    <label htmlFor="optimize-audio-checkbox" className="text-[10px] font-bold text-slate-700 cursor-pointer flex items-center gap-1.5">
+                                      Optimize & Compress Audio <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[8px] font-mono rounded font-extrabold uppercase tracking-wider">Recommended</span>
+                                    </label>
+                                    <p className="text-[9px] text-slate-500 leading-normal">
+                                      Resamples and downmixes audio locally before upload to stay under network limits and ensure lightning-fast transfers.
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {optimizeAudio && (
+                                  <div className="pl-6 pt-1.5 space-y-2 border-t border-slate-200/60 mt-2">
+                                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Compression Profile</label>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => setAudioOptimizationProfile('auto')}
+                                        className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
+                                          audioOptimizationProfile === 'auto'
+                                            ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
+                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
+                                        }`}
+                                      >
+                                        Auto Smart Limit (Safe)
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setAudioOptimizationProfile('high')}
+                                        className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
+                                          audioOptimizationProfile === 'high'
+                                            ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
+                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
+                                        }`}
+                                      >
+                                        High Quality (16kHz, 16-bit)
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setAudioOptimizationProfile('standard')}
+                                        className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
+                                          audioOptimizationProfile === 'standard'
+                                            ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
+                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
+                                        }`}
+                                      >
+                                        Balanced (12kHz, 16-bit)
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setAudioOptimizationProfile('compact')}
+                                        className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
+                                          audioOptimizationProfile === 'compact'
+                                            ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
+                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
+                                        }`}
+                                      >
+                                        Voice Compact (8kHz, 8-bit)
+                                      </button>
+                                    </div>
+                                    <p className="text-[8px] text-slate-400 italic">
+                                      {audioOptimizationProfile === 'auto' && "Automatically shrinks large/long files to stay safely under the 25MB container network limit."}
+                                      {audioOptimizationProfile === 'high' && "Uses high-fidelity 16kHz sample rate with 16-bit resolution. Great for short podcasts."}
+                                      {audioOptimizationProfile === 'standard' && "Optimized 12kHz, 16-bit mono profile. Cuts file size in half with great speech legibility."}
+                                      {audioOptimizationProfile === 'compact' && "8kHz, 8-bit ultra-light mono profile. Shrinks even massive 2-hour podcasts down to ~15-20MB!"}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Step 2: Formats Selector & Glossary */}
+                            <div className="space-y-4 flex flex-col justify-between">
+                              <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Step 2: Formatting Workflow</label>
+                                
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setPromptStyle("clean")}
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                      promptStyle === "clean" 
+                                        ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                        : "border-slate-200 bg-white hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600" : "text-slate-400"}`} />
+                                    <div className="text-[10px] font-bold text-slate-800">Clean</div>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setPromptStyle("timestamped")}
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                      promptStyle === "timestamped" 
+                                        ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                        : "border-slate-200 bg-white hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600" : "text-slate-400"}`} />
+                                    <div className="text-[10px] font-bold text-slate-800">Timestamps</div>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setPromptStyle("verbatim")}
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                      promptStyle === "verbatim" 
+                                        ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                        : "border-slate-200 bg-white hover:bg-slate-50"
+                                    }`}
+                                  >
+                                    <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600" : "text-slate-400"}`} />
+                                    <div className="text-[10px] font-bold text-slate-800">Speakers</div>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => setPromptStyle("combined")}
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                      promptStyle === "combined" 
+                                        ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
+                                        : "border-slate-200 bg-white hover:bg-slate-50"
+                                    }`}
+                                    title="Combines Speaker tags, precise Timestamps, and fully cleaned text"
+                                  >
+                                    <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600" : "text-slate-400"}`} />
+                                    <div className="text-[10px] font-bold text-slate-800">Combined</div>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Custom Domain Glossary */}
+                              <GlossaryInput value={glossary} onChange={setGlossary} />
+
+                              <button
+                                type="button"
+                                onClick={() => setPromptStyle(promptStyle === "custom" ? "clean" : "custom")}
+                                className={`text-[10px] font-bold inline-flex items-center gap-1 hover:underline text-left ${
+                                  promptStyle === "custom" ? "text-blue-600" : "text-slate-400"
+                                }`}
+                              >
+                                <Sparkles className="h-3 w-3" />
+                                {promptStyle === "custom" ? "Disable Custom Prompt" : "Use Custom Transcription Prompt"}
+                              </button>
+                            </div>
+
+                          </div>
+
+                          {/* Custom Prompt Expanded */}
+                          {promptStyle === "custom" && (
+                            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
+                              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Enter Custom Transcription Prompt</label>
+                              <textarea
+                                value={customPrompt}
+                                onChange={(e) => setCustomPrompt(e.target.value)}
+                                placeholder="Example: Transcribe only the first 5 minutes, correct names, and output paragraphs in English."
+                                className="w-full text-xs bg-white border border-slate-200 rounded-md p-2 h-14 focus:ring-1 focus:ring-blue-500 outline-none leading-normal text-slate-800"
+                              />
+                            </div>
+                          )}
+
+                          {/* Submit Trigger */}
+                          <button
+                            type="button"
+                            onClick={handleStartTranscription}
+                            disabled={!file || isPending}
+                            className={`w-full py-2.5 px-4 rounded-lg text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all ${
+                              !file 
+                                ? "bg-slate-300 cursor-not-allowed" 
+                                : "bg-blue-600 hover:bg-blue-700 active:scale-[0.99] cursor-pointer"
+                            }`}
+                          >
+                            <Sparkles className="h-3.5 w-3.5" /> Initialize Transcription Workflow
+                          </button>
                         </div>
                       )}
-
-                      {/* Submit Trigger */}
-                      <button
-                        type="button"
-                        onClick={handleStartTranscription}
-                        disabled={!file || isPending}
-                        className={`w-full py-2.5 px-4 rounded-lg text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all ${
-                          !file 
-                            ? "bg-slate-300 cursor-not-allowed" 
-                            : "bg-blue-600 hover:bg-blue-700 active:scale-[0.99] cursor-pointer"
-                        }`}
-                      >
-                        <Sparkles className="h-3.5 w-3.5" /> Initialize Transcription Workflow
-                      </button>
 
                     </div>
                   )}
@@ -2821,7 +3301,7 @@ export default function App() {
             className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-2.5 sm:px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800">v1.4.5</span>
+            <span className="font-mono text-xs font-bold text-slate-800">v1.5.0</span>
             <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-1.5 sm:pl-2 hidden xs:inline">About & Release Notes</span>
           </button>
         </footer>
@@ -2845,7 +3325,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-base sm:text-lg text-white tracking-tight">Scribe<span className="text-blue-300">Node</span></h2>
                         <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                          v1.4.5
+                          v1.5.0
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -2897,7 +3377,7 @@ export default function App() {
                     }`}
                   >
                     <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    <span>What's New v1.4.5</span>
+                    <span>What's New v1.5.0</span>
                   </button>
                 </div>
 
@@ -3119,28 +3599,24 @@ export default function App() {
                       <div>
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
                           <Zap className="w-4 h-4 text-amber-500" />
-                          What's New in v1.4.5
+                          What's New in v1.5.0
                         </h3>
                         <ul className="space-y-3 border-l-2 border-blue-200 pl-3.5">
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Flagship Gemini 3.7 Flash Multimodal Transcription:</span>
-                            <p className="text-slate-600 mt-0.5">Anchored the primary speech engine in Gemini 3.7 Flash, combining high-fidelity acoustic processing with conversational reasoning to accurately infer host names, parse technical domain vocabulary, and preserve speaker diarization in a single pass.</p>
+                            <span className="font-bold text-slate-900">Podcast RSS Feed & Remote URL Ingestion:</span>
+                            <p className="text-slate-600 mt-0.5">Directly transcribe podcasts from public RSS feeds or direct audio URLs. Preview feed metadata, browse episodes, and stream audio directly to the transcription pipeline without manual file downloads.</p>
                           </li>
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Publication-Grade Markdown Standards:</span>
-                            <p className="text-slate-600 mt-0.5">Streamlined layout generation to guarantee clean H1 episode titles, host attribution blocks, horizontal dividers, and consistent timestamped turns (<code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">[MM:SS] **Speaker Name**:</code>) with zero distorted markup.</p>
+                            <span className="font-bold text-slate-900">Custom Vocabulary & Technical Glossary:</span>
+                            <p className="text-slate-600 mt-0.5">Supply custom domain terms, acronyms, brand names, and niche jargon prior to transcription to dramatically improve speech recognition accuracy across specialized recordings.</p>
                           </li>
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Intelligent Error Categorization & Friendly Feedback:</span>
-                            <p className="text-slate-600 mt-0.5">Raw 503, 429, 400, and 403 API responses are automatically translated into human-readable diagnostics (e.g. <em>"Model demand too high, try again later"</em> or <em>"Configuration parameters adapted"</em>) across pipeline monitors and popovers.</p>
+                            <span className="font-bold text-slate-900">Inline Quick Edit & Global Speaker Renaming:</span>
+                            <p className="text-slate-600 mt-0.5">Directly refine transcript text with the integrated markdown editor, or replace speaker labels across the entire transcript with one click using the Speaker Renaming dialog.</p>
                           </li>
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Granular Per-Model Failover Status Diagnostics:</span>
-                            <p className="text-slate-600 mt-0.5">The Model Orchestration inspector tracks individual statuses and error badges across the full model cascade sequence (<code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">gemini-3.7-flash</code> ➡️ <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">3.6-flash</code> ➡️ <code className="bg-slate-100 px-1 py-0.2 rounded font-mono text-[10px]">3.5-flash</code>), highlighting active failovers in real-time.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">One-Click Pipeline Retry & High-Demand Recovery:</span>
-                            <p className="text-slate-600 mt-0.5">Instant <strong>Try Again</strong> recovery action within the preview panel and enhanced header health indicators (Ready, Fallback, High Demand).</p>
+                            <span className="font-bold text-slate-900">Unified Ingestion Card & Mode Switcher:</span>
+                            <p className="text-slate-600 mt-0.5">Sleek, tabbed ingestion interface for switching effortlessly between local file upload, RSS podcast feeds, and direct URL streaming with persistent transcription presets.</p>
                           </li>
                         </ul>
                       </div>
@@ -3151,8 +3627,8 @@ export default function App() {
                         </h4>
                         <div className="space-y-2">
                           <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
-                            <div className="font-bold text-slate-800">v1.4.1 — Friendly Error Categorization & Cascade Diagnostics</div>
-                            <p className="text-[10px] text-slate-500">Human-readable diagnostic error translation, per-model health monitors, and rapid one-click retry actions.</p>
+                            <div className="font-bold text-slate-800">v1.4.5 — Flagship Gemini 3.7 Flash & Markdown Standards</div>
+                            <p className="text-[10px] text-slate-500">Flagship multimodal transcription, publication-grade markdown layout, human-friendly error categorization, and granular model cascade failover diagnostics.</p>
                           </div>
                           <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
                             <div className="font-bold text-slate-800">v1.3.0 — Mobile-Responsive Overhaul & Upload Sizing</div>
@@ -3224,6 +3700,14 @@ export default function App() {
             </div>
           )}
         </AnimatePresence>
+
+        {/* Speaker Rename Modal */}
+        <SpeakerRenameModal
+          isOpen={showRenameModal}
+          onClose={() => setShowRenameModal(false)}
+          detectedSpeakers={detectedSpeakers}
+          onRename={handleRenameSpeaker}
+        />
 
       </main>
     </div>

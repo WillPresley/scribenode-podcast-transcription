@@ -22,6 +22,31 @@ export interface TranscribeJob {
   localFilePath?: string;
   mimeType?: string;
   hasAudioFile?: boolean;
+  glossary?: string;
+  customVocabulary?: string[];
+  sourceType?: 'upload' | 'rss' | 'url';
+  sourceUrl?: string;
+  feedTitle?: string;
+  episodeTitle?: string;
+}
+
+export interface RssEpisode {
+  id: string;
+  title: string;
+  description?: string;
+  pubDate?: string;
+  duration?: string;
+  audioUrl: string;
+  fileSize?: number;
+  artworkUrl?: string;
+}
+
+export interface RssFeedInfo {
+  title: string;
+  description?: string;
+  link?: string;
+  artworkUrl?: string;
+  episodes: RssEpisode[];
 }
 
 export interface AnalysisResults {

@@ -1,8 +1,8 @@
 # <img src="public/logos/scribenode-logo-color.svg" alt="ScribeNode Logo" width="38" height="38" valign="middle" /> ScribeNode — AI Speech & Transcript Engine
 
-[![Version](https://img.shields.io/badge/version-1.4.5-blue.svg)](package.json)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](package.json)
 [![Node](https://img.shields.io/badge/node-v24_LTS_%7C_v26-brightgreen.svg)](package.json)
-[![Docker](https://img.shields.io/badge/docker-v1.4.5-blue.svg)](Dockerfile)
+[![Docker](https://img.shields.io/badge/docker-v1.5.0-blue.svg)](Dockerfile)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 **ScribeNode** is a full-stack, high-throughput AI audio transcription and speech intelligence web application. Powered by Google's specialized Gemini Flash and Audio AI model suite (`gemini-3.7-flash`, `gemini-3.6-flash`, and `gemini-3.5-flash`), ScribeNode transforms raw podcast recordings, meeting audio, interviews, and voice notes into polished clean-verbatim transcripts, structured chapters, executive summaries, and actionable key takeaways.
@@ -14,6 +14,9 @@
 ## Key Features
 
 - 🎧 **Broad Format & Configurable Uploads**: Transcribe MP3, WAV, M4A, OGG, and FLAC audio files with configurable file size limits (`MAX_UPLOAD_SIZE_MB`, defaults to 100MB).
+- 📻 **Podcast RSS Feed & Remote URL Ingestion**: Directly transcribe episodes from public podcast RSS feeds or direct audio URLs with live feed inspection and episode selection.
+- 📖 **Custom Vocabulary & Technical Glossary**: Inject domain-specific terminology, brand names, acronyms, and proper nouns into transcription prompts to maximize recognition accuracy.
+- ✏️ **Inline Quick Edit & Global Speaker Renaming**: In-place transcript editing via markdown editor and one-click global speaker alias replacement across entire transcripts.
 - 🎙️ **High-Fidelity Audio Transcription**: Multimodal transcription with `gemini-3.7-flash` featuring conversational reasoning, speaker diarization, and clean-verbatim parsing.
 - 🔄 **Intelligent Multi-Tier Failover Cascade**: Seamless automatic failover across `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-flash-latest`.
 - 🩺 **Per-Model Diagnostics & Error Translation**: Live Model Orchestration inspector translating raw 503/429/400/403 errors into human-friendly explanations with one-click recovery.

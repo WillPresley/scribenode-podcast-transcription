@@ -15,10 +15,13 @@ import {
   categorizeModelError,
   formatFallbackReason,
   formatModelDisplayName,
+  renameSpeakerInTranscript,
   DEFAULT_TRANSCRIPTION_MODELS,
   DEFAULT_ANALYSIS_MODELS,
   getTranscriptionModelsForJob
 } from "./transcriptionEngine";
+import { fetchRssFeed } from "./rss";
+import { downloadRemoteAudio } from "./remote";
 import { ModelStatusInfo, ModelErrorDetails } from "../src/types";
 
 export type { ModelStatusInfo };
@@ -159,7 +162,8 @@ export function createApp(options: CreateAppOptions = {}): Express {
     tempFilePath: string,
     mimeType: string,
     promptStyle: string,
-    customPrompt?: string
+    customPrompt?: string,
+    customVocabulary?: string[] | string
   ) {
     const job = storage.get(jobId);
     if (!job) {
@@ -219,11 +223,16 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
       const audioTitle = job.filename ? job.filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : undefined;
 
+      const vocabList = customVocabulary
+        ? (Array.isArray(customVocabulary) ? customVocabulary : customVocabulary.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean))
+        : undefined;
+
       const { response, model, text: generatedTranscript } = await generateContentWithFallback({
         aiClient: getAIClient(),
         modelsToTry: transcriptionModelsToTry,
         promptStyle,
         customPrompt,
+        customVocabulary: vocabList,
         audioTitle,
         fileUri: file.uri,
         mimeType: file.mimeType,
@@ -281,6 +290,111 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
   }
 
+  // RSS Feed Preview Endpoint
+  app.post("/api/rss/preview", async (req, res) => {
+    try {
+      const { feedUrl } = req.body;
+      if (!feedUrl || typeof feedUrl !== "string" || !feedUrl.trim()) {
+        return res.status(400).json({ error: "Please provide a valid podcast RSS feed URL." });
+      }
+      const feed = await fetchRssFeed(feedUrl.trim());
+      res.json({ feed });
+    } catch (err: any) {
+      console.error("[RSS Preview Error]:", err);
+      res.status(400).json({ error: err.message || "Failed to load podcast RSS feed." });
+    }
+  });
+
+  // Remote Audio / Podcast Episode Transcription Endpoint
+  app.post("/api/transcribe-remote", async (req, res) => {
+    try {
+      if (!env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
+      }
+
+      const { url, audioUrl, filename, promptStyle, customPrompt, duration, glossary, feedTitle, episodeTitle } = req.body;
+      const targetUrl = (typeof url === "string" && url.trim()) || (typeof audioUrl === "string" && audioUrl.trim()) || "";
+      if (!targetUrl) {
+        return res.status(400).json({ error: "Please provide a valid audio or episode URL." });
+      }
+
+      const jobId = Math.random().toString(36).substring(2, 15);
+      const localFilePath = path.join(storage.uploadsDir, `${jobId}.audio`);
+
+      const displayName = episodeTitle || filename || (targetUrl.split("/").pop()?.split("?")[0]) || "remote-podcast-audio.mp3";
+
+      const job: TranscribeJob = {
+        id: jobId,
+        filename: displayName,
+        fileSize: 0,
+        status: 'uploading',
+        progress: 5,
+        createdAt: Date.now(),
+        localFilePath,
+        mimeType: 'audio/mpeg',
+        modelUsed: modelStatus.activeModel || DEFAULT_TRANSCRIPTION_MODELS[0],
+        duration: duration || "--:--",
+        glossary: glossary || undefined,
+        sourceType: feedTitle ? 'rss' : 'url',
+        sourceUrl: targetUrl,
+        feedTitle: feedTitle || undefined,
+        episodeTitle: episodeTitle || undefined
+      };
+
+      storage.set(jobId, job);
+      storage.saveToDisk();
+
+      res.json({ jobId });
+
+      // Asynchronously download and process audio
+      (async () => {
+        try {
+          const downloadResult = await downloadRemoteAudio({
+            url: targetUrl,
+            destPath: localFilePath,
+            customFilename: displayName,
+            maxSizeBytes: maxUploadSizeBytes
+          });
+
+          const currentJob = storage.get(jobId);
+          if (!currentJob) return;
+
+          currentJob.fileSize = downloadResult.fileSize;
+          currentJob.mimeType = downloadResult.mimeType;
+          currentJob.filename = downloadResult.filename || displayName;
+          currentJob.progress = 15;
+          storage.set(jobId, currentJob);
+          storage.saveToDisk();
+
+          const tempProcessPath = path.join(os.tmpdir(), `scribenode-${jobId}-process.audio`);
+          fs.copyFileSync(localFilePath, tempProcessPath);
+
+          processTranscriptionJob(
+            jobId,
+            tempProcessPath,
+            downloadResult.mimeType,
+            promptStyle || 'combined',
+            customPrompt,
+            glossary
+          );
+        } catch (dlErr: any) {
+          console.error(`[Remote Audio Download Error for Job ${jobId}]:`, dlErr);
+          const currentJob = storage.get(jobId);
+          if (currentJob) {
+            currentJob.status = 'failed';
+            currentJob.error = dlErr.message || "Failed to download remote audio file.";
+            storage.set(jobId, currentJob);
+            storage.saveToDisk();
+          }
+        }
+      })();
+
+    } catch (err: any) {
+      console.error("[Transcribe Remote Error]:", err);
+      res.status(500).json({ error: err.message || "Failed to initiate remote audio transcription." });
+    }
+  });
+
   app.post("/api/transcribe", (req, res, next) => {
     upload.single("file")(req, res, (err: any) => {
       if (err) {
@@ -321,7 +435,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
         });
       }
 
-      const { promptStyle, customPrompt, duration } = req.body;
+      const { promptStyle, customPrompt, duration, glossary } = req.body;
       const jobId = Math.random().toString(36).substring(2, 15);
       
       const localFilePath = path.join(storage.uploadsDir, `${jobId}.audio`);
@@ -342,12 +456,14 @@ export function createApp(options: CreateAppOptions = {}): Express {
         mimeType: req.file.mimetype,
         modelUsed: modelStatus.activeModel || DEFAULT_TRANSCRIPTION_MODELS[0],
         duration: duration || "--:--",
+        glossary: glossary || undefined,
+        sourceType: 'upload'
       };
       
       storage.set(jobId, job);
       storage.saveToDisk();
       
-      processTranscriptionJob(jobId, req.file.path, req.file.mimetype, promptStyle, customPrompt);
+      processTranscriptionJob(jobId, req.file.path, req.file.mimetype, promptStyle, customPrompt, glossary);
       
       res.json({ jobId });
     } catch (err: any) {
@@ -560,6 +676,48 @@ export function createApp(options: CreateAppOptions = {}): Express {
     storage.set(jobId, job);
     storage.saveToDisk();
     res.json(job);
+  });
+
+  // Update/Edit transcript inline
+  app.patch("/api/jobs/:id/transcript", (req, res) => {
+    const jobId = req.params.id;
+    const job = storage.get(jobId);
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    const { transcript } = req.body;
+    if (typeof transcript !== "string" || !transcript.trim()) {
+      return res.status(400).json({ error: "Transcript content is required." });
+    }
+    job.transcript = transcript;
+    job.summary = undefined;
+    job.key_takeaways = undefined;
+    job.chapters = undefined;
+    job.social_media = undefined;
+    storage.set(jobId, job);
+    storage.saveToDisk();
+    res.json({ success: true, job });
+  });
+
+  // Rename speaker across transcript
+  app.post("/api/jobs/:id/rename-speaker", (req, res) => {
+    const jobId = req.params.id;
+    const job = storage.get(jobId);
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    if (!job.transcript) {
+      return res.status(400).json({ error: "Job does not have an active transcript." });
+    }
+    const { oldName, newName } = req.body;
+    if (!oldName || !newName || typeof oldName !== "string" || typeof newName !== "string") {
+      return res.status(400).json({ error: "Both oldName and newName are required." });
+    }
+    const updated = renameSpeakerInTranscript(job.transcript, oldName, newName);
+    job.transcript = updated;
+    storage.set(jobId, job);
+    storage.saveToDisk();
+    res.json({ success: true, job, updatedTranscript: updated });
   });
 
   app.post("/api/jobs/:id/analyze", async (req, res) => {
