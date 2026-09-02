@@ -199,18 +199,22 @@ describe('Transcript Formatting & Parsing Engine', () => {
 
   describe('formatModelDisplayName', () => {
     it('formats recognized model IDs into clean human-readable titles', () => {
-      expect(formatModelDisplayName('gemini-3.5-transcribe')).toBe('Gemini 3.5 Transcribe');
+      expect(formatModelDisplayName('gemini-3.8-flash')).toBe('Gemini 3.8 Flash');
       expect(formatModelDisplayName('gemini-3.7-flash')).toBe('Gemini 3.7 Flash');
+      expect(formatModelDisplayName('gemini-3.5-transcribe')).toBe('Gemini 3.5 Transcribe');
       expect(formatModelDisplayName('gemini-3.6-flash')).toBe('Gemini 3.6 Flash');
       expect(formatModelDisplayName('gemini-3.5-flash')).toBe('Gemini 3.5 Flash');
+      expect(formatModelDisplayName('gemini-2.5-flash')).toBe('Gemini 2.5 Flash');
       expect(formatModelDisplayName('gemini-3.5-flash-lite')).toBe('Gemini 3.5 Flash Lite');
       expect(formatModelDisplayName('gemini-3.1-flash-lite')).toBe('Gemini 3.1 Flash Lite');
+      expect(formatModelDisplayName('gemini-2.5-flash-lite')).toBe('Gemini 2.5 Flash Lite');
+      expect(formatModelDisplayName('gemini-flash-lite-latest')).toBe('Gemini Flash Lite Latest');
       expect(formatModelDisplayName('gemini-flash-latest')).toBe('Gemini Flash Latest');
     });
 
     it('handles empty or undefined inputs gracefully with fallback', () => {
-      expect(formatModelDisplayName(undefined)).toBe('Gemini 3.5 Transcribe');
-      expect(formatModelDisplayName('')).toBe('Gemini 3.5 Transcribe');
+      expect(formatModelDisplayName(undefined)).toBe('Gemini 3.8 Flash');
+      expect(formatModelDisplayName('')).toBe('Gemini 3.8 Flash');
     });
 
     it('formats custom or unexpected model strings cleanly', () => {

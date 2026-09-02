@@ -360,20 +360,28 @@ export const convertTranscriptToSrt = (rawText: string): string => {
 };
 
 export const formatModelDisplayName = (modelId?: string): string => {
-  if (!modelId) return "Gemini 3.5 Transcribe";
+  if (!modelId) return "Gemini 3.8 Flash";
   switch (modelId) {
-    case "gemini-3.5-transcribe":
-      return "Gemini 3.5 Transcribe";
+    case "gemini-3.8-flash":
+      return "Gemini 3.8 Flash";
     case "gemini-3.7-flash":
       return "Gemini 3.7 Flash";
+    case "gemini-3.5-transcribe":
+      return "Gemini 3.5 Transcribe";
     case "gemini-3.6-flash":
       return "Gemini 3.6 Flash";
     case "gemini-3.5-flash":
       return "Gemini 3.5 Flash";
+    case "gemini-2.5-flash":
+      return "Gemini 2.5 Flash";
     case "gemini-3.5-flash-lite":
       return "Gemini 3.5 Flash Lite";
     case "gemini-3.1-flash-lite":
       return "Gemini 3.1 Flash Lite";
+    case "gemini-2.5-flash-lite":
+      return "Gemini 2.5 Flash Lite";
+    case "gemini-flash-lite-latest":
+      return "Gemini Flash Lite Latest";
     case "gemini-flash-latest":
       return "Gemini Flash Latest";
     default:

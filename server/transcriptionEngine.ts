@@ -379,24 +379,30 @@ export function extractSpeakersFromTranscript(transcript: string): string[] {
   return Array.from(speakersSet);
 }
 
-export const PRIMARY_TRANSCRIPTION_MODEL = "gemini-3.7-flash";
-export const PRIMARY_DOWNSTREAM_MODEL = "gemini-3.7-flash";
+export const PRIMARY_TRANSCRIPTION_MODEL = "gemini-3.8-flash";
+export const PRIMARY_DOWNSTREAM_MODEL = "gemini-3.8-flash";
 
 export const DEFAULT_DOWNSTREAM_MODELS = [
+  "gemini-3.8-flash",
   "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
+  "gemini-2.5-flash",
   "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
+  "gemini-flash-lite-latest",
   "gemini-flash-latest"
 ];
 
 export const DEFAULT_TRANSCRIPTION_MODELS = [
+  "gemini-3.8-flash",
   "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
+  "gemini-2.5-flash",
   "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
+  "gemini-flash-lite-latest",
   "gemini-flash-latest"
 ];
 
@@ -439,8 +445,10 @@ export function getTranscriptionModelsForJob(duration?: string | number | null):
 }
 
 export function formatModelDisplayName(modelId?: string): string {
-  if (!modelId) return "Gemini 3.7 Flash";
+  if (!modelId) return "Gemini 3.8 Flash";
   switch (modelId) {
+    case "gemini-3.8-flash":
+      return "Gemini 3.8 Flash";
     case "gemini-3.7-flash":
       return "Gemini 3.7 Flash";
     case "gemini-3.5-transcribe":
@@ -449,10 +457,16 @@ export function formatModelDisplayName(modelId?: string): string {
       return "Gemini 3.6 Flash";
     case "gemini-3.5-flash":
       return "Gemini 3.5 Flash";
+    case "gemini-2.5-flash":
+      return "Gemini 2.5 Flash";
     case "gemini-3.5-flash-lite":
       return "Gemini 3.5 Flash Lite";
     case "gemini-3.1-flash-lite":
       return "Gemini 3.1 Flash Lite";
+    case "gemini-2.5-flash-lite":
+      return "Gemini 2.5 Flash Lite";
+    case "gemini-flash-lite-latest":
+      return "Gemini Flash Lite Latest";
     case "gemini-flash-latest":
       return "Gemini Flash Latest";
     default:

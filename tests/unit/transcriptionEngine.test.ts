@@ -32,14 +32,18 @@ import {
 
 describe('Transcription Engine & AI Fallback Mechanics', () => {
   describe('Model Definitions & Duration Thresholds', () => {
-    it('defines primary transcription model as gemini-3.7-flash', () => {
-      expect(PRIMARY_TRANSCRIPTION_MODEL).toBe('gemini-3.7-flash');
-      expect(DEFAULT_TRANSCRIPTION_MODELS[0]).toBe('gemini-3.7-flash');
+    it('defines primary transcription model as gemini-3.8-flash', () => {
+      expect(PRIMARY_TRANSCRIPTION_MODEL).toBe('gemini-3.8-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS[0]).toBe('gemini-3.8-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS[1]).toBe('gemini-3.7-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-2.5-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-flash-lite-latest');
     });
 
-    it('defines primary downstream analysis model as gemini-3.7-flash', () => {
-      expect(PRIMARY_DOWNSTREAM_MODEL).toBe('gemini-3.7-flash');
-      expect(DEFAULT_ANALYSIS_MODELS[0]).toBe('gemini-3.7-flash');
+    it('defines primary downstream analysis model as gemini-3.8-flash', () => {
+      expect(PRIMARY_DOWNSTREAM_MODEL).toBe('gemini-3.8-flash');
+      expect(DEFAULT_ANALYSIS_MODELS[0]).toBe('gemini-3.8-flash');
+      expect(DEFAULT_ANALYSIS_MODELS[1]).toBe('gemini-3.7-flash');
       expect(DEFAULT_ANALYSIS_MODELS).not.toContain('gemini-3.5-transcribe');
     });
 
@@ -76,32 +80,33 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
   });
 
   describe('getTranscriptionModelsForJob', () => {
-    it('returns gemini-3.7-flash as primary across transcription workloads', () => {
+    it('returns gemini-3.8-flash as primary across transcription workloads', () => {
       const models59m = getTranscriptionModelsForJob('59:00');
-      expect(models59m[0]).toBe('gemini-3.7-flash');
-      expect(models59m[1]).toBe('gemini-3.6-flash');
+      expect(models59m[0]).toBe('gemini-3.8-flash');
+      expect(models59m[1]).toBe('gemini-3.7-flash');
+      expect(models59m[2]).toBe('gemini-3.6-flash');
 
       const models30m = getTranscriptionModelsForJob('30:00');
-      expect(models30m[0]).toBe('gemini-3.7-flash');
+      expect(models30m[0]).toBe('gemini-3.8-flash');
     });
 
-    it('returns gemini-3.7-flash as primary when audio duration is unknown or undefined', () => {
+    it('returns gemini-3.8-flash as primary when audio duration is unknown or undefined', () => {
       const modelsUndefined = getTranscriptionModelsForJob(undefined);
-      expect(modelsUndefined[0]).toBe('gemini-3.7-flash');
+      expect(modelsUndefined[0]).toBe('gemini-3.8-flash');
 
       const modelsPlaceholder = getTranscriptionModelsForJob('--:--');
-      expect(modelsPlaceholder[0]).toBe('gemini-3.7-flash');
+      expect(modelsPlaceholder[0]).toBe('gemini-3.8-flash');
     });
 
     it('maintains robust cascade across all audio durations', () => {
       const models59m1s = getTranscriptionModelsForJob('59:01');
-      expect(models59m1s[0]).toBe('gemini-3.7-flash');
+      expect(models59m1s[0]).toBe('gemini-3.8-flash');
 
       const models1h = getTranscriptionModelsForJob('01:00:00');
-      expect(models1h[0]).toBe('gemini-3.7-flash');
+      expect(models1h[0]).toBe('gemini-3.8-flash');
 
       const modelsNumeric = getTranscriptionModelsForJob(3600);
-      expect(modelsNumeric[0]).toBe('gemini-3.7-flash');
+      expect(modelsNumeric[0]).toBe('gemini-3.8-flash');
     });
   });
 

@@ -387,15 +387,17 @@ export default function App() {
   
   // Model Orchestration & Failover status
   const [modelStatus, setModelStatus] = useState<ModelStatusInfo>({
-    primaryModel: "gemini-3.5-transcribe",
-    activeModel: "gemini-3.5-transcribe",
+    primaryModel: "gemini-3.8-flash",
+    activeModel: "gemini-3.8-flash",
     fallbackModels: [
-      "gemini-3.5-transcribe",
+      "gemini-3.8-flash",
       "gemini-3.7-flash",
       "gemini-3.6-flash",
       "gemini-3.5-flash",
+      "gemini-2.5-flash",
       "gemini-3.5-flash-lite",
       "gemini-3.1-flash-lite",
+      "gemini-flash-lite-latest",
       "gemini-flash-latest"
     ],
     status: "optimal"
@@ -666,7 +668,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
+        modelUsed: modelStatus.activeModel || "gemini-3.8-flash",
         duration: durationStr,
         glossary: glossary.trim() || undefined,
       });
@@ -717,7 +719,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
+        modelUsed: modelStatus.activeModel || "gemini-3.8-flash",
         duration: episode.duration,
         sourceType: "rss",
         sourceUrl: episode.audioUrl,
@@ -776,7 +778,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: modelStatus.activeModel || "gemini-3.7-flash",
+        modelUsed: modelStatus.activeModel || "gemini-3.8-flash",
         sourceType: "url",
         sourceUrl: directAudioUrl.trim(),
         glossary: glossary.trim() || undefined,
@@ -3717,6 +3719,10 @@ export default function App() {
                           What's New in v1.5.0
                         </h3>
                         <ul className="space-y-3 border-l-2 border-blue-200 pl-3.5">
+                          <li className="relative">
+                            <span className="font-bold text-slate-900">Flagship Gemini 3.8 Flash & Full Fallback Cascade:</span>
+                            <p className="text-slate-600 mt-0.5">Upgraded primary multimodal reasoning and speech alignment engine to Google DeepMind's Gemini 3.8 Flash (304.6 tokens/sec, 1M context, 64k output). Backed by a comprehensive 9-tier automated fallback cascade spanning Gemini 3.7 Flash down to Flash Lite models.</p>
+                          </li>
                           <li className="relative">
                             <span className="font-bold text-slate-900">Podcast RSS Feed & Remote URL Ingestion:</span>
                             <p className="text-slate-600 mt-0.5">Directly transcribe podcasts from public RSS feeds or direct audio URLs. Preview feed metadata, browse episodes, and stream audio directly to the transcription pipeline without manual file downloads.</p>

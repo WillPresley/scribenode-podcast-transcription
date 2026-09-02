@@ -5,7 +5,7 @@
 [![Docker](https://img.shields.io/badge/docker-v1.5.0-blue.svg)](Dockerfile)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**ScribeNode** is a full-stack, high-throughput AI audio transcription and speech intelligence web application. Powered by Google's specialized Gemini Flash and Audio AI model suite (`gemini-3.7-flash`, `gemini-3.6-flash`, and `gemini-3.5-flash`), ScribeNode transforms raw podcast recordings, meeting audio, interviews, and voice notes into polished clean-verbatim transcripts, structured chapters, executive summaries, and actionable key takeaways.
+**ScribeNode** is a full-stack, high-throughput AI audio transcription and speech intelligence web application. Powered by Google's specialized Gemini Flash and Audio AI model suite (`gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.6-flash`, and `gemini-3.5-flash`), ScribeNode transforms raw podcast recordings, meeting audio, interviews, and voice notes into polished clean-verbatim transcripts, structured chapters, executive summaries, and actionable key takeaways.
 
 > **Note on Development**: This project was built using AI-assisted pair programming ("vibecoded") and then manually audited, refined, and tested for code quality, type safety, and container security.
 
@@ -17,13 +17,13 @@
 - 📻 **Podcast RSS Feed & Remote URL Ingestion**: Directly transcribe episodes from public podcast RSS feeds or direct audio URLs with live feed inspection and episode selection.
 - 📖 **Custom Vocabulary & Technical Glossary**: Inject domain-specific terminology, brand names, acronyms, and proper nouns into transcription prompts to maximize recognition accuracy.
 - ✏️ **Inline Quick Edit & Global Speaker Renaming**: In-place transcript editing via markdown editor and one-click global speaker alias replacement across entire transcripts.
-- 🎙️ **High-Fidelity Audio Transcription**: Multimodal transcription with `gemini-3.7-flash` featuring conversational reasoning, speaker diarization, and clean-verbatim parsing.
-- 🔄 **Intelligent Multi-Tier Failover Cascade**: Seamless automatic failover across `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-flash-latest`.
+- 🎙️ **High-Fidelity Audio Transcription**: Multimodal transcription with `gemini-3.8-flash` featuring conversational reasoning, speaker diarization, and clean-verbatim parsing.
+- 🔄 **Intelligent Multi-Tier Failover Cascade**: Seamless automatic failover across `gemini-3.8-flash` ➡️ `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-2.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-flash-lite-latest` ➡️ `gemini-flash-latest`.
 - 🩺 **Per-Model Diagnostics & Error Translation**: Live Model Orchestration inspector translating raw 503/429/400/403 errors into human-friendly explanations with one-click recovery.
 - 📱 **Adaptive Mobile Workspace**: Full responsive mobile navigation drawer, segmented workspace tabs, and touch-friendly controls with zero desktop layout regression.
 - ⚡ **Clean Verbatim Transcription**: Specialized prompting removes speech disfluencies, filler words (*uh*, *um*, *like*), stutters, and false starts while preserving technical domain terms.
 - 👥 **Speaker Diarization & Name Detection**: Contextually identifies speaker names and formats dialogue seamlessly with bold speaker labels and timestamps.
-- 📌 **Automated Chaptering & Intelligence**: Generates timestamped chapters, high-level summaries, key bulleted takeaways, and actionable next steps powered by `gemini-3.7-flash`.
+- 📌 **Automated Chaptering & Intelligence**: Generates timestamped chapters, high-level summaries, key bulleted takeaways, and actionable next steps powered by `gemini-3.8-flash`.
 - 🔍 **Interactive Live Viewer & Audio Sync**: Live transcript filtering, full-text search, jump-to-timestamp playback, and text-selection inspection.
 - 📥 **Export & Sharing Options**: Download transcripts and intelligence assets in Markdown (`.md`) or Plain Text (`.txt`), with instant copy-to-clipboard support.
 - 🔒 **Private Homelab & Basic Auth Ready**: Native support for HTTP Basic Authentication and Docker containerization for secure private self-hosting.
@@ -36,8 +36,8 @@
 | :--- | :--- |
 | **Frontend** | React 19, Vite 8, Tailwind CSS v4, Lucide React Icons, Motion v12 |
 | **Backend** | Node.js (v24 LTS & v26), Express 5, Multer File Upload |
-| **AI Audio Engine** | Google Gen AI SDK (`@google/genai`), Gemini 3.7 Flash (`gemini-3.7-flash`), Gemini 3.6 Flash |
-| **AI Reasoning & Analysis** | Google Gemini 3.7 Flash (`gemini-3.7-flash`), Gemini 3.6 Flash, Gemini 3.5 Flash / Flash Lite |
+| **AI Audio Engine** | Google Gen AI SDK (`@google/genai`), Gemini 3.8 Flash (`gemini-3.8-flash`), Gemini 3.7 Flash |
+| **AI Reasoning & Analysis** | Google Gemini 3.8 Flash (`gemini-3.8-flash`), Gemini 3.7 Flash, Gemini 3.6 Flash / Flash Lite |
 | **Bundler & Build** | ESBuild (Node CJS bundling), Vite 8 |
 | **Container & CI/CD** | Docker (`node:26-alpine`), Docker Compose, GitHub Actions (Node 24 / 26), GHCR |
 
@@ -50,11 +50,11 @@
 </p>
 
 1. **Upload & Ingestion**: Audio files are uploaded to the Express backend via streaming multipart forms with configurable payload limits (`MAX_UPLOAD_SIZE_MB`).
-2. **Multimodal Audio Comprehension**: The engine routes directly to **`gemini-3.7-flash`**, combining acoustic processing with contextual reasoning to recognize domain vocabulary, infer human speaker names, and generate structured clean-verbatim transcripts in a single pass.
+2. **Multimodal Audio Comprehension**: The engine routes directly to **`gemini-3.8-flash`**, combining acoustic processing with contextual reasoning to recognize domain vocabulary, infer human speaker names, and generate structured clean-verbatim transcripts in a single pass.
 3. **Resilient Multi-Tier Fallback Cascade**: If the primary model encounters temporary capacity constraints (503), quota limits (429), or parameter incompatibilities, the engine automatically fails over through:
-   `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-flash-latest`
+   `gemini-3.8-flash` ➡️ `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-2.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-flash-lite-latest` ➡️ `gemini-flash-latest`
 4. **Developer System Instructions**: Full system instructions (`BASE_TRANSCRIPTION_STANDARDS` / `getSystemInstruction()`) guide model outputs to strict, publication-ready Markdown.
-5. **Downstream Intelligence Generation**: Executive summaries, timestamped chapters, bulleted key takeaways, and social media posts are processed using **`gemini-3.7-flash`** (with fallback across Flash reasoning models).
+5. **Downstream Intelligence Generation**: Executive summaries, timestamped chapters, bulleted key takeaways, and social media posts are processed using **`gemini-3.8-flash`** (with fallback across Flash reasoning models).
 6. **Live Orchestration & Friendly Diagnostics**: The UI tracks individual model health in real time, translating raw API errors into clear diagnostic messages (*"Model demand too high, try again later"*, *"Rate limit reached"*, *"Configuration parameters adapted"*) with instant one-click recovery.
 7. **State Persistence**: Processing jobs, transcripts, chapters, and audio files are persisted to `/app/uploads/jobs.json` within the mounted volume (`scribenode_uploads`), preserving all transcript data across container restarts and rebuilds.
 
@@ -66,7 +66,7 @@ To run ScribeNode, configuration values can be provided via a `.env` file or dir
 
 ### 🔑 Google Gemini API Key & Cloud Setup Guide
 
-ScribeNode connects to Google's specialized Gemini Audio and Flash AI model suite (`gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, etc.) using the official `@google/genai` SDK. For ScribeNode to function properly, your Google Cloud project MUST have the **Generative Language API** (`generativelanguage.googleapis.com`) enabled.
+ScribeNode connects to Google's specialized Gemini Audio and Flash AI model suite (`gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, etc.) using the official `@google/genai` SDK. For ScribeNode to function properly, your Google Cloud project MUST have the **Generative Language API** (`generativelanguage.googleapis.com`) enabled.
 
 #### Option A: Google AI Studio (Fastest & Recommended)
 1. Navigate to the [Google AI Studio API Key Portal](https://aistudio.google.com/app/apikey).
@@ -343,7 +343,7 @@ npm run test:coverage
   - **Transcript Engine**: Speaker inference, title normalization, header stripping, speaker bolding, Markdown clean-verbatim rules, SRT subtitle formatting, WebVTT generation, and chapter breakdown.
   - **Audio Math & Optimization**: Duration formatting, timestamp conversion, sample rate & PCM bit depth calculations.
   - **Security & Config Guard**: Environment variable parsing, quote stripping, boolean flags normalization, HTTP Basic Auth credential validator.
-  - **AI Model Cascade & Fallback Engine**: Model registry verification (`gemini-3.7-flash` primary multimodal engine), dynamic system instruction injection, exponential backoff retry/fallback mechanics across the Flash cascade (`gemini-3.7-flash` ➡️ `3.6-flash` ➡️ `3.5-flash`), per-model failover tracking, and friendly error categorization.
+  - **AI Model Cascade & Fallback Engine**: Model registry verification (`gemini-3.8-flash` primary multimodal engine), dynamic system instruction injection, exponential backoff retry/fallback mechanics across the Flash cascade (`gemini-3.8-flash` ➡️ `3.7-flash` ➡️ `3.6-flash` ➡️ `3.5-flash`), per-model failover tracking, and friendly error categorization.
   - **Storage & Disk Persistence**: JSON database persistence, preseeded sample items lifecycle, garbage collection for orphaned uploads and temporary files.
 - **Integration Tests (`tests/integration/`)**:
   - **API Endpoints**: Health probes (`/api/health`, `/healthz`), configuration (`/api/config`), Jobs CRUD, archive toggle (`/api/jobs/:id/archive`), sample job retranscription, analysis generation (`/api/jobs/:id/analyze`), and Basic Auth enforcement.
