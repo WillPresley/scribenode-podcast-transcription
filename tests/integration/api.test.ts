@@ -366,6 +366,34 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Invalid analysis mode');
     });
+
+    it('successfully falls over to secondary analysis models (gemini-3.5-flash) during 503 high demand', async () => {
+      const mockGenerateContent = vi.fn().mockImplementation(async ({ model }) => {
+        if (model === 'gemini-3.7-flash' || model === 'gemini-3.6-flash') {
+          throw new Error('503 Service Unavailable: This model is currently experiencing high demand.');
+        }
+        return { text: `Generated summary from fallback model ${model}` };
+      });
+      const mockAiClient: any = {
+        models: {
+          generateContent: mockGenerateContent
+        }
+      };
+
+      const app = createApp({ storage, aiClient: mockAiClient, skipVite: true });
+
+      const res = await request(app)
+        .post('/api/jobs/sample-sarah/analyze')
+        .send({ mode: 'summary' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.result).toContain('Generated summary from fallback model gemini-3.5-flash');
+      expect(res.body.modelUsed).toBe('gemini-3.5-flash');
+      expect(res.body.job).toBeDefined();
+
+      const updatedJob = storage.get('sample-sarah');
+      expect(updatedJob?.summary).toContain('gemini-3.5-flash');
+    });
   });
 
   describe('Transcription Upload Input Validation', () => {

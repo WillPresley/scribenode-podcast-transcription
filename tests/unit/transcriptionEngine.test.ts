@@ -491,6 +491,55 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(recordedErrors[0].friendlyError).toBe('Model demand too high, try again later');
       expect(recordedErrors[0].badge).toBe('Demand too high (503)');
     });
+
+    it('aborts stalled model requests and fails over when timeoutMs is exceeded', async () => {
+      const mockGenerateContent = vi.fn()
+        .mockImplementationOnce(() => new Promise((resolve) => setTimeout(() => resolve({ text: 'slow' }), 200)))
+        .mockResolvedValueOnce({ text: 'Fast fallback output' });
+
+      const mockAiClient: any = {
+        models: {
+          generateContent: mockGenerateContent
+        }
+      };
+
+      const result = await generateContentWithFallback({
+        aiClient: mockAiClient,
+        contents: [{ text: 'test' }],
+        modelsToTry: ['gemini-3.7-flash', 'gemini-3.6-flash'],
+        maxRetries: 0,
+        timeoutMs: 50,
+        initialDelayMs: 1
+      });
+
+      expect(result.model).toBe('gemini-3.6-flash');
+      expect(result.response.text).toBe('Fast fallback output');
+    });
+
+    it('performs fast failover to subsequent models when high demand 503 error occurs without explicit retries', async () => {
+      const mockGenerateContent = vi.fn()
+        .mockRejectedValueOnce(new Error('503 Service Unavailable: This model is currently experiencing high demand.'))
+        .mockRejectedValueOnce(new Error('503 Service Unavailable: This model is currently experiencing high demand.'))
+        .mockResolvedValueOnce({ text: 'Secondary model success' });
+
+      const mockAiClient: any = {
+        models: {
+          generateContent: mockGenerateContent
+        }
+      };
+
+      const result = await generateContentWithFallback({
+        aiClient: mockAiClient,
+        contents: [{ text: 'test' }],
+        modelsToTry: ['gemini-3.7-flash', 'gemini-3.6-flash'],
+        initialDelayMs: 5
+      });
+
+      expect(result.model).toBe('gemini-3.6-flash');
+      expect(result.response.text).toBe('Secondary model success');
+      // gemini-3.7-flash failed twice (attempt 0, attempt 1 fast retry), then immediately failed over to gemini-3.6-flash
+      expect(mockGenerateContent).toHaveBeenCalledTimes(3);
+    });
   });
 
   describe('categorizeModelError & User-Friendly Error Formatting', () => {

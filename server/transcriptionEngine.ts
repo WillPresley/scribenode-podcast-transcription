@@ -1145,15 +1145,21 @@ export async function generateContentWithFallback(params: {
   modelsToTry?: string[];
   maxRetries?: number;
   initialDelayMs?: number;
+  timeoutMs?: number;
 }) {
   const modelsToTry = params.modelsToTry || DEFAULT_TRANSCRIPTION_MODELS;
-  const maxRetries = params.maxRetries ?? 3;
+  const hasExplicitRetries = params.maxRetries !== undefined;
   let lastError: any = null;
   const recordedErrors: Record<string, string> = {};
 
   for (let mIdx = 0; mIdx < modelsToTry.length; mIdx++) {
     const model = modelsToTry[mIdx];
-    let delay = params.initialDelayMs ?? 1000;
+    const hasNextModel = mIdx + 1 < modelsToTry.length;
+    // When retries are not explicitly configured:
+    // If fallback models exist, limit to 1 retry (2 attempts max) to fail over swiftly and avoid proxy timeouts.
+    // Only the final model gets up to 2 retries (3 attempts).
+    const maxRetries = hasExplicitRetries ? params.maxRetries! : (hasNextModel ? 1 : 2);
+    let delay = params.initialDelayMs ?? (hasExplicitRetries ? 1000 : 500);
     
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -1273,11 +1279,28 @@ export async function generateContentWithFallback(params: {
           }
         }
 
-        const response = await params.aiClient.models.generateContent({
+        let responsePromise = params.aiClient.models.generateContent({
           model,
           contents: modelContents,
           config: modelConfig,
         });
+
+        let response: any;
+        if (params.timeoutMs && params.timeoutMs > 0) {
+          let timer: any;
+          const timeoutPromise = new Promise((_, reject) => {
+            timer = setTimeout(() => {
+              reject(new Error(`Model ${model} request timed out after ${params.timeoutMs}ms.`));
+            }, params.timeoutMs);
+          });
+          try {
+            response = await Promise.race([responsePromise, timeoutPromise]);
+          } finally {
+            clearTimeout(timer);
+          }
+        } else {
+          response = await responsePromise;
+        }
 
         const extractedText = extractResponseText(response, params.promptStyle, params.audioTitle);
         if (!extractedText || !extractedText.trim()) {
@@ -1311,22 +1334,29 @@ export async function generateContentWithFallback(params: {
         return { response, model, text: finalTranscript };
       } catch (error: any) {
         const errorMsg = error?.message || String(error);
-        const isTransient = errorMsg.includes("503") || 
-                            errorMsg.includes("UNAVAILABLE") || 
-                            errorMsg.includes("429") || 
-                            errorMsg.includes("Resource exhausted") ||
-                            errorMsg.includes("RESOURCE_EXHAUSTED") ||
-                            errorMsg.includes("Overloaded") ||
-                            errorMsg.includes("high demand") ||
-                            errorMsg.includes("rate limit") ||
-                            errorMsg.includes("temp");
+        const isHighDemand = errorMsg.includes("high demand") || 
+                             errorMsg.includes("Overloaded") || 
+                             errorMsg.includes("UNAVAILABLE") ||
+                             errorMsg.includes("503");
+        const isQuota = errorMsg.includes("429") || 
+                        errorMsg.includes("Resource exhausted") || 
+                        errorMsg.includes("RESOURCE_EXHAUSTED");
+        const isTransient = isHighDemand || 
+                            isQuota || 
+                            errorMsg.includes("rate limit") || 
+                            errorMsg.includes("temp") ||
+                            errorMsg.includes("timed out");
         
         console.warn(`[Gemini API] Model ${model} failed (attempt ${attempt + 1}/${maxRetries + 1}):`, errorMsg);
         lastError = error;
         recordedErrors[model] = errorMsg;
 
-        // If it's not a transient error, or we reached max retries, don't retry this model, fall back to next model
-        if (!isTransient || attempt === maxRetries) {
+        // When not explicitly configured for high retry counts, don't waste time repeating attempts on an
+        // overloaded model if there is a healthy fallback model waiting in the cascade.
+        const shouldFastFailover = !hasExplicitRetries && hasNextModel && (isHighDemand || isQuota) && attempt >= 1;
+
+        // If it's not a transient error, or we reached max retries, or should fast failover, don't retry this model, fall back to next model
+        if (!isTransient || attempt === maxRetries || shouldFastFailover) {
           const categorized = categorizeModelError(error);
           if (params.onModelError) {
             try {

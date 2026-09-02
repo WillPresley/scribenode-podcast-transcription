@@ -745,12 +745,16 @@ export function createApp(options: CreateAppOptions = {}): Express {
       const { response, model, text: generatedAnalysis } = await generateContentWithFallback({
         aiClient: getAIClient(),
         modelsToTry: DEFAULT_ANALYSIS_MODELS,
+        maxRetries: 1,
+        initialDelayMs: 300,
+        timeoutMs: 25000,
         contents: [
           { text: `Podcast Transcript:\n\n${job.transcript}` },
           { text: prompt }
         ],
         config: {
-          systemInstruction: "You are a professional content marketing and podcast assistant. Your goal is to analyze transcripts and generate high-quality, engaging promotional material, clear documentation, and listener sharing drafts."
+          systemInstruction: "You are a professional content marketing and podcast assistant. Your goal is to analyze transcripts and generate high-quality, engaging promotional material, clear documentation, and listener sharing drafts.",
+          temperature: 0.3
         },
         onModelSelected: (selectedModel) => {
           updateModelStatus(selectedModel);
@@ -774,10 +778,11 @@ export function createApp(options: CreateAppOptions = {}): Express {
       storage.set(job.id, job);
       storage.saveToDisk();
 
-      res.json({ result: text, modelUsed: model });
+      res.json({ result: text, modelUsed: model, job });
     } catch (err: any) {
       console.error("Analysis API error:", err);
-      res.status(500).json({ error: formatGeminiErrorMessage(err) });
+      const friendlyMsg = err?.friendlyMessage || formatGeminiErrorMessage(err);
+      res.status(500).json({ error: friendlyMsg });
     }
   });
 
