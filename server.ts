@@ -5,6 +5,11 @@ import { createServer as createViteServer } from "vite";
 import { createApp } from "./server/app";
 import { JobsStorage } from "./server/storage";
 import { isDisableDefaultItems, formatDockerTag, getAppVersion, getMaxUploadSizeMB } from "./server/config";
+import {
+  PRIMARY_TRANSCRIPTION_MODEL,
+  DEFAULT_TRANSCRIPTION_MODELS,
+  formatModelDisplayName
+} from "./server/transcriptionEngine";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const storage = new JobsStorage();
@@ -46,6 +51,13 @@ function printStartupBanner() {
   console.log(` Uploads Dir  : ${storage.uploadsDir}`);
   console.log(` Temp Storage : ${os.tmpdir()}`);
   console.log(` Gemini API   : ${process.env.GEMINI_API_KEY ? 'Configured [OK]' : 'NOT CONFIGURED [WARNING]'}`);
+  console.log(` Primary Model: ${PRIMARY_TRANSCRIPTION_MODEL} (${formatModelDisplayName(PRIMARY_TRANSCRIPTION_MODEL)})`);
+  console.log(` Fallback Chain (${DEFAULT_TRANSCRIPTION_MODELS.length} models):`);
+  DEFAULT_TRANSCRIPTION_MODELS.forEach((m, idx) => {
+    const isPrimary = idx === 0;
+    const label = isPrimary ? " [Primary / Flagship]" : "";
+    console.log(`   [${idx + 1}] ${m.padEnd(25)} -> ${formatModelDisplayName(m)}${label}`);
+  });
   console.log(` Preseed Items: ${isDisableDefaultItems() ? 'Disabled (DISABLE_DEFAULT_ITEMS=true)' : 'Enabled (Default)'}`);
   console.log(` Max Upload   : ${getMaxUploadSizeMB()}MB (Configurable via MAX_UPLOAD_SIZE_MB)`);
   console.log(`=======================================================\n`);

@@ -75,4 +75,5 @@ export interface ModelStatusInfo {
   lastFallbackReason?: string;
   lastTestedTimestamp?: number;
   modelErrors?: Record<string, ModelErrorDetails>;
+  isCustomSelection?: boolean;
 }

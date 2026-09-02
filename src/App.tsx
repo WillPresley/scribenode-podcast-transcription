@@ -88,6 +88,18 @@ const ScribeNodeLogo = ({ className = "w-9 h-9" }: { className?: string }) => (
   </div>
 );
 
+const ALL_TRANSCRIPTION_MODELS: string[] = [
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-2.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-flash-lite-latest",
+  "gemini-flash-latest"
+];
+
 const SAMPLE_JOBS: Record<string, TranscribeJob> = {
   "sample-sarah": {
     id: "sample-sarah",
@@ -445,6 +457,68 @@ export default function App() {
       }
     } catch (err) {
       console.error("Failed to fetch model status:", err);
+    }
+  };
+
+  const handleSelectModel = async (modelId: string) => {
+    const reordered = [
+      modelId,
+      ...ALL_TRANSCRIPTION_MODELS.filter((m) => m !== modelId)
+    ];
+    const isCustom = modelId !== modelStatus.primaryModel;
+
+    setModelStatus((prev) => ({
+      ...prev,
+      activeModel: modelId,
+      fallbackModels: reordered,
+      isCustomSelection: isCustom,
+      status: 'optimal',
+      lastFallbackReason: isCustom
+        ? `Custom selection: ${formatModelDisplayName(modelId)} prioritized first with automatic fallback cascade.`
+        : undefined
+    }));
+
+    try {
+      const res = await fetch("/api/model-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.modelStatus) {
+          setModelStatus(data.modelStatus);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update active model:", err);
+    }
+  };
+
+  const handleResetModelCascade = async () => {
+    setModelStatus((prev) => ({
+      ...prev,
+      activeModel: prev.primaryModel,
+      fallbackModels: [...ALL_TRANSCRIPTION_MODELS],
+      isCustomSelection: false,
+      status: 'optimal',
+      lastFallbackReason: undefined
+    }));
+
+    try {
+      const res = await fetch("/api/model-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reset: true })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.modelStatus) {
+          setModelStatus(data.modelStatus);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to reset model status:", err);
     }
   };
 
@@ -1517,6 +1591,10 @@ export default function App() {
                     <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-red-100 text-red-800 rounded border border-red-200">
                       High Demand
                     </span>
+                  ) : modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel ? (
+                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-indigo-100 text-indigo-800 rounded border border-indigo-200">
+                      Custom Priority
+                    </span>
                   ) : (
                     <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 rounded border border-blue-200/60">
                       Next Task
@@ -1526,159 +1604,273 @@ export default function App() {
                 <ChevronDown className="h-3 w-3 text-slate-400 ml-0.5 shrink-0" />
               </button>
 
-              {/* Popover / Tooltip */}
+              {/* Popover / Modal */}
               <AnimatePresence>
                 {showModelPopover && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 w-72 xs:w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 p-4 z-50 text-slate-800 max-w-[calc(100vw-24px)]"
-                  >
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
-                          <Cpu className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <h4 className="text-xs font-bold text-slate-900">Gemini Model Orchestration</h4>
-                          <p className="text-[10px] text-slate-500">Real-time model loaded for next transcription</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowModelPopover(false)}
-                        className="p-1 text-slate-400 hover:text-slate-600 rounded-md cursor-pointer"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                  <>
+                    {/* Mobile backdrop for outside tap dismissal */}
+                    <div 
+                      className="fixed inset-0 bg-slate-900/20 backdrop-blur-xs z-40 md:hidden"
+                      onClick={() => setShowModelPopover(false)}
+                      aria-hidden="true"
+                    />
 
-                    {/* Current Loaded Model Banner */}
-                    <div className="mt-3 p-3 bg-gradient-to-r from-blue-50/70 to-indigo-50/40 rounded-lg border border-blue-100 flex items-center justify-between">
-                      <div>
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-blue-700">Active Loaded Model</div>
-                        <div className="text-sm font-extrabold text-slate-900 mt-0.5">
-                          {formatModelDisplayName(modelStatus.activeModel)}
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">{modelStatus.activeModel}</div>
-                      </div>
-                      <span
-                        className={`px-2 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider border ${
-                          modelStatus.status === "optimal"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : modelStatus.status === "fallback_active"
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-red-50 text-red-700 border-red-200"
-                        }`}
-                      >
-                        {modelStatus.status === "optimal" 
-                          ? "Ready" 
-                          : modelStatus.status === "fallback_active" 
-                            ? "Failover Active" 
-                            : "All Models Busy"}
-                      </span>
-                    </div>
-
-                    {modelStatus.lastFallbackReason && (
-                      <div className={`mt-2.5 p-2.5 rounded-lg text-[11px] flex items-start gap-2 border ${
-                        modelStatus.status === "degraded"
-                          ? "bg-red-50/90 border-red-200 text-red-900"
-                          : "bg-amber-50/90 border-amber-200 text-amber-900"
-                      }`}>
-                        <AlertCircle className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${
-                          modelStatus.status === "degraded" ? "text-red-600" : "text-amber-600"
-                        }`} />
-                        <div className="leading-snug">
-                          <div className="font-bold text-[11px]">
-                            {modelStatus.status === "degraded" ? "High Demand Notice" : "Failover Status"}
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 md:-right-24 lg:right-0 top-16 sm:top-full mt-2 w-auto sm:w-[500px] md:w-[740px] lg:w-[780px] max-w-[calc(100vw-24px)] bg-white rounded-2xl shadow-2xl border border-slate-200/90 z-50 text-slate-800 p-4 sm:p-5 max-h-[85vh] md:max-h-none overflow-y-auto"
+                    >
+                      {/* Top Header */}
+                      <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-100/60 shrink-0">
+                            <Cpu className="h-4 w-4" />
                           </div>
-                          <div className="text-[10px] mt-0.5 text-slate-700">
-                            {modelStatus.lastFallbackReason}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-slate-900">Gemini Model Orchestration</h4>
+                              <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 rounded-md border border-blue-200/60">
+                                9-Tier Cascade
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500">Real-time model routing & multi-tier automatic failover cascade</p>
                           </div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowModelPopover(false)}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                          aria-label="Close Model Orchestration Modal"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
-                    )}
 
-                    {/* Fallback Priority Queue */}
-                    <div className="mt-3.5">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
-                        <span>Fallback Execution Sequence</span>
-                        <span className="text-[9px] font-normal text-slate-400 lowercase">automatic failover</span>
-                      </div>
-                      <div className="space-y-2 text-xs font-medium max-h-56 overflow-y-auto pr-1">
-                        {modelStatus.fallbackModels.map((m, idx) => {
-                          const isActive = modelStatus.activeModel === m;
-                          const isPrimary = modelStatus.primaryModel === m;
-                          const modelError = modelStatus.modelErrors?.[m];
-                          return (
-                            <div
-                              key={m}
-                              className={`p-2 rounded-lg border text-[11px] transition-colors ${
-                                isActive
-                                  ? "bg-blue-50/90 border-blue-200 text-blue-900 font-bold"
-                                  : modelError
-                                    ? "bg-amber-50/30 border-amber-200/70 text-slate-700"
-                                    : "bg-slate-50/50 border-slate-100 text-slate-600"
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 truncate pr-2">
-                                  <span className="font-mono text-[10px] text-slate-400 w-3 shrink-0">{idx + 1}.</span>
-                                  <span className="truncate">{formatModelDisplayName(m)}</span>
-                                  {isPrimary && (
-                                    <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded shrink-0">
-                                      Flagship
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  {modelError && (
-                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tight bg-amber-100/90 text-amber-800 border border-amber-300/80">
-                                      {modelError.shortBadge}
-                                    </span>
-                                  )}
-                                  {isActive && (
-                                    <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
-                                      <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Active
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {modelError && (
-                                <div className="mt-1 pl-5 text-[10px] text-amber-800 font-normal leading-snug flex items-center gap-1">
-                                  <AlertCircle className="h-3 w-3 text-amber-600 shrink-0" />
-                                  <span>{modelError.friendlyMessage}</span>
-                                </div>
+                      {/* Main Body: 2-Column Grid on Desktop, Clean Stack on Mobile */}
+                      <div className="mt-4 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-5">
+                        
+                        {/* Left Column: Active Model & Model Selector (md:col-span-5) */}
+                        <div className="md:col-span-5 flex flex-col justify-between space-y-3 md:space-y-3.5 md:pr-1">
+                          
+                          {/* Active Loaded Model Card */}
+                          <div className="p-3.5 bg-gradient-to-br from-blue-50/80 via-slate-50/50 to-indigo-50/40 rounded-xl border border-blue-100">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                                Active Loaded Model
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-wider border whitespace-nowrap ${
+                                  modelStatus.status === "optimal"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : modelStatus.status === "fallback_active"
+                                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                                      : "bg-red-50 text-red-700 border-red-200"
+                                }`}
+                              >
+                                {modelStatus.status === "optimal" 
+                                  ? (modelStatus.isCustomSelection ? "Custom Active" : "Optimal Ready") 
+                                  : modelStatus.status === "fallback_active" 
+                                    ? "Failover Active" 
+                                    : "All Models Busy"}
+                              </span>
+                            </div>
+                            <div className="text-base font-extrabold text-slate-900 mt-1 flex items-center gap-1.5">
+                              <span>{formatModelDisplayName(modelStatus.activeModel)}</span>
+                              {modelStatus.activeModel === modelStatus.primaryModel && (
+                                <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded border border-blue-200/60">
+                                  Flagship
+                                </span>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                              {modelStatus.activeModel}
+                            </div>
+                          </div>
 
-                    {/* Helper Footer */}
-                    <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowModelPopover(false);
-                          openApiSetupGuide();
-                        }}
-                        className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1 cursor-pointer hover:underline"
-                      >
-                        <Key className="h-3 w-3 text-blue-500" /> API & Cloud Setup
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => fetchModelStatus()}
-                        className="text-slate-500 hover:text-slate-700 font-medium flex items-center gap-1 cursor-pointer"
-                      >
-                        <RotateCcw className="h-2.5 w-2.5" /> Refresh
-                      </button>
-                    </div>
-                  </motion.div>
+                          {/* Choose Primary Model Card */}
+                          <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/90">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label htmlFor="model-select-dropdown" className="text-[10px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1">
+                                <Sparkles className="h-3 w-3 text-blue-600" />
+                                Prioritize Model
+                              </label>
+                              {(modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel) && (
+                                <button
+                                  type="button"
+                                  onClick={handleResetModelCascade}
+                                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
+                                  title="Reset to default Gemini 3.8 Flash cascade"
+                                >
+                                  <RotateCcw className="h-2.5 w-2.5" />
+                                  Reset to Default
+                                </button>
+                              )}
+                            </div>
+                            <div className="relative">
+                              <select
+                                id="model-select-dropdown"
+                                value={modelStatus.activeModel}
+                                onChange={(e) => handleSelectModel(e.target.value)}
+                                className="w-full pl-2.5 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none shadow-xs"
+                              >
+                                {ALL_TRANSCRIPTION_MODELS.map((m) => (
+                                  <option key={m} value={m}>
+                                    {formatModelDisplayName(m)} {m === modelStatus.primaryModel ? "★ (Flagship Default)" : ""}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-1.5 leading-normal">
+                              Prioritizes this model first. If high demand or rate limits occur, ScribeNode cascades down the sequence.
+                            </p>
+                          </div>
+
+                          {/* Notice / Reason banner if applicable */}
+                          {modelStatus.lastFallbackReason && (
+                            <div className={`p-2.5 rounded-xl text-[11px] flex items-start gap-2 border ${
+                              modelStatus.status === "degraded"
+                                ? "bg-red-50/90 border-red-200 text-red-900"
+                                : modelStatus.isCustomSelection
+                                  ? "bg-indigo-50/90 border-indigo-200 text-indigo-900"
+                                  : "bg-amber-50/90 border-amber-200 text-amber-900"
+                            }`}>
+                              <AlertCircle className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${
+                                modelStatus.status === "degraded" ? "text-red-600" : modelStatus.isCustomSelection ? "text-indigo-600" : "text-amber-600"
+                              }`} />
+                              <div className="leading-snug min-w-0">
+                                <div className="font-bold text-[11px]">
+                                  {modelStatus.status === "degraded" ? "High Demand Notice" : modelStatus.isCustomSelection ? "Custom Priority Active" : "Failover Status"}
+                                </div>
+                                <div className="text-[10px] mt-0.5 text-slate-700">
+                                  {modelStatus.lastFallbackReason}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Footer Links in Left Column on Desktop */}
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowModelPopover(false);
+                                openApiSetupGuide();
+                              }}
+                              className="text-blue-600 hover:text-blue-700 font-bold flex items-center gap-1.5 cursor-pointer hover:underline"
+                            >
+                              <Key className="h-3.5 w-3.5 text-blue-500" /> API & Cloud Setup
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => fetchModelStatus()}
+                              className="text-slate-500 hover:text-slate-700 font-medium flex items-center gap-1 cursor-pointer hover:underline"
+                            >
+                              <RotateCcw className="h-3 w-3" /> Refresh
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Right Column: Full Fallback Execution Sequence (md:col-span-7) */}
+                        <div className="md:col-span-7 md:border-l md:border-slate-100 md:pl-5 flex flex-col">
+                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                                Fallback Cascade Sequence
+                              </span>
+                              {(modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel) ? (
+                                <span className="text-[8px] bg-indigo-100 text-indigo-700 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wide">
+                                  Custom Order
+                                </span>
+                              ) : (
+                                <span className="text-[8px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">
+                                  Default Order
+                                </span>
+                              )}
+                            </div>
+                            {(modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel) ? (
+                              <button
+                                type="button"
+                                onClick={handleResetModelCascade}
+                                className="text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer hover:underline"
+                                title="Reset cascade to standard Gemini 3.8 Flash hierarchy"
+                              >
+                                <RotateCcw className="h-2.5 w-2.5" /> Reset Cascade
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-normal">
+                                auto failover
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Complete 9-Tier Sequence List */}
+                          <div className="space-y-1.5 text-xs font-medium">
+                            {modelStatus.fallbackModels.map((m, idx) => {
+                              const isActive = modelStatus.activeModel === m;
+                              const isPrimary = modelStatus.primaryModel === m;
+                              const modelError = modelStatus.modelErrors?.[m];
+                              return (
+                                <div
+                                  key={m}
+                                  onClick={() => !isActive && handleSelectModel(m)}
+                                  title={isActive ? "Active primary model" : `Click to prioritize ${formatModelDisplayName(m)}`}
+                                  className={`px-3 py-1.5 rounded-lg border text-[11px] transition-all cursor-pointer ${
+                                    isActive
+                                      ? "bg-blue-50/90 border-blue-200 text-blue-900 font-bold shadow-2xs"
+                                      : modelError
+                                        ? "bg-amber-50/40 border-amber-200 text-slate-700 hover:bg-amber-50/70"
+                                        : "bg-slate-50/50 border-slate-200/70 text-slate-700 hover:bg-blue-50/50 hover:border-blue-200"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 truncate pr-2">
+                                      <span className={`font-mono text-[10px] w-4 shrink-0 font-semibold ${
+                                        isActive ? "text-blue-600" : "text-slate-400"
+                                      }`}>
+                                        #{idx + 1}
+                                      </span>
+                                      <span className="truncate font-semibold">{formatModelDisplayName(m)}</span>
+                                      {isPrimary && (
+                                        <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded shrink-0">
+                                          Flagship
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      {modelError && (
+                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tight bg-amber-100/90 text-amber-800 border border-amber-300/80">
+                                          {modelError.shortBadge}
+                                        </span>
+                                      )}
+                                      {isActive ? (
+                                        <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold whitespace-nowrap">
+                                          <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Active #1
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400 font-medium hover:text-blue-600 transition-colors whitespace-nowrap">
+                                          Prioritize ↗
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {modelError && (
+                                    <div className="mt-1 pl-6 text-[10px] text-amber-800 font-normal leading-snug flex items-center gap-1">
+                                      <AlertCircle className="h-3 w-3 text-amber-600 shrink-0" />
+                                      <span>{modelError.friendlyMessage}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                      </div>
+                    </motion.div>
+                  </>
                 )}
               </AnimatePresence>
             </div>

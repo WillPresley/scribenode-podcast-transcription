@@ -66,13 +66,16 @@ export function createApp(options: CreateAppOptions = {}): Express {
     modelStatus.activeModel = selectedModel;
     modelStatus.lastUsedModel = selectedModel;
     modelStatus.lastTestedTimestamp = Date.now();
-    if (selectedModel !== modelStatus.primaryModel) {
+    const primaryOrChosen = modelStatus.fallbackModels[0] || modelStatus.primaryModel;
+    if (selectedModel !== primaryOrChosen) {
       modelStatus.status = 'fallback_active';
-      modelStatus.lastFallbackReason = reason || `Automated failover active from ${formatModelDisplayName(modelStatus.primaryModel)} to ${formatModelDisplayName(selectedModel)}`;
+      modelStatus.lastFallbackReason = reason || `Automated failover active from ${formatModelDisplayName(primaryOrChosen)} to ${formatModelDisplayName(selectedModel)}`;
     } else {
       modelStatus.status = 'optimal';
-      modelStatus.lastFallbackReason = undefined;
-      // If primary model succeeded, clear any recorded error on it
+      modelStatus.lastFallbackReason = modelStatus.isCustomSelection 
+        ? `Custom selection: ${formatModelDisplayName(selectedModel)} prioritized first with automatic fallback cascade.`
+        : undefined;
+      // If primary/chosen model succeeded, clear any recorded error on it
       if (modelStatus.modelErrors?.[selectedModel]) {
         delete modelStatus.modelErrors[selectedModel];
       }
@@ -157,6 +160,45 @@ export function createApp(options: CreateAppOptions = {}): Express {
     res.json(modelStatus);
   });
 
+  app.post("/api/model-status", (req, res) => {
+    const { model, reset } = req.body || {};
+
+    if (reset) {
+      modelStatus.activeModel = DEFAULT_TRANSCRIPTION_MODELS[0];
+      modelStatus.fallbackModels = [...DEFAULT_TRANSCRIPTION_MODELS];
+      modelStatus.status = 'optimal';
+      modelStatus.lastFallbackReason = undefined;
+      modelStatus.isCustomSelection = false;
+      return res.json({ success: true, modelStatus });
+    }
+
+    if (typeof model === "string" && model.trim()) {
+      const targetModel = model.trim();
+      if (!DEFAULT_TRANSCRIPTION_MODELS.includes(targetModel)) {
+        return res.status(400).json({
+          error: `Unknown model: "${targetModel}". Allowed models: ${DEFAULT_TRANSCRIPTION_MODELS.join(", ")}`
+        });
+      }
+
+      modelStatus.activeModel = targetModel;
+      modelStatus.fallbackModels = [
+        targetModel,
+        ...DEFAULT_TRANSCRIPTION_MODELS.filter(m => m !== targetModel)
+      ];
+
+      const isDefault = targetModel === DEFAULT_TRANSCRIPTION_MODELS[0];
+      modelStatus.isCustomSelection = !isDefault;
+      modelStatus.status = 'optimal';
+      modelStatus.lastFallbackReason = isDefault
+        ? undefined
+        : `Custom selection: ${formatModelDisplayName(targetModel)} prioritized first with automatic fallback cascade.`;
+
+      return res.json({ success: true, modelStatus });
+    }
+
+    return res.status(400).json({ error: "Please provide a valid 'model' string or 'reset: true'." });
+  });
+
   async function processTranscriptionJob(
     jobId: string,
     tempFilePath: string,
@@ -219,7 +261,9 @@ export function createApp(options: CreateAppOptions = {}): Express {
       job.progress = 75;
       storage.set(jobId, job);
 
-      const transcriptionModelsToTry = getTranscriptionModelsForJob(job.duration);
+      const transcriptionModelsToTry = modelStatus.fallbackModels && modelStatus.fallbackModels.length > 0
+        ? modelStatus.fallbackModels
+        : getTranscriptionModelsForJob(job.duration);
 
       const audioTitle = job.filename ? job.filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : undefined;
 

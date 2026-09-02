@@ -96,6 +96,44 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.fallbackModels).toContain('gemini-flash-lite-latest');
     });
 
+    it('allows manually selecting a model and re-ordering fallbacks via POST /api/model-status', async () => {
+      const app = createApp({ storage, skipVite: true });
+      
+      const selectRes = await request(app)
+        .post('/api/model-status')
+        .send({ model: 'gemini-3.7-flash' });
+      expect(selectRes.status).toBe(200);
+      expect(selectRes.body.success).toBe(true);
+      expect(selectRes.body.modelStatus.activeModel).toBe('gemini-3.7-flash');
+      expect(selectRes.body.modelStatus.fallbackModels[0]).toBe('gemini-3.7-flash');
+      expect(selectRes.body.modelStatus.isCustomSelection).toBe(true);
+      expect(selectRes.body.modelStatus.lastFallbackReason).toContain('Custom selection');
+
+      // Verify GET returns updated status
+      const getRes = await request(app).get('/api/model-status');
+      expect(getRes.body.activeModel).toBe('gemini-3.7-flash');
+      expect(getRes.body.isCustomSelection).toBe(true);
+
+      // Reset back to default
+      const resetRes = await request(app)
+        .post('/api/model-status')
+        .send({ reset: true });
+      expect(resetRes.status).toBe(200);
+      expect(resetRes.body.modelStatus.activeModel).toBe('gemini-3.8-flash');
+      expect(resetRes.body.modelStatus.fallbackModels[0]).toBe('gemini-3.8-flash');
+      expect(resetRes.body.modelStatus.isCustomSelection).toBe(false);
+      expect(resetRes.body.modelStatus.lastFallbackReason).toBeUndefined();
+    });
+
+    it('rejects unknown model selection on POST /api/model-status with 400', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app)
+        .post('/api/model-status')
+        .send({ model: 'invalid-model-name' });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Unknown model');
+    });
+
     it('enforces Basic Auth when BASIC_AUTH_ENABLED=true and credentials match', async () => {
       const app = createApp({
         storage,
