@@ -19,6 +19,8 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(pkg.scripts['test:coverage']).toBe('vitest run --coverage');
     expect(pkg.dependencies.express).toBeDefined();
     expect(pkg.dependencies['@google/genai']).toBeDefined();
+    expect(pkg.overrides?.qs).toBe('^6.16.0');
+    expect(pkg.overrides?.nanoid).toBeDefined();
   });
 
   it('validates Dockerfile configuration and port exposure', () => {

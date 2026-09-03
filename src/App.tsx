@@ -768,6 +768,7 @@ export default function App() {
           audioUrl: episode.audioUrl,
           episodeTitle: episode.title,
           feedTitle,
+          duration: episode.duration || undefined,
           promptStyle,
           customPrompt: promptStyle === "custom" ? customPrompt : undefined,
           glossary: glossary.trim() || undefined,
@@ -853,6 +854,7 @@ export default function App() {
         progress: 10,
         createdAt: Date.now(),
         modelUsed: modelStatus.activeModel || "gemini-3.8-flash",
+        duration: "--:--",
         sourceType: "url",
         sourceUrl: directAudioUrl.trim(),
         glossary: glossary.trim() || undefined,
@@ -1091,6 +1093,12 @@ export default function App() {
       if (res.ok) {
         const selectedJob = await res.json();
         setJob(selectedJob);
+        if (selectedJob.duration && selectedJob.duration !== "--:--") {
+          const parsedSec = parseTimestampSeconds(selectedJob.duration);
+          if (parsedSec > 0) {
+            setPlaybackDuration(parsedSec);
+          }
+        }
         setAnalysisResults({
           summary: selectedJob.summary,
           key_takeaways: selectedJob.key_takeaways,
@@ -2136,7 +2144,18 @@ export default function App() {
                           duration={playbackDuration}
                           isPlaying={isAudioPlaying}
                           onTimeUpdate={(t) => setPlaybackCurrentTime(t)}
-                          onDurationChange={(d) => setPlaybackDuration(d)}
+                          onDurationChange={(d) => {
+                            setPlaybackDuration(d);
+                            if (job && (job.duration === "--:--" || !job.duration) && d > 0) {
+                              const formatted = formatDuration(d);
+                              setJob(prev => prev ? { ...prev, duration: formatted } : prev);
+                              fetch(`/api/jobs/${job.id}/duration`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ duration: formatted })
+                              }).then(() => fetchJobsList()).catch(() => {});
+                            }
+                          }}
                           onPlayStateChange={(playing) => setIsAudioPlaying(playing)}
                           onClose={() => setShowAudioPlayer(false)}
                           followTranscript={followTranscript}
@@ -3496,9 +3515,16 @@ export default function App() {
                       <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 flex justify-between items-center">
                         <span>Quick Preview</span>
                         {previewJob && (
-                          <span className="text-[8px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20 font-mono normal-case shrink-0 truncate max-w-[150px]" title={previewJob.filename}>
-                            Active: {previewJob.filename}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {previewJob.duration && previewJob.duration !== "--:--" && (
+                              <span className="text-[8px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700 font-mono">
+                                {previewJob.duration}
+                              </span>
+                            )}
+                            <span className="text-[8px] bg-blue-500/15 text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20 font-mono normal-case shrink-0 truncate max-w-[150px]" title={previewJob.filename}>
+                              Active: {previewJob.filename}
+                            </span>
+                          </div>
                         )}
                       </h3>
                       

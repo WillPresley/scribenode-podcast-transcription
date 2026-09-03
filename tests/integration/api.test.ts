@@ -534,6 +534,64 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('Both oldName and newName are required');
     });
+
+    it('updates job duration via PATCH /api/jobs/:id/duration', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      const res = await request(app)
+        .patch('/api/jobs/sample-sarah/duration')
+        .send({ duration: '48:15' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.job.duration).toBe('48:15');
+
+      const saved = storage.get('sample-sarah');
+      expect(saved?.duration).toBe('48:15');
+    });
+
+    it('returns 404 when job does not exist on PATCH /api/jobs/:id/duration', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      const res = await request(app)
+        .patch('/api/jobs/non-existent-job/duration')
+        .send({ duration: '10:00' });
+
+      expect(res.status).toBe(404);
+      expect(res.body.error).toBe('Job not found');
+    });
+
+    it('returns 400 when duration payload is invalid or empty on PATCH /api/jobs/:id/duration', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      const res = await request(app)
+        .patch('/api/jobs/sample-sarah/duration')
+        .send({ duration: '   ' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain('Valid duration string is required');
+    });
+
+    it('resolves duration dynamically on GET /api/jobs for jobs with missing duration but valid transcript timestamps', async () => {
+      const rawJob: TranscribeJob = {
+        id: 'job-without-duration',
+        filename: 'test.mp3',
+        fileSize: 1024,
+        status: 'completed',
+        progress: 100,
+        createdAt: Date.now(),
+        duration: '--:--',
+        transcript: '[00:00] Start\n[14:30] End'
+      };
+      storage.set(rawJob.id, rawJob);
+
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app).get('/api/jobs');
+      expect(res.status).toBe(200);
+      const found = res.body.find((j: any) => j.id === 'job-without-duration');
+      expect(found).toBeDefined();
+      expect(found.duration).toBe('14:30');
+    });
   });
 
   describe('RSS Feed Preview & Remote Ingestion (v1.5.0)', () => {

@@ -7,12 +7,15 @@ import fs from "fs";
 import path from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
+import { probeAudioDuration, formatDurationSeconds } from "./audioDuration";
 
 export interface DownloadAudioResult {
   filePath: string;
   fileSize: number;
   mimeType: string;
   filename: string;
+  duration?: string;
+  durationSeconds?: number;
 }
 
 /**
@@ -117,12 +120,24 @@ export async function downloadRemoteAudio(params: {
     await pipeline(nodeReadable, fileWriteStream);
 
     const stat = fs.statSync(destPath);
+    let durationSeconds: number | undefined;
+    let duration: string | undefined;
+
+    try {
+      const probed = await probeAudioDuration(destPath);
+      if (probed && probed > 0) {
+        durationSeconds = probed;
+        duration = formatDurationSeconds(probed);
+      }
+    } catch {}
 
     return {
       filePath: destPath,
       fileSize: stat.size,
       mimeType,
-      filename: inferredFilename
+      filename: inferredFilename,
+      duration,
+      durationSeconds,
     };
   } finally {
     clearTimeout(timeoutId);

@@ -22,6 +22,13 @@ import {
 } from "./transcriptionEngine";
 import { fetchRssFeed } from "./rss";
 import { downloadRemoteAudio } from "./remote";
+import {
+  probeAudioDuration,
+  probeAudioDurationSync,
+  formatDurationSeconds,
+  resolveJobDuration,
+  resolveJobDurationSync
+} from "./audioDuration";
 import { ModelStatusInfo, ModelErrorDetails } from "../src/types";
 
 export type { ModelStatusInfo };
@@ -306,6 +313,17 @@ export function createApp(options: CreateAppOptions = {}): Express {
       job.progress = 100;
       job.transcript = transcript;
       job.modelUsed = model;
+
+      // Ensure duration is accurately populated from audio probe or transcript timestamps
+      if (!job.duration || job.duration === "--:--" || job.duration.trim() === "") {
+        try {
+          const resolved = await resolveJobDuration(job);
+          if (resolved && resolved !== "--:--") {
+            job.duration = resolved;
+          }
+        } catch {}
+      }
+
       storage.set(jobId, job);
       storage.saveToDisk();
 
@@ -406,6 +424,9 @@ export function createApp(options: CreateAppOptions = {}): Express {
           currentJob.fileSize = downloadResult.fileSize;
           currentJob.mimeType = downloadResult.mimeType;
           currentJob.filename = downloadResult.filename || displayName;
+          if (downloadResult.duration && downloadResult.duration !== "--:--") {
+            currentJob.duration = downloadResult.duration;
+          }
           currentJob.progress = 15;
           storage.set(jobId, currentJob);
           storage.saveToDisk();
@@ -489,6 +510,16 @@ export function createApp(options: CreateAppOptions = {}): Express {
         console.error("[API] Failed to copy file to persistent uploads directory:", err);
       }
 
+      let resolvedDuration = (typeof duration === "string" && duration.trim() && duration !== "--:--") ? duration.trim() : "--:--";
+      if (resolvedDuration === "--:--") {
+        try {
+          const probed = probeAudioDurationSync(req.file.path);
+          if (probed && probed > 0) {
+            resolvedDuration = formatDurationSeconds(probed);
+          }
+        } catch {}
+      }
+
       const job: TranscribeJob = {
         id: jobId,
         filename: req.file.originalname,
@@ -499,7 +530,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
         localFilePath,
         mimeType: req.file.mimetype,
         modelUsed: modelStatus.activeModel || DEFAULT_TRANSCRIPTION_MODELS[0],
-        duration: duration || "--:--",
+        duration: resolvedDuration,
         glossary: glossary || undefined,
         sourceType: 'upload'
       };
@@ -520,7 +551,16 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   const enrichJobWithAudioStatus = (job: TranscribeJob): TranscribeJob => {
     const hasAudio = Boolean(job.localFilePath && fs.existsSync(job.localFilePath));
-    return { ...job, hasAudioFile: hasAudio };
+    let duration = job.duration;
+    if (!duration || duration === "--:--" || duration.trim() === "") {
+      const resolved = resolveJobDurationSync(job);
+      if (resolved && resolved !== "--:--") {
+        duration = resolved;
+        job.duration = resolved;
+        storage.set(job.id, job);
+      }
+    }
+    return { ...job, duration: duration || "--:--", hasAudioFile: hasAudio };
   };
 
   app.get("/api/jobs", (req, res) => {
@@ -741,6 +781,23 @@ export function createApp(options: CreateAppOptions = {}): Express {
     storage.set(jobId, job);
     storage.saveToDisk();
     res.json({ success: true, job });
+  });
+
+  // Update job duration
+  app.patch("/api/jobs/:id/duration", (req, res) => {
+    const jobId = req.params.id;
+    const job = storage.get(jobId);
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    const { duration } = req.body;
+    if (typeof duration === "string" && duration.trim() && duration !== "--:--") {
+      job.duration = duration.trim();
+      storage.set(jobId, job);
+      storage.saveToDisk();
+      return res.json({ success: true, job: enrichJobWithAudioStatus(job) });
+    }
+    res.status(400).json({ error: "Valid duration string is required." });
   });
 
   // Rename speaker across transcript

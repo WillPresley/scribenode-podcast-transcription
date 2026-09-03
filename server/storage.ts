@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { isDisableDefaultItems } from './config';
+import { resolveJobDurationSync } from './audioDuration';
 
 export interface TranscribeJob {
   id: string;
@@ -199,6 +200,21 @@ export class JobsStorage {
       if (seededNew) {
         this.saveToDisk();
       }
+    }
+
+    // Auto-heal and populate missing durations for stored jobs
+    let healedDurations = false;
+    for (const [id, job] of this.jobs.entries()) {
+      if (!job.duration || job.duration === "--:--" || job.duration.trim() === "") {
+        const resolved = resolveJobDurationSync(job);
+        if (resolved && resolved !== "--:--") {
+          job.duration = resolved;
+          healedDurations = true;
+        }
+      }
+    }
+    if (healedDurations) {
+      this.saveToDisk();
     }
   }
 
