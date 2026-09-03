@@ -1,67 +1,12 @@
 import path from "path";
 import fs from "fs";
-import os from "os";
 import { createServer as createViteServer } from "vite";
 import { createApp } from "./server/app";
 import { JobsStorage } from "./server/storage";
-import { isDisableDefaultItems, formatDockerTag, getAppVersion, getMaxUploadSizeMB } from "./server/config";
-import {
-  PRIMARY_TRANSCRIPTION_MODEL,
-  DEFAULT_TRANSCRIPTION_MODELS,
-  formatModelDisplayName
-} from "./server/transcriptionEngine";
+import { printStartupBanner } from "./server/banner";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const storage = new JobsStorage();
-
-function printStartupBanner() {
-  const VERSION = getAppVersion();
-  const tag = process.env.DOCKER_TAG || process.env.CONTAINER_TAG || process.env.IMAGE_TAG || "latest";
-  
-  let rawSha = (process.env.GIT_SHA || process.env.COMMIT_SHA || process.env.GITHUB_SHA || process.env.BUILD_SHA || process.env.IMAGE_SHA || process.env.IMAGE_DIGEST || process.env.SHA || "").trim();
-
-  if (!rawSha) {
-    try {
-      const buildInfoPath = path.join(process.cwd(), "dist", "build-info.json");
-      if (fs.existsSync(buildInfoPath)) {
-        const info = JSON.parse(fs.readFileSync(buildInfoPath, "utf-8"));
-        if (info.gitSha) rawSha = info.gitSha;
-      }
-    } catch {}
-  }
-
-  const dockerTagOutput = formatDockerTag(tag, rawSha);
-
-  const banner = `
-   _____           _ _          _   _           _      
-  / ____|         (_) |        | \\ | |         | |     
- | (___   ___ _ __ _| |__   ___|  \\| | ___   __| | ___ 
-  \\___ \\ / __| '__| | '_ \\ / _ \\ . \` |/ _ \\ / _\` |/ _ \\
-  ____) | (__| |  | | |_) |  __/ |\\  | (_) | (_| |  __/
- |_____/ \\___|_|  |_|_.__/ \\___|_| \\_|\\___/ \\__,_|\\___|
-`;
-  console.log(banner);
-  console.log(`=======================================================`);
-  console.log(` ScribeNode - AI Speech & Transcript Engine`);
-  console.log(` Version      : v${VERSION}`);
-  console.log(` Docker/Tag   : ${dockerTagOutput}`);
-  console.log(` Environment  : ${process.env.NODE_ENV || 'development'}`);
-  console.log(` Node Runtime : ${process.version} (${process.platform} ${process.arch})`);
-  console.log(` Server URL   : http://0.0.0.0:${PORT}`);
-  console.log(` Uploads Dir  : ${storage.uploadsDir}`);
-  console.log(` Temp Storage : ${os.tmpdir()}`);
-  console.log(` Gemini API   : ${process.env.GEMINI_API_KEY ? 'Configured [OK]' : 'NOT CONFIGURED [WARNING]'}`);
-  console.log(` Primary Model: ${PRIMARY_TRANSCRIPTION_MODEL} (${formatModelDisplayName(PRIMARY_TRANSCRIPTION_MODEL)})`);
-  console.log(` Fallback Chain (${DEFAULT_TRANSCRIPTION_MODELS.length} models):`);
-  DEFAULT_TRANSCRIPTION_MODELS.forEach((m, idx) => {
-    const isPrimary = idx === 0;
-    const label = isPrimary ? " [Primary / Flagship]" : "";
-    console.log(`   [${idx + 1}] ${m.padEnd(25)} -> ${formatModelDisplayName(m)}${label}`);
-  });
-  console.log(` Preseed Items: ${isDisableDefaultItems() ? 'Disabled (DISABLE_DEFAULT_ITEMS=true)' : 'Enabled (Default)'}`);
-  console.log(` Max Upload   : ${getMaxUploadSizeMB()}MB (Configurable via MAX_UPLOAD_SIZE_MB)`);
-  console.log(`=======================================================\n`);
-}
 
 async function startServer() {
   const app = createApp({ storage });
@@ -83,7 +28,10 @@ async function startServer() {
   setInterval(() => storage.cleanOrphanedAndTempFiles(), 15 * 60 * 1000);
 
   app.listen(PORT, "0.0.0.0", () => {
-    printStartupBanner();
+    printStartupBanner({
+      uploadsDir: storage.uploadsDir,
+      serverUrl: `http://0.0.0.0:${PORT}`
+    });
   });
 }
 
