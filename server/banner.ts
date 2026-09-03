@@ -16,6 +16,32 @@ import {
 
 export const BANNER_BORDER_WIDTH = 70;
 
+/**
+ * Truncates or formats a text value so that `prefix + formattedValue` is strictly <= maxWidth characters.
+ * For paths or URIs, preserves the tail (most informative part) with leading `...`.
+ * For general text, truncates with trailing `...`.
+ */
+export function fitLine(prefix: string, value: string, maxWidth: number = BANNER_BORDER_WIDTH): string {
+  const allowed = maxWidth - prefix.length;
+  if (allowed <= 0) {
+    return prefix.slice(0, maxWidth);
+  }
+  if (value.length <= allowed) {
+    return prefix + value;
+  }
+  if (allowed <= 3) {
+    return prefix + "...".slice(0, allowed);
+  }
+
+  // If value looks like a filesystem path or URL, truncate head with leading ellipsis
+  if (value.includes("/") || value.includes("\\")) {
+    return prefix + "..." + value.slice(value.length - (allowed - 3));
+  }
+
+  // Otherwise truncate tail with trailing ellipsis
+  return prefix + value.slice(0, allowed - 3) + "...";
+}
+
 export const ASCII_LOGO = `
    _____           _ _          _   _           _      
   / ____|         (_) |        | \\ | |         | |     
@@ -76,30 +102,38 @@ export function buildStartupBannerLines(options: StartupBannerOptions = {}): str
 
   const lines: string[] = [
     divider,
-    " ScribeNode - AI Speech & Transcript Engine",
-    ` Version      : v${version}`,
-    ` Docker/Tag   : ${dockerTag}`,
-    ` Environment  : ${nodeEnv}`,
-    ` Node Runtime : ${nodeVer} (${platform} ${arch})`,
-    ` Server URL   : ${serverUrl}`,
-    ` Uploads Dir  : ${uploadsDir}`,
-    ` Temp Storage : ${tempDir}`,
-    ` Gemini API   : ${hasGeminiKey ? "Configured [OK]" : "NOT CONFIGURED [WARNING]"}`,
-    ` Primary Model: ${primaryModel} (${formatModelDisplayName(primaryModel)})`,
-    ` Fallback Chain (${fallbackModels.length} models):`,
+    fitLine(" ", "ScribeNode - AI Speech & Transcript Engine"),
+    fitLine(" Version      : ", `v${version}`),
+    fitLine(" Docker/Tag   : ", dockerTag),
+    fitLine(" Environment  : ", nodeEnv),
+    fitLine(" Node Runtime : ", `${nodeVer} (${platform} ${arch})`),
+    fitLine(" Server URL   : ", serverUrl),
+    fitLine(" Uploads Dir  : ", uploadsDir),
+    fitLine(" Temp Storage : ", tempDir),
+    fitLine(" Gemini API   : ", hasGeminiKey ? "Configured [OK]" : "NOT CONFIGURED [WARNING]"),
+    fitLine(" Primary Model: ", `${primaryModel} (${formatModelDisplayName(primaryModel)})`),
+    fitLine(" ", `Fallback Chain (${fallbackModels.length} models):`),
   ];
 
   fallbackModels.forEach((m, idx) => {
     const isPrimary = idx === 0;
     const tag = isPrimary ? " (Primary)" : "";
-    lines.push(`   [${idx + 1}] ${m.padEnd(25)} -> ${formatModelDisplayName(m)}${tag}`);
+    const prefix = `   [${idx + 1}] `;
+    const content = `${m.padEnd(25)} -> ${formatModelDisplayName(m)}${tag}`;
+    lines.push(fitLine(prefix, content));
   });
 
-  lines.push(` Preseed Items: ${preseedDisabled ? "Disabled (DISABLE_DEFAULT_ITEMS=true)" : "Enabled (Default)"}`);
-  lines.push(` Max Upload   : ${maxUploadMB}MB (Configurable via MAX_UPLOAD_SIZE_MB)`);
+  lines.push(fitLine(" Preseed Items: ", preseedDisabled ? "Disabled (DISABLE_DEFAULT_ITEMS=true)" : "Enabled (Default)"));
+  lines.push(fitLine(" Max Upload   : ", `${maxUploadMB}MB (Configurable via MAX_UPLOAD_SIZE_MB)`));
   lines.push(divider);
 
-  return lines;
+  // Universal hard boundary safety guarantee
+  return lines.map(line => {
+    if (line.length > BANNER_BORDER_WIDTH) {
+      return line.slice(0, BANNER_BORDER_WIDTH - 3) + "...";
+    }
+    return line;
+  });
 }
 
 export function printStartupBanner(options: StartupBannerOptions = {}): void {

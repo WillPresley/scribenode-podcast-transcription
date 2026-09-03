@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   buildStartupBannerLines,
   printStartupBanner,
+  fitLine,
   BANNER_BORDER_WIDTH,
   ASCII_LOGO
 } from '../../server/banner';
@@ -17,6 +18,30 @@ describe('Server Startup Banner Formatter (server/banner.ts)', () => {
     expect(BANNER_BORDER_WIDTH).toBeLessThan(80);
   });
 
+  describe('fitLine utility', () => {
+    it('leaves values unchanged when they fit comfortably within maxWidth', () => {
+      const line = fitLine(' Version      : ', 'v1.5.0', 70);
+      expect(line).toBe(' Version      : v1.5.0');
+      expect(line.length).toBeLessThanOrEqual(70);
+    });
+
+    it('truncates paths with leading ellipsis to preserve the informative tail', () => {
+      const longPath = '/home/runner/work/scribenode-podcast-transcription/scribenode-podcast-transcription/uploads';
+      const line = fitLine(' Uploads Dir  : ', longPath, 70);
+      expect(line.length).toBe(70);
+      expect(line.startsWith(' Uploads Dir  : ...')).toBe(true);
+      expect(line.endsWith('/uploads')).toBe(true);
+    });
+
+    it('truncates generic non-path text with trailing ellipsis', () => {
+      const longText = 'A very long description that exceeds the seventy character maximum width threshold by a substantial margin';
+      const line = fitLine(' Environment  : ', longText, 70);
+      expect(line.length).toBe(70);
+      expect(line.startsWith(' Environment  : ')).toBe(true);
+      expect(line.endsWith('...')).toBe(true);
+    });
+  });
+
   it('ensures every single generated banner line is strictly <= 70 characters', () => {
     const lines = buildStartupBannerLines();
 
@@ -25,6 +50,22 @@ describe('Server Startup Banner Formatter (server/banner.ts)', () => {
       expect(
         line.length,
         `Line ${idx + 1} exceeds 70 character limit: "${line}" (${line.length} chars)`
+      ).toBeLessThanOrEqual(BANNER_BORDER_WIDTH);
+    });
+  });
+
+  it('safely handles long GitHub Actions runner work directories without exceeding 70 columns', () => {
+    const lines = buildStartupBannerLines({
+      uploadsDir: '/home/runner/work/scribenode-podcast-transcription/scribenode-podcast-transcription/uploads',
+      tempStorageDir: '/home/runner/work/scribenode-podcast-transcription/temp-storage-directory-on-runner',
+      serverUrl: 'https://extremely-long-custom-subdomain-hostname.internal.cloudprovider.example.com:3000'
+    });
+
+    expect(lines.length).toBeGreaterThan(15);
+    lines.forEach((line, idx) => {
+      expect(
+        line.length,
+        `Line ${idx + 1} exceeds 70 character limit in simulated CI runner: "${line}" (${line.length} chars)`
       ).toBeLessThanOrEqual(BANNER_BORDER_WIDTH);
     });
   });
