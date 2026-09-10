@@ -135,13 +135,23 @@ export function createApp(options: CreateAppOptions = {}): Express {
   if (authState.enabled) {
     app.use((req, res, next) => {
       const authHeader = req.headers.authorization;
-      if (authHeader) {
-        const match = authHeader.match(/^Basic\s+(.*)$/i);
-        if (match) {
-          const credentials = Buffer.from(match[1], 'base64').toString('utf-8');
-          const [reqUser, reqPass] = credentials.split(':');
-          if (reqUser === authState.user && reqPass === authState.pass) {
-            return next();
+      if (authHeader && typeof authHeader === 'string') {
+        const trimmed = authHeader.trim();
+        // Safe prefix check without polynomial regular expression backtracking
+        if (trimmed.length < 4096 && trimmed.toLowerCase().startsWith('basic ')) {
+          const base64Credentials = trimmed.slice(6).trim();
+          if (base64Credentials) {
+            try {
+              const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+              const colonIndex = credentials.indexOf(':');
+              if (colonIndex !== -1) {
+                const reqUser = credentials.slice(0, colonIndex);
+                const reqPass = credentials.slice(colonIndex + 1);
+                if (reqUser === authState.user && reqPass === authState.pass) {
+                  return next();
+                }
+              }
+            } catch {}
           }
         }
       }
@@ -206,6 +216,35 @@ export function createApp(options: CreateAppOptions = {}): Express {
     return res.status(400).json({ error: "Please provide a valid 'model' string or 'reset: true'." });
   });
 
+  const safeTempDir = path.resolve(os.tmpdir());
+  const safeUploadsDir = path.resolve(storage.uploadsDir);
+
+  function getSafeAudioPath(filePath: string | undefined | null): string | null {
+    if (!filePath || typeof filePath !== "string" || filePath.includes("\0")) {
+      return null;
+    }
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith(safeTempDir) && !resolved.startsWith(safeUploadsDir)) {
+      return null;
+    }
+    return resolved;
+  }
+
+  function safeUnlinkPath(filePath: string | undefined | null): void {
+    if (!filePath || typeof filePath !== "string" || filePath.includes("\0")) {
+      return;
+    }
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith(safeTempDir) && !resolved.startsWith(safeUploadsDir)) {
+      return;
+    }
+    try {
+      if (fs.existsSync(resolved)) {
+        fs.unlinkSync(resolved);
+      }
+    } catch {}
+  }
+
   async function processTranscriptionJob(
     jobId: string,
     tempFilePath: string,
@@ -214,9 +253,15 @@ export function createApp(options: CreateAppOptions = {}): Express {
     customPrompt?: string,
     customVocabulary?: string[] | string
   ) {
+    const safeTempPath = getSafeAudioPath(tempFilePath);
+    if (!safeTempPath) {
+      console.error(`[Job ${jobId}] Security error: tempFilePath outside allowed directories:`, tempFilePath);
+      return;
+    }
+
     const job = storage.get(jobId);
     if (!job) {
-      try { fs.unlinkSync(tempFilePath); } catch {}
+      safeUnlinkPath(safeTempPath);
       return;
     }
 
@@ -226,7 +271,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       storage.set(jobId, job);
 
       const uploadResult = await getAIClient().files.upload({
-        file: tempFilePath,
+        file: safeTempPath,
         config: {
           mimeType: mimeType || 'audio/mp3',
         }
@@ -237,9 +282,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
         throw new Error("Upload failed: remote file name missing.");
       }
 
-      try {
-        fs.unlinkSync(tempFilePath);
-      } catch {}
+      safeUnlinkPath(safeTempPath);
 
       job.progress = 40;
       storage.set(jobId, job);
@@ -344,11 +387,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
         modelStatus.lastFallbackReason = "All AI models are currently experiencing high demand. Please try again later.";
       }
 
-      try {
-        if (fs.existsSync(tempFilePath)) {
-          fs.unlinkSync(tempFilePath);
-        }
-      } catch {}
+      safeUnlinkPath(safeTempPath);
     }
   }
 
@@ -477,22 +516,26 @@ export function createApp(options: CreateAppOptions = {}): Express {
       next();
     });
   }, async (req, res) => {
+    const rawUploadedPath = req.file?.path;
+    const safeUploadPath = getSafeAudioPath(rawUploadedPath);
+
     try {
       if (!env.GEMINI_API_KEY) {
-        if (req.file?.path && fs.existsSync(req.file.path)) {
-          try { fs.unlinkSync(req.file.path); } catch {}
+        if (safeUploadPath) {
+          safeUnlinkPath(safeUploadPath);
         }
         return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
       }
 
-      if (!req.file) {
+      if (!req.file || !safeUploadPath || !safeUploadPath.startsWith(safeTempDir)) {
+        if (safeUploadPath) {
+          safeUnlinkPath(safeUploadPath);
+        }
         return res.status(400).json({ error: "Please upload an audio file." });
       }
 
       if (req.file.size > maxUploadSizeBytes) {
-        if (req.file.path && fs.existsSync(req.file.path)) {
-          try { fs.unlinkSync(req.file.path); } catch {}
-        }
+        safeUnlinkPath(safeUploadPath);
         return res.status(413).json({
           error: `File exceeds maximum allowed upload size of ${maxUploadSizeMB}MB. Configure MAX_UPLOAD_SIZE_MB in your environment to increase this limit.`,
           code: "LIMIT_FILE_SIZE",
@@ -505,7 +548,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       
       const localFilePath = path.join(storage.uploadsDir, `${jobId}.audio`);
       try {
-        fs.copyFileSync(req.file.path, localFilePath);
+        fs.copyFileSync(safeUploadPath, localFilePath);
       } catch (err) {
         console.error("[API] Failed to copy file to persistent uploads directory:", err);
       }
@@ -513,7 +556,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       let resolvedDuration = (typeof duration === "string" && duration.trim() && duration !== "--:--") ? duration.trim() : "--:--";
       if (resolvedDuration === "--:--") {
         try {
-          const probed = probeAudioDurationSync(req.file.path);
+          const probed = probeAudioDurationSync(safeUploadPath);
           if (probed && probed > 0) {
             resolvedDuration = formatDurationSeconds(probed);
           }
@@ -538,12 +581,12 @@ export function createApp(options: CreateAppOptions = {}): Express {
       storage.set(jobId, job);
       storage.saveToDisk();
       
-      processTranscriptionJob(jobId, req.file.path, req.file.mimetype, promptStyle, customPrompt, glossary);
+      processTranscriptionJob(jobId, safeUploadPath, req.file.mimetype, promptStyle, customPrompt, glossary);
       
       res.json({ jobId });
     } catch (err: any) {
-      if (req.file?.path && fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch {}
+      if (safeUploadPath) {
+        safeUnlinkPath(safeUploadPath);
       }
       res.status(500).json({ error: err.message || "Failed to start transcription job" });
     }

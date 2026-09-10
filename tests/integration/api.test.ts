@@ -164,6 +164,29 @@ describe('API Integration & Route Endpoints', () => {
         .get('/api/jobs')
         .auth('testuser', 'testpass123');
       expect(validAuthRes.status).toBe(200);
+
+      // Malformed or oversized Authorization header safely returns 401 without hanging
+      const malformedRes = await request(app)
+        .get('/api/jobs')
+        .set('Authorization', 'Basic ' + ' '.repeat(5000));
+      expect(malformedRes.status).toBe(401);
+    });
+
+    it('handles Basic Auth password containing colons correctly', async () => {
+      const app = createApp({
+        storage,
+        env: {
+          BASIC_AUTH_ENABLED: 'true',
+          BASIC_AUTH_USER: 'admin',
+          BASIC_AUTH_PASS: 'complex:pass:word!123'
+        } as any,
+        skipVite: true
+      });
+
+      const res = await request(app)
+        .get('/api/jobs')
+        .auth('admin', 'complex:pass:word!123');
+      expect(res.status).toBe(200);
     });
   });
 

@@ -6,7 +6,8 @@ import {
   resolveJobDuration,
   resolveJobDurationSync,
   probeAudioDuration,
-  probeAudioDurationSync
+  probeAudioDurationSync,
+  getSafeAudioPath
 } from '../../server/audioDuration';
 
 describe('audioDuration Server Utilities', () => {
@@ -131,6 +132,27 @@ describe('audioDuration Server Utilities', () => {
       expect(probeAudioDurationSync('/non/existent/audio.mp3')).toBeNull();
       expect(await probeAudioDuration('')).toBeNull();
       expect(await probeAudioDuration('/non/existent/audio.mp3')).toBeNull();
+    });
+  });
+
+  describe('getSafeAudioPath', () => {
+    it('returns null for invalid, non-string, or null-byte paths', () => {
+      expect(getSafeAudioPath(null)).toBeNull();
+      expect(getSafeAudioPath(undefined)).toBeNull();
+      expect(getSafeAudioPath('')).toBeNull();
+      expect(getSafeAudioPath('/tmp/test\0audio.mp3')).toBeNull();
+    });
+
+    it('returns null for paths outside allowed directories', () => {
+      expect(getSafeAudioPath('/etc/passwd')).toBeNull();
+      expect(getSafeAudioPath('/var/log/system.log')).toBeNull();
+      expect(getSafeAudioPath('../../../../../etc/shadow')).toBeNull();
+    });
+
+    it('resolves safe paths inside allowed temp or working directories', () => {
+      const cwdSafe = getSafeAudioPath('./package.json');
+      expect(cwdSafe).not.toBeNull();
+      expect(cwdSafe).toContain('package.json');
     });
   });
 });

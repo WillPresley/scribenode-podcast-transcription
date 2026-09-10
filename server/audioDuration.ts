@@ -7,8 +7,33 @@
 import { execFile, execFileSync } from 'child_process';
 import util from 'util';
 import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 const execFileAsync = util.promisify(execFile);
+
+/**
+ * Validates and normalizes audio file paths to prevent path traversal (CWE-22)
+ * and ensure files are accessed only from allowed application and temporary directories.
+ */
+export function getSafeAudioPath(filePath?: string | null): string | null {
+  if (!filePath || typeof filePath !== 'string' || filePath.includes('\0')) {
+    return null;
+  }
+  const resolved = path.resolve(filePath);
+  const tempDir = path.resolve(os.tmpdir());
+  const cwdDir = path.resolve(process.cwd());
+
+  if (
+    !resolved.startsWith(tempDir) &&
+    !resolved.startsWith(cwdDir) &&
+    !resolved.startsWith('/tmp') &&
+    !resolved.startsWith('/app')
+  ) {
+    return null;
+  }
+  return resolved;
+}
 
 /**
  * Formats seconds into standard audio time format: MM:SS or H:MM:SS.
@@ -57,15 +82,16 @@ export function parseDurationToSeconds(duration?: string | null): number {
  * Returns duration in seconds, or null if probe failed or file does not exist.
  */
 export async function probeAudioDuration(filePath: string): Promise<number | null> {
-  if (!filePath || typeof filePath !== 'string') return null;
+  const safePath = getSafeAudioPath(filePath);
+  if (!safePath) return null;
   try {
-    if (!fs.existsSync(filePath)) return null;
+    if (!fs.existsSync(safePath)) return null;
 
     const { stdout } = await execFileAsync('ffprobe', [
       '-v', 'error',
       '-show_entries', 'format=duration',
       '-of', 'default=noprint_wrappers=1:nokey=1',
-      filePath
+      safePath
     ], { timeout: 8000 });
 
     const dur = parseFloat(stdout.trim());
@@ -83,15 +109,16 @@ export async function probeAudioDuration(filePath: string): Promise<number | nul
  * Suitable for synchronous storage boot and data seeding.
  */
 export function probeAudioDurationSync(filePath: string): number | null {
-  if (!filePath || typeof filePath !== 'string') return null;
+  const safePath = getSafeAudioPath(filePath);
+  if (!safePath) return null;
   try {
-    if (!fs.existsSync(filePath)) return null;
+    if (!fs.existsSync(safePath)) return null;
 
     const stdout = execFileSync('ffprobe', [
       '-v', 'error',
       '-show_entries', 'format=duration',
       '-of', 'default=noprint_wrappers=1:nokey=1',
-      filePath
+      safePath
     ], { encoding: 'utf8', timeout: 5000 });
 
     const dur = parseFloat(stdout.trim());
