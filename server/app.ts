@@ -285,38 +285,28 @@ export function createApp(options: CreateAppOptions = {}): Express {
     if (!filePath || typeof filePath !== "string" || filePath.includes("\0")) {
       return null;
     }
-    const resolved = path.resolve(filePath);
-    if (!resolved.startsWith(safeTempDir) && !resolved.startsWith(safeUploadsDir)) {
+    const baseName = path.basename(filePath);
+    if (!baseName || baseName === "." || baseName === ".." || baseName.includes("/") || baseName.includes("\\")) {
       return null;
     }
-    try {
-      if (fs.existsSync(resolved)) {
-        const realPath = fs.realpathSync(resolved);
-        if (!realPath.startsWith(safeTempDir) && !realPath.startsWith(safeUploadsDir)) {
-          return null;
-        }
-        return realPath;
-      }
-      return resolved;
-    } catch {
+    const inUploads = filePath.startsWith(safeUploadsDir);
+    const targetDir = inUploads ? safeUploadsDir : safeTempDir;
+    const safePath = path.resolve(targetDir, baseName);
+    const rel = path.relative(targetDir, safePath);
+    if (rel.startsWith("..") || path.isAbsolute(rel)) {
       return null;
     }
+    return safePath;
   }
 
   function safeUnlinkPath(filePath: string | undefined | null): void {
-    if (!filePath || typeof filePath !== "string" || filePath.includes("\0")) {
-      return;
-    }
-    const resolved = path.resolve(filePath);
-    if (!resolved.startsWith(safeTempDir) && !resolved.startsWith(safeUploadsDir)) {
+    const safePath = getSafeAudioPath(filePath);
+    if (!safePath) {
       return;
     }
     try {
-      if (fs.existsSync(resolved)) {
-        const realPath = fs.realpathSync(resolved);
-        if (realPath.startsWith(safeTempDir) || realPath.startsWith(safeUploadsDir)) {
-          fs.unlinkSync(realPath);
-        }
+      if (fs.existsSync(safePath)) {
+        fs.unlinkSync(safePath);
       }
     } catch {}
   }

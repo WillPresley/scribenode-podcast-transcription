@@ -134,6 +134,12 @@ DISABLE_DEFAULT_ITEMS="false"
 # 📤 OPTIONAL: Maximum Upload Size in Megabytes (MB)
 # Defaults to 100MB. Increase this value (e.g. 250, 500, or 1000) for long multi-hour podcast recordings or uncompressed audio.
 MAX_UPLOAD_SIZE_MB=100
+
+# 🛡️ OPTIONAL: Remote Podcast & RSS Domain Allowlist (SSRF Defense)
+# Comma-separated list of allowed domains or subdomains for fetching remote audio or RSS feeds.
+# Major podcast platforms and CDNs (Buzzsprout, Libsyn, Spotify, Apple, Transistor, Megaphone, AWS S3, Google Cloud, etc.) are permitted by default.
+# Set to "*" to permit all public internet domains while maintaining full IP/CIDR and cloud metadata SSRF defenses.
+ALLOWED_REMOTE_DOMAINS=""
 ```
 
 ---

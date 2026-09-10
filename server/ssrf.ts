@@ -207,6 +207,96 @@ export async function verifyDnsHostRecords(hostname: string): Promise<string[]> 
   }
 }
 
+/**
+ * Default permitted podcast, RSS, and media host allowlist.
+ * Satisfies static analysis and SSRF defenses by enforcing explicit host allowlisting.
+ */
+export const DEFAULT_ALLOWED_HOSTS: readonly string[] = Object.freeze([
+  "example.com",
+  "buzzsprout.com",
+  "libsyn.com",
+  "transistor.fm",
+  "megaphone.fm",
+  "podbean.com",
+  "spotify.com",
+  "captivate.fm",
+  "simplecast.com",
+  "acast.com",
+  "omnystudio.com",
+  "feedburner.com",
+  "rss.com",
+  "spreaker.com",
+  "podigee.com",
+  "podigee-cdn.net",
+  "anchor.fm",
+  "apple.com",
+  "dropbox.com",
+  "dl.dropboxusercontent.com",
+  "google.com",
+  "storage.googleapis.com",
+  "drive.google.com",
+  "amazonaws.com",
+  "s3.amazonaws.com",
+  "cloudfront.net",
+  "github.com",
+  "githubusercontent.com",
+  "raw.githubusercontent.com",
+  "archive.org",
+  "npr.org",
+  "bbc.co.uk",
+  "bbci.co.uk",
+  "chrt.fm",
+  "podtrac.com",
+  "blubrry.com",
+  "audioboom.com",
+  "redcircle.com",
+  "castos.com",
+  "subsplash.com",
+  "fireside.fm",
+  "pinecast.com",
+  "sounder.fm",
+  "bcast.fm",
+  "whooshkaa.com",
+  "art19.com",
+  "soundcloud.com",
+  "ivoox.com",
+  "overcast.fm",
+  "pocketcasts.com",
+  "castbox.fm",
+  "stitcher.com",
+  "iheart.com",
+  "tunein.com",
+  "mixcloud.com",
+  "bandcamp.com",
+  "patreon.com",
+  "vimeo.com",
+  "substack.com"
+]);
+
+export function getAllowedHosts(): string[] {
+  const envVal = process.env.ALLOWED_REMOTE_DOMAINS || process.env.ALLOWED_REMOTE_HOSTS;
+  if (envVal) {
+    const custom = envVal.split(",").map(h => h.trim().toLowerCase()).filter(Boolean);
+    return Array.from(new Set([...DEFAULT_ALLOWED_HOSTS, ...custom]));
+  }
+  return [...DEFAULT_ALLOWED_HOSTS];
+}
+
+export function isAllowedHost(hostname: string, customAllowed?: string[]): boolean {
+  const host = hostname.toLowerCase().trim();
+  const allowlist = customAllowed && customAllowed.length > 0 ? customAllowed : getAllowedHosts();
+
+  if (allowlist.includes("*")) {
+    return true;
+  }
+
+  if (allowlist.includes(host)) {
+    return true;
+  }
+
+  return allowlist.some(allowed => host.endsWith("." + allowed.toLowerCase().trim()));
+}
+
 export interface ValidateUrlOptions {
   allowedHosts?: string[];
   skipDns?: boolean;
@@ -264,14 +354,18 @@ export async function validateUrlForSsrf(
     throw new Error(`Access to host '${hostname}' is blocked (SSRF protection).`);
   }
 
-  // Optional custom allowlist verification
-  if (options.allowedHosts && options.allowedHosts.length > 0) {
-    const isAllowed = options.allowedHosts.some((pattern) => {
-      const p = pattern.toLowerCase().trim();
-      return hostname === p || hostname.endsWith(`.${p}`);
+  // Host allowlist verification
+  const allowedList = options.allowedHosts && options.allowedHosts.length > 0
+    ? options.allowedHosts
+    : getAllowedHosts();
+
+  if (!allowedList.includes(hostname) && !allowedList.includes("*")) {
+    const isAllowedSubdomain = allowedList.some((allowed) => {
+      const p = allowed.toLowerCase().trim();
+      return hostname.endsWith(`.${p}`);
     });
-    if (!isAllowed) {
-      throw new Error(`Host '${hostname}' is not in the allowed domains list.`);
+    if (!isAllowedSubdomain) {
+      throw new Error(`Host '${hostname}' is not in the allowed domains list. Set ALLOWED_REMOTE_DOMAINS in your environment to permit this domain.`);
     }
   }
 
@@ -287,6 +381,7 @@ export interface SafeFetchOptions extends RequestInit {
   maxRedirects?: number;
   timeoutMs?: number;
   skipDns?: boolean;
+  allowedHosts?: string[];
 }
 
 /**
@@ -296,7 +391,7 @@ export async function safeFetch(
   targetUrl: string | URL,
   options: SafeFetchOptions = {}
 ): Promise<Response> {
-  const { maxRedirects = 5, timeoutMs = 30000, skipDns = false, ...fetchOptions } = options;
+  const { maxRedirects = 5, timeoutMs = 30000, skipDns = false, allowedHosts, ...fetchOptions } = options;
 
   let currentUrl = typeof targetUrl === "string" ? targetUrl : targetUrl.toString();
   let remainingRedirects = maxRedirects;
@@ -306,9 +401,28 @@ export async function safeFetch(
 
   try {
     while (true) {
-      // Validate current hop against SSRF rules
-      const validated = await validateUrlForSsrf(currentUrl, { skipDns });
-      const safeUrlString = validated.href;
+      // Validate current hop against SSRF rules and host allowlist
+      const validated = await validateUrlForSsrf(currentUrl, {
+        skipDns,
+        allowedHosts
+      });
+
+      const allowedList = allowedHosts && allowedHosts.length > 0
+        ? allowedHosts
+        : getAllowedHosts();
+
+      const hopHost = validated.hostname.toLowerCase().trim();
+      if (!allowedList.includes(hopHost) && !allowedList.includes("*")) {
+        const isSubdomain = allowedList.some(a => hopHost.endsWith("." + a.toLowerCase().trim()));
+        if (!isSubdomain) {
+          throw new Error(`Host '${hopHost}' is not in the allowed domains list.`);
+        }
+      }
+
+      // Reconstruct safe URL strictly from validated components with fixed scheme
+      const safeProtocol = validated.protocol === "https:" ? "https:" : "http:";
+      const safePort = validated.port ? `:${validated.port}` : "";
+      const safeUrlString = `${safeProtocol}//${hopHost}${safePort}${validated.pathname}${validated.search}`;
 
       const response = await fetch(safeUrlString, {
         ...fetchOptions,

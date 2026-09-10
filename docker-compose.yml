@@ -49,6 +49,9 @@ services:
       # Optional: Configurable maximum audio upload size in MB (defaults to 100)
       - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-100}
 
+      # Optional: Configurable remote SSRF allowlist
+      - ALLOWED_REMOTE_DOMAINS=${ALLOWED_REMOTE_DOMAINS:-}
+
     volumes:
       - scribenode_uploads:/app/uploads
 

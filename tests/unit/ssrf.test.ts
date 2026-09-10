@@ -198,5 +198,32 @@ describe("SSRF Protection Suite", () => {
         vi.unstubAllGlobals();
       }
     });
+
+    it("rejects hosts not present in the allowlist", async () => {
+      await expect(
+        safeFetch("https://untrusted-unknown-domain.xyz/audio.mp3", {
+          skipDns: true,
+          allowedHosts: ["example.com"]
+        })
+      ).rejects.toThrow("not in the allowed domains list");
+    });
+
+    it("permits allowed subdomains and custom allowed hosts", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        status: 200,
+        headers: new Headers({ "content-type": "audio/mpeg" })
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      try {
+        const res = await safeFetch("https://media.custom-podcast.org/episode.mp3", {
+          skipDns: true,
+          allowedHosts: ["custom-podcast.org"]
+        });
+        expect(res.status).toBe(200);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
   });
 });
