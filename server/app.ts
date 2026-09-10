@@ -23,6 +23,7 @@ import {
 } from "./transcriptionEngine";
 import { fetchRssFeed } from "./rss";
 import { downloadRemoteAudio } from "./remote";
+import { validateUrlForSsrf } from "./ssrf";
 import {
   probeAudioDuration,
   probeAudioDurationSync,
@@ -277,8 +278,8 @@ export function createApp(options: CreateAppOptions = {}): Express {
     return res.status(400).json({ error: "Please provide a valid 'model' string or 'reset: true'." });
   });
 
-  const safeTempDir = path.resolve(os.tmpdir());
-  const safeUploadsDir = path.resolve(storage.uploadsDir);
+  const safeTempDir = path.resolve(os.tmpdir()) + path.sep;
+  const safeUploadsDir = path.resolve(storage.uploadsDir) + path.sep;
 
   function getSafeAudioPath(filePath: string | undefined | null): string | null {
     if (!filePath || typeof filePath !== "string" || filePath.includes("\0")) {
@@ -288,7 +289,18 @@ export function createApp(options: CreateAppOptions = {}): Express {
     if (!resolved.startsWith(safeTempDir) && !resolved.startsWith(safeUploadsDir)) {
       return null;
     }
-    return resolved;
+    try {
+      if (fs.existsSync(resolved)) {
+        const realPath = fs.realpathSync(resolved);
+        if (!realPath.startsWith(safeTempDir) && !realPath.startsWith(safeUploadsDir)) {
+          return null;
+        }
+        return realPath;
+      }
+      return resolved;
+    } catch {
+      return null;
+    }
   }
 
   function safeUnlinkPath(filePath: string | undefined | null): void {
@@ -301,7 +313,10 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
     try {
       if (fs.existsSync(resolved)) {
-        fs.unlinkSync(resolved);
+        const realPath = fs.realpathSync(resolved);
+        if (realPath.startsWith(safeTempDir) || realPath.startsWith(safeUploadsDir)) {
+          fs.unlinkSync(realPath);
+        }
       }
     } catch {}
   }
@@ -316,7 +331,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   ) {
     const safeTempPath = getSafeAudioPath(tempFilePath);
     if (!safeTempPath) {
-      console.error(`[Job ${jobId}] Security error: tempFilePath outside allowed directories:`, tempFilePath);
+      console.error("[Job %s] Security error: tempFilePath outside allowed directories:", jobId, tempFilePath);
       return;
     }
 
@@ -436,7 +451,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       } catch {}
 
     } catch (err: any) {
-      console.error(`[Job ${jobId}] Error:`, err);
+      console.error("[Job %s] Error:", jobId, err);
       job.status = 'failed';
       job.error = formatGeminiErrorMessage(err);
       storage.set(jobId, job);
@@ -459,6 +474,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       if (!feedUrl || typeof feedUrl !== "string" || !feedUrl.trim()) {
         return res.status(400).json({ error: "Please provide a valid podcast RSS feed URL." });
       }
+      await validateUrlForSsrf(feedUrl.trim());
       const feed = await fetchRssFeed(feedUrl.trim());
       res.json({ feed });
     } catch (err: any) {
@@ -478,6 +494,12 @@ export function createApp(options: CreateAppOptions = {}): Express {
       const targetUrl = (typeof url === "string" && url.trim()) || (typeof audioUrl === "string" && audioUrl.trim()) || "";
       if (!targetUrl) {
         return res.status(400).json({ error: "Please provide a valid audio or episode URL." });
+      }
+
+      try {
+        await validateUrlForSsrf(targetUrl);
+      } catch (validationErr: any) {
+        return res.status(400).json({ error: validationErr.message || "Invalid audio URL." });
       }
 
       const jobId = Math.random().toString(36).substring(2, 15);
@@ -543,7 +565,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
             glossary
           );
         } catch (dlErr: any) {
-          console.error(`[Remote Audio Download Error for Job ${jobId}]:`, dlErr);
+          console.error("[Remote Audio Download Error for Job %s]:", jobId, dlErr);
           const currentJob = storage.get(jobId);
           if (currentJob) {
             currentJob.status = 'failed';
@@ -738,7 +760,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
         fs.createReadStream(filePath).pipe(res);
       }
     } catch (err: any) {
-      console.error(`[API] Failed to stream audio for job ${jobId}:`, err);
+      console.error("[API] Failed to stream audio for job %s:", jobId, err);
       res.status(500).json({ error: "Failed to stream audio file" });
     }
   });

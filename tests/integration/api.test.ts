@@ -664,6 +664,46 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.status).toBe(500);
       expect(res.body.error).toContain('GEMINI_API_KEY is not configured');
     });
+
+    it('rejects SSRF attempts on /api/rss/preview', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      // Localhost attempt
+      const resLocal = await request(app)
+        .post('/api/rss/preview')
+        .send({ feedUrl: 'http://localhost/secret' });
+      expect(resLocal.status).toBe(400);
+      expect(resLocal.body.error).toContain('blocked');
+
+      // Cloud metadata attempt
+      const resMeta = await request(app)
+        .post('/api/rss/preview')
+        .send({ feedUrl: 'http://169.254.169.254/latest/meta-data/' });
+      expect(resMeta.status).toBe(400);
+      expect(resMeta.body.error).toContain('blocked');
+    });
+
+    it('rejects SSRF attempts on /api/transcribe-remote', async () => {
+      const app = createApp({
+        storage,
+        env: { GEMINI_API_KEY: 'test-api-key' } as any,
+        skipVite: true
+      });
+
+      // Internal IPv4 attempt
+      const resPrivate = await request(app)
+        .post('/api/transcribe-remote')
+        .send({ url: 'http://192.168.1.1/audio.mp3' });
+      expect(resPrivate.status).toBe(400);
+      expect(resPrivate.body.error).toContain('blocked');
+
+      // Prohibited protocol attempt
+      const resFile = await request(app)
+        .post('/api/transcribe-remote')
+        .send({ url: 'file:///etc/passwd' });
+      expect(resFile.status).toBe(400);
+      expect(resFile.body.error).toContain('Invalid protocol');
+    });
   });
 
   describe('Rate Limiting Protection (DoS & Resource Defense)', () => {

@@ -3,6 +3,8 @@
  * Lightweight, zero-dependency XML & enclosure parser for podcast RSS & Atom feeds.
  */
 
+import { safeFetch, validateUrlForSsrf } from "./ssrf";
+
 export interface RssEpisode {
   id: string;
   title: string;
@@ -184,34 +186,24 @@ export function parseRssFeed(xml: string): RssFeedInfo {
  * Fetches and parses a remote podcast RSS feed.
  */
 export async function fetchRssFeed(feedUrl: string, timeoutMs: number = 10000): Promise<RssFeedInfo> {
-  const parsedUrl = new URL(feedUrl);
-  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-    throw new Error("Invalid protocol: only http and https URLs are supported.");
+  const validatedUrl = await validateUrlForSsrf(feedUrl);
+
+  const res = await safeFetch(validatedUrl, {
+    timeoutMs,
+    headers: {
+      "User-Agent": "ScribeNode/1.5.0 (+https://github.com/WillPresley/scribenode-podcast-transcription; podcast transcriber)",
+      "Accept": "application/rss+xml, application/xml, text/xml, application/atom+xml, */*"
+    }
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch RSS feed (${res.status} ${res.statusText})`);
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(feedUrl, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "ScribeNode/1.5.0 (+https://github.com/WillPresley/scribenode-podcast-transcription; podcast transcriber)",
-        "Accept": "application/rss+xml, application/xml, text/xml, application/atom+xml, */*"
-      }
-    });
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch RSS feed (${res.status} ${res.statusText})`);
-    }
-
-    const xml = await res.text();
-    if (!xml.includes("<rss") && !xml.includes("<channel") && !xml.includes("<feed")) {
-      throw new Error("The requested URL does not appear to return a valid RSS or Podcast XML feed.");
-    }
-
-    return parseRssFeed(xml);
-  } finally {
-    clearTimeout(timeoutId);
+  const xml = await res.text();
+  if (!xml.includes("<rss") && !xml.includes("<channel") && !xml.includes("<feed")) {
+    throw new Error("The requested URL does not appear to return a valid RSS or Podcast XML feed.");
   }
+
+  return parseRssFeed(xml);
 }

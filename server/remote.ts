@@ -8,6 +8,7 @@ import path from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { probeAudioDuration, formatDurationSeconds } from "./audioDuration";
+import { safeFetch, validateUrlForSsrf } from "./ssrf";
 
 export interface DownloadAudioResult {
   filePath: string;
@@ -30,18 +31,14 @@ export async function downloadRemoteAudio(params: {
 }): Promise<DownloadAudioResult> {
   const { url, destPath, customFilename, maxSizeBytes = 250 * 1024 * 1024, timeoutMs = 60000 } = params;
 
-  const parsedUrl = new URL(url);
-  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-    throw new Error("Invalid protocol: only http and https URLs are allowed.");
-  }
-
+  const validatedUrl = await validateUrlForSsrf(url);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, {
+    const response = await safeFetch(validatedUrl, {
       signal: controller.signal,
-      redirect: "follow",
+      timeoutMs,
       headers: {
         "User-Agent": "ScribeNode/1.5.0 (+https://github.com/WillPresley/scribenode-podcast-transcription)",
         "Accept": "audio/*, */*"
@@ -73,7 +70,7 @@ export async function downloadRemoteAudio(params: {
       }
     }
     if (!inferredFilename) {
-      const cleanPath = parsedUrl.pathname.split("/").filter(Boolean).pop();
+      const cleanPath = validatedUrl.pathname.split("/").filter(Boolean).pop();
       if (cleanPath && cleanPath.includes(".")) {
         inferredFilename = decodeURIComponent(cleanPath);
       } else {
