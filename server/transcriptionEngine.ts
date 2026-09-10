@@ -477,6 +477,47 @@ export function formatModelDisplayName(modelId?: string): string {
   }
 }
 
+const ALLOWED_GENAI_HOSTS: readonly string[] = [
+  "generativelanguage.googleapis.com",
+];
+
+export function isGenerativeLanguageHost(hostname: string): boolean {
+  if (!hostname || typeof hostname !== "string") return false;
+  const normalized = hostname.toLowerCase();
+  return ALLOWED_GENAI_HOSTS.includes(normalized);
+}
+
+export function containsGenerativeLanguageEndpoint(text: string): boolean {
+  if (!text || typeof text !== "string") return false;
+
+  let hasValidHost = false;
+  let hasUntrustedUrl = false;
+
+  // Extract candidate URLs and parse them to securely validate the host against the allowed hosts whitelist
+  const urlMatches = text.match(/https?:\/\/[^\s"',;()<>]+/g);
+  if (urlMatches && urlMatches.length > 0) {
+    for (const rawUrl of urlMatches) {
+      try {
+        const parsed = new URL(rawUrl);
+        if (isGenerativeLanguageHost(parsed.hostname)) {
+          hasValidHost = true;
+        } else {
+          hasUntrustedUrl = true;
+        }
+      } catch {}
+    }
+    if (hasValidHost) return true;
+    if (hasUntrustedUrl) return false;
+  }
+
+  // Check for contextual API text identifiers without raw domain substring checks
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("generative language api") ||
+    lower.includes("generativelanguage api")
+  );
+}
+
 export function categorizeModelError(err: any): {
   friendlyMessage: string;
   shortBadge: string;
@@ -528,7 +569,7 @@ export function categorizeModelError(err: any): {
     lower.includes("permission denied") ||
     lower.includes("is disabled") ||
     lower.includes("has not been used in project") ||
-    lower.includes("generativelanguage.googleapis.com") ||
+    containsGenerativeLanguageEndpoint(msg) ||
     lower.includes("403") ||
     lower.includes("401") ||
     lower.includes("unauthenticated")
@@ -655,7 +696,7 @@ export function formatAllModelsFailedMessage(lastError?: any, errorsByModel?: Re
 
 export function formatGeminiErrorMessage(err: any): string {
   const msg = typeof err === "string" ? err : err?.message || String(err || "");
-  if (msg.includes("generativelanguage.googleapis.com") || msg.includes("has not been used in project") || msg.includes("is disabled")) {
+  if (containsGenerativeLanguageEndpoint(msg) || msg.includes("has not been used in project") || msg.includes("is disabled")) {
     return `Generative Language API is disabled: Please enable 'generativelanguage.googleapis.com' in your Google Cloud Project (https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com).`;
   }
   if (msg.includes("API_KEY_INVALID") || msg.includes("API key not valid")) {

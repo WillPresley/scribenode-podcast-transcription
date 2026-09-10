@@ -15,6 +15,9 @@ import {
   generateContentWithFallback,
   extractResponseText,
   categorizeModelError,
+  formatGeminiErrorMessage,
+  isGenerativeLanguageHost,
+  containsGenerativeLanguageEndpoint,
   formatFallbackReason,
   formatAllModelsFailedMessage,
   AudioTranscriptionConfigMode,
@@ -888,6 +891,32 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
           model: 'gemini-3.7-flash'
         })
       );
+    });
+  });
+
+  describe('Secure URL Host & API Validation (CodeQL Anti-Spoofing)', () => {
+    it('accurately validates legitimate generativelanguage host', () => {
+      expect(isGenerativeLanguageHost('generativelanguage.googleapis.com')).toBe(true);
+      expect(isGenerativeLanguageHost('GENERATIVELANGUAGE.GOOGLEAPIS.COM')).toBe(true);
+    });
+
+    it('rejects spoofed subdomains and path-based impersonation', () => {
+      expect(isGenerativeLanguageHost('evil.com')).toBe(false);
+      expect(isGenerativeLanguageHost('generativelanguage.googleapis.com.evil.com')).toBe(false);
+      expect(isGenerativeLanguageHost('fake-generativelanguage.googleapis.com')).toBe(false);
+      expect(isGenerativeLanguageHost('')).toBe(false);
+    });
+
+    it('detects legitimate Google AI endpoints within text without substring spoofing vulnerabilities', () => {
+      expect(containsGenerativeLanguageEndpoint('Error from https://generativelanguage.googleapis.com/v1beta/models')).toBe(true);
+      expect(containsGenerativeLanguageEndpoint('Generative Language API is disabled')).toBe(true);
+      expect(containsGenerativeLanguageEndpoint('Please visit https://evil.com/generativelanguage.googleapis.com/test')).toBe(false);
+      expect(containsGenerativeLanguageEndpoint('Please visit https://generativelanguage.googleapis.com.attacker.com')).toBe(false);
+    });
+
+    it('formats Generative Language API error messages correctly', () => {
+      const formatted = formatGeminiErrorMessage('API error at https://generativelanguage.googleapis.com/v1beta/models');
+      expect(formatted).toContain('Generative Language API is disabled');
     });
   });
 });

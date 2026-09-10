@@ -665,4 +665,47 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.error).toContain('GEMINI_API_KEY is not configured');
     });
   });
+
+  describe('Rate Limiting Protection (DoS & Resource Defense)', () => {
+    it('enforces rate limits and returns 429 when request threshold is exceeded', async () => {
+      const rateLimitedApp = createApp({
+        storage,
+        rateLimitMax: 3,
+        skipVite: true
+      });
+
+      // Requests 1 to 3 should succeed
+      const r1 = await request(rateLimitedApp).get('/api/config');
+      expect(r1.status).toBe(200);
+
+      const r2 = await request(rateLimitedApp).get('/api/config');
+      expect(r2.status).toBe(200);
+
+      const r3 = await request(rateLimitedApp).get('/api/config');
+      expect(r3.status).toBe(200);
+
+      // Request 4 should be throttled
+      const r4 = await request(rateLimitedApp).get('/api/config');
+      expect(r4.status).toBe(429);
+      expect(r4.body.error).toContain('Too many requests');
+    });
+
+    it('keeps health check endpoint exempt from general API rate limiting', async () => {
+      const rateLimitedApp = createApp({
+        storage,
+        rateLimitMax: 1,
+        skipVite: true
+      });
+
+      // Send 3 requests to health probe
+      const h1 = await request(rateLimitedApp).get('/api/health');
+      expect(h1.status).toBe(200);
+
+      const h2 = await request(rateLimitedApp).get('/api/health');
+      expect(h2.status).toBe(200);
+
+      const h3 = await request(rateLimitedApp).get('/api/health');
+      expect(h3.status).toBe(200);
+    });
+  });
 });

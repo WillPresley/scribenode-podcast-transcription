@@ -1,4 +1,5 @@
 import express, { Express } from "express";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -38,6 +39,7 @@ export interface CreateAppOptions {
   aiClient?: GoogleGenAI | null;
   env?: NodeJS.ProcessEnv;
   skipVite?: boolean;
+  rateLimitMax?: number;
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
@@ -90,6 +92,62 @@ export function createApp(options: CreateAppOptions = {}): Express {
   };
 
   const app = express();
+  app.set("trust proxy", 1);
+
+  // Rate Limiting Protection (DoS & Resource Exhaustion Defense)
+  const baseWindowMs = 15 * 60 * 1000;
+  const isTest = env.NODE_ENV === "test";
+  const defaultRateLimitMax = options.rateLimitMax ?? (isTest ? 10000 : 1000);
+
+  const apiLimiter = rateLimit({
+    windowMs: baseWindowMs,
+    max: defaultRateLimitMax,
+    limit: defaultRateLimitMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
+    message: { error: "Too many requests from this IP, please try again after 15 minutes." }
+  });
+
+  const uploadLimiter = rateLimit({
+    windowMs: baseWindowMs,
+    max: isTest ? 1000 : 100,
+    limit: isTest ? 1000 : 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
+    message: { error: "Upload rate limit exceeded. Please wait a few moments before uploading more files." }
+  });
+
+  const audioStreamLimiter = rateLimit({
+    windowMs: baseWindowMs,
+    max: isTest ? 10000 : 1500,
+    limit: isTest ? 10000 : 1500,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
+    message: { error: "Audio streaming rate limit exceeded. Please try again later." }
+  });
+
+  const jobActionLimiter = rateLimit({
+    windowMs: baseWindowMs,
+    max: isTest ? 2000 : 300,
+    limit: isTest ? 2000 : 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
+    message: { error: "Job action rate limit exceeded. Please try again later." }
+  });
+
+  const retranscribeLimiter = rateLimit({
+    windowMs: baseWindowMs,
+    max: isTest ? 1000 : 100,
+    limit: isTest ? 1000 : 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
+    message: { error: "Retranscription rate limit exceeded. Please try again later." }
+  });
 
   const maxUploadSizeMB = getMaxUploadSizeMB(env);
   const maxUploadSizeBytes = getMaxUploadSizeBytes(env);
@@ -128,6 +186,9 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.get(["/api/health", "/healthz", "/health"], (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
+
+  // Apply general API rate limiting to all /api endpoints after health check
+  app.use("/api", apiLimiter);
 
   // Optional HTTP Basic Auth for private deployment
   const authState = getBasicAuthCredentials(env);
@@ -499,7 +560,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
   });
 
-  app.post("/api/transcribe", (req, res, next) => {
+  app.post("/api/transcribe", uploadLimiter, (req, res, next) => {
     upload.single("file")(req, res, (err: any) => {
       if (err) {
         if (err.code === "LIMIT_FILE_SIZE" || err.message?.includes("File too large")) {
@@ -621,8 +682,8 @@ export function createApp(options: CreateAppOptions = {}): Express {
     res.json(enrichJobWithAudioStatus(job));
   });
 
-  app.get("/api/jobs/:id/audio", (req, res) => {
-    const jobId = req.params.id;
+  app.get("/api/jobs/:id/audio", audioStreamLimiter, (req, res) => {
+    const jobId = String(req.params.id);
     const job = storage.get(jobId);
     if (!job) {
       return res.status(404).json({ error: "Job not found" });
@@ -682,8 +743,8 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
   });
 
-  app.delete("/api/jobs/:id", (req, res) => {
-    const jobId = req.params.id;
+  app.delete("/api/jobs/:id", jobActionLimiter, (req, res) => {
+    const jobId = String(req.params.id);
     const job = storage.get(jobId);
     if (!job) {
       return res.status(404).json({ error: "Job not found" });
@@ -703,9 +764,9 @@ export function createApp(options: CreateAppOptions = {}): Express {
     res.json({ success: true, message: `Job ${jobId} deleted successfully` });
   });
 
-  app.post("/api/jobs/:id/retranscribe", async (req, res) => {
+  app.post("/api/jobs/:id/retranscribe", retranscribeLimiter, async (req, res) => {
     try {
-      const parentJobId = req.params.id;
+      const parentJobId = String(req.params.id);
       const parentJob = storage.get(parentJobId);
       if (!parentJob) {
         return res.status(404).json({ error: "Original job not found" });

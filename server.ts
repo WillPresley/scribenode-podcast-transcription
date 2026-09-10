@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import rateLimit from "express-rate-limit";
 import { createServer as createViteServer } from "vite";
 import { createApp } from "./server/app";
 import { JobsStorage } from "./server/storage";
@@ -38,8 +39,17 @@ async function startServer() {
 function expressStaticMiddleware(distPath: string) {
   const express = require("express");
   const router = express.Router();
+  const staticLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 3000,
+    limit: 3000,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
+  });
+  router.use(staticLimiter);
   router.use(express.static(distPath, { index: false }));
-  router.get('*all', (req: any, res: any) => {
+  router.get('*all', staticLimiter, (req: any, res: any) => {
     const indexPath = path.join(distPath, 'index.html');
     if (fs.existsSync(indexPath)) {
       let html = fs.readFileSync(indexPath, 'utf-8');
