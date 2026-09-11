@@ -1,13 +1,18 @@
 # CodeQL Data Extension: SSRF Barrier & Guard Models
-# Defines project-specific sanitizers and barriers for js/request-forgery analysis.
+# Defines project-specific sanitizers and barriers for js/request-forgery (CWE-918) analysis.
 extensions:
   - addsTo:
       pack: codeql/javascript-all
       extensible: barrierModel
     data:
+      # Module-scoped barrier models
       - ["server/ssrf", "Member[validateUrlForSsrf].ReturnValue", "request-forgery"]
       - ["server/ssrf", "Member[sanitizeAndResolveSafeUrl].ReturnValue", "request-forgery"]
       - ["server/ssrf", "Member[safeFetch].Argument[0]", "request-forgery"]
+      - ["./ssrf", "Member[validateUrlForSsrf].ReturnValue", "request-forgery"]
+      - ["./ssrf", "Member[sanitizeAndResolveSafeUrl].ReturnValue", "request-forgery"]
+      - ["./ssrf", "Member[safeFetch].Argument[0]", "request-forgery"]
+      # Global scope barrier models
       - ["global", "Member[validateUrlForSsrf].ReturnValue", "request-forgery"]
       - ["global", "Member[sanitizeAndResolveSafeUrl].ReturnValue", "request-forgery"]
       - ["global", "Member[safeFetch].Argument[0]", "request-forgery"]
@@ -15,5 +20,9 @@ extensions:
       pack: codeql/javascript-all
       extensible: barrierGuardModel
     data:
+      # Guard models: when predicate evaluates to true, argument is safe from request-forgery
+      - ["server/ssrf", "Member[isAllowedHost].Argument[0]", "true", "request-forgery"]
+      - ["./ssrf", "Member[isAllowedHost].Argument[0]", "true", "request-forgery"]
+      - ["global", "Member[isAllowedHost].Argument[0]", "true", "request-forgery"]
       - ["server/ssrf", "Member[isAllowedHost].ReturnValue", "true", "request-forgery"]
       - ["global", "Member[isAllowedHost].ReturnValue", "true", "request-forgery"]
