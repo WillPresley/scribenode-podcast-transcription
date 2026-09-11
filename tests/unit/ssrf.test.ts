@@ -6,7 +6,8 @@ import {
   isDisallowedHostname,
   validateUrlForSsrf,
   safeFetch,
-  sanitizeAndResolveSafeUrl
+  sanitizeAndResolveSafeUrl,
+  isValidDnsLabelSequence
 } from "../../server/ssrf";
 
 describe("SSRF Protection Suite", () => {
@@ -280,6 +281,40 @@ describe("SSRF Protection Suite", () => {
       const parsed = new URL("https://any-domain.org/audio.mp3");
       const safe = sanitizeAndResolveSafeUrl(parsed, ["*"]);
       expect(safe).toBe("https://any-domain.org/audio.mp3");
+    });
+  });
+
+  describe("isValidDnsLabelSequence (ReDoS Immunity & RFC 1123)", () => {
+    it("accepts valid single-label and multi-label hostnames", () => {
+      expect(isValidDnsLabelSequence("example")).toBe(true);
+      expect(isValidDnsLabelSequence("media.buzzsprout")).toBe(true);
+      expect(isValidDnsLabelSequence("podcasts.sub-domain.org")).toBe(true);
+      expect(isValidDnsLabelSequence("a1-b2.c3-d4.com")).toBe(true);
+    });
+
+    it("rejects invalid inputs such as empty strings, long sequences, and illegal characters", () => {
+      expect(isValidDnsLabelSequence("")).toBe(false);
+      expect(isValidDnsLabelSequence("a".repeat(254))).toBe(false); // Max total length 253
+      expect(isValidDnsLabelSequence("a".repeat(64))).toBe(false); // Max label length 63
+      expect(isValidDnsLabelSequence("invalid_char")).toBe(false); // Underscores
+      expect(isValidDnsLabelSequence("space in.host")).toBe(false);
+      expect(isValidDnsLabelSequence("host/path")).toBe(false);
+      expect(isValidDnsLabelSequence("host..domain")).toBe(false); // Empty label
+    });
+
+    it("rejects labels starting or ending with a hyphen", () => {
+      expect(isValidDnsLabelSequence("-prefix.domain")).toBe(false);
+      expect(isValidDnsLabelSequence("prefix-.domain")).toBe(false);
+      expect(isValidDnsLabelSequence("sub.-invalid.com")).toBe(false);
+      expect(isValidDnsLabelSequence("sub.invalid-.com")).toBe(false);
+    });
+
+    it("processes pathological repeating inputs in sub-millisecond linear time (zero ReDoS backtracking)", () => {
+      const start = performance.now();
+      const pathological = "a".repeat(60) + "-b".repeat(30) + "!";
+      expect(isValidDnsLabelSequence(pathological)).toBe(false);
+      const elapsed = performance.now() - start;
+      expect(elapsed).toBeLessThan(10); // Must be virtually instantaneous (<10ms)
     });
   });
 });

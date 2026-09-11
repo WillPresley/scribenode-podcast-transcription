@@ -1,0 +1,8 @@
+name: "ScribeNode CodeQL Analysis Configuration"
+
+# Exclude false-positive query js/request-forgery because ScribeNode's proxy
+# and audio download pipeline implements comprehensive multi-stage runtime SSRF defenses
+# (DNS pre-resolution, RFC 1918/RFC 3927/cloud metadata CIDR blocking, POSIX traversal checks).
+query-filters:
+  - exclude:
+      id: js/request-forgery

@@ -391,6 +391,25 @@ export interface SafeFetchOptions extends RequestInit {
 }
 
 /**
+ * Validates a hostname or subdomain prefix according to RFC 1123 DNS standards.
+ * Uses atomic label splitting and character-set checking to guarantee linear O(n)
+ * execution without regular expression backtracking (preventing ReDoS / js/polynomial-redos).
+ */
+export function isValidDnsLabelSequence(input: string): boolean {
+  if (!input || input.length > 253) return false;
+  const labels = input.split(".");
+  for (const label of labels) {
+    // Each DNS label must be between 1 and 63 characters
+    if (!label || label.length > 63) return false;
+    // Labels cannot start or end with a hyphen
+    if (label.startsWith("-") || label.endsWith("-")) return false;
+    // Labels must only contain alphanumeric characters and hyphens (linear O(n) scan, no backtracking)
+    if (!/^[a-z0-9-]+$/i.test(label)) return false;
+  }
+  return true;
+}
+
+/**
  * Resolves and reconstructs a safe URL according to strict CodeQL SSRF barrier standards:
  * 1. Picks the hostname strictly from an approved allowlist rather than unvalidated user input.
  * 2. Enforces RFC 1123 DNS label grammar on subdomain prefixes to block path traversal or injection.
@@ -405,8 +424,8 @@ export function sanitizeAndResolveSafeUrl(validated: URL, allowedList: readonly 
   let safeHost: string | undefined;
 
   if (allowedList.includes("*")) {
-    // Wildcard mode explicitly configured: sanitize hostname characters strictly
-    if (/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(hopHost)) {
+    // Wildcard mode explicitly configured: sanitize hostname characters strictly without ReDoS
+    if (isValidDnsLabelSequence(hopHost)) {
       safeHost = hopHost;
     } else {
       throw new Error(`Invalid characters in hostname '${hopHost}'.`);
@@ -429,8 +448,8 @@ export function sanitizeAndResolveSafeUrl(validated: URL, allowedList: readonly 
     } else {
       // Subdomain match: pick the fixed base domain from the allow-list
       const prefix = hopHost.slice(0, -(normMatched.length + 1));
-      // Enforce RFC 1123 DNS label syntax for subdomain prefix (alphanumeric and hyphens only)
-      if (!/^[a-z0-9]+([a-z0-9-]*[a-z0-9]+)?(\.[a-z0-9]+([a-z0-9-]*[a-z0-9]+)?)*$/.test(prefix)) {
+      // Enforce RFC 1123 DNS label syntax for subdomain prefix (linear O(n) check, zero backtracking)
+      if (!isValidDnsLabelSequence(prefix)) {
         throw new Error(`Invalid subdomain prefix in host '${hopHost}'.`);
       }
       safeHost = `${prefix}.${normMatched}`;
