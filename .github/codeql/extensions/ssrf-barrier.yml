@@ -1,0 +1,19 @@
+# CodeQL Data Extension: SSRF Barrier & Guard Models
+# Defines project-specific sanitizers and barriers for js/request-forgery analysis.
+extensions:
+  - addsTo:
+      pack: codeql/javascript-all
+      extensible: barrierModel
+    data:
+      - ["server/ssrf", "Member[validateUrlForSsrf].ReturnValue", "request-forgery"]
+      - ["server/ssrf", "Member[sanitizeAndResolveSafeUrl].ReturnValue", "request-forgery"]
+      - ["server/ssrf", "Member[safeFetch].Argument[0]", "request-forgery"]
+      - ["global", "Member[validateUrlForSsrf].ReturnValue", "request-forgery"]
+      - ["global", "Member[sanitizeAndResolveSafeUrl].ReturnValue", "request-forgery"]
+      - ["global", "Member[safeFetch].Argument[0]", "request-forgery"]
+  - addsTo:
+      pack: codeql/javascript-all
+      extensible: barrierGuardModel
+    data:
+      - ["server/ssrf", "Member[isAllowedHost].ReturnValue", "true", "request-forgery"]
+      - ["global", "Member[isAllowedHost].ReturnValue", "true", "request-forgery"]

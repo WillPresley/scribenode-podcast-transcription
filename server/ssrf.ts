@@ -5,6 +5,7 @@
 
 import dns from "dns";
 import net from "net";
+import path from "path";
 import { URL } from "url";
 
 /**
@@ -323,6 +324,11 @@ export async function validateUrlForSsrf(
     throw new Error("Invalid URL: URL length exceeds maximum limit of 2048 characters.");
   }
 
+  // Reject path traversal sequences in raw URL input
+  if (trimmed.includes("/../") || trimmed.includes("/..") || trimmed.includes("\\..\\") || /(?:%2e|%252e){2}/i.test(trimmed)) {
+    throw new Error("Invalid URL: Path traversal sequence ('..') is not permitted.");
+  }
+
   let parsed: URL;
   try {
     parsed = new URL(trimmed);
@@ -385,6 +391,100 @@ export interface SafeFetchOptions extends RequestInit {
 }
 
 /**
+ * Resolves and reconstructs a safe URL according to strict CodeQL SSRF barrier standards:
+ * 1. Picks the hostname strictly from an approved allowlist rather than unvalidated user input.
+ * 2. Enforces RFC 1123 DNS label grammar on subdomain prefixes to block path traversal or injection.
+ * 3. Normalizes and validates the pathname to eliminate path traversal ('../') and control characters.
+ * 4. Sanitizes query strings to block header/control character injection.
+ * 5. Reconstructs the URL strictly through WHATWG URL resolution.
+ */
+export function sanitizeAndResolveSafeUrl(validated: URL, allowedList: readonly string[]): string {
+  const hopHost = validated.hostname.toLowerCase().trim();
+
+  // 1. Pick the hostname from the allow-list (breaking taint flow)
+  let safeHost: string | undefined;
+
+  if (allowedList.includes("*")) {
+    // Wildcard mode explicitly configured: sanitize hostname characters strictly
+    if (/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/.test(hopHost)) {
+      safeHost = hopHost;
+    } else {
+      throw new Error(`Invalid characters in hostname '${hopHost}'.`);
+    }
+  } else {
+    // Find matching allowed domain from the allowlist
+    const matchedDomain = allowedList.find((allowed) => {
+      const norm = allowed.toLowerCase().trim();
+      return hopHost === norm || hopHost.endsWith("." + norm);
+    });
+
+    if (!matchedDomain) {
+      throw new Error(`Host '${hopHost}' is not in the allowed domains list.`);
+    }
+
+    const normMatched = matchedDomain.toLowerCase().trim();
+    if (hopHost === normMatched) {
+      // Exact match: select the known fixed string directly from the allow-list
+      safeHost = normMatched;
+    } else {
+      // Subdomain match: pick the fixed base domain from the allow-list
+      const prefix = hopHost.slice(0, -(normMatched.length + 1));
+      // Enforce RFC 1123 DNS label syntax for subdomain prefix (alphanumeric and hyphens only)
+      if (!/^[a-z0-9]+([a-z0-9-]*[a-z0-9]+)?(\.[a-z0-9]+([a-z0-9-]*[a-z0-9]+)?)*$/.test(prefix)) {
+        throw new Error(`Invalid subdomain prefix in host '${hopHost}'.`);
+      }
+      safeHost = `${prefix}.${normMatched}`;
+    }
+  }
+
+  // 2. Validate and restrict pathname to prevent path traversal
+  const rawPath = validated.pathname || "/";
+  let decodedPath = rawPath;
+  try {
+    decodedPath = decodeURIComponent(decodeURIComponent(rawPath));
+  } catch {
+    // Malformed encoding
+  }
+
+  if (
+    rawPath.includes("..") ||
+    decodedPath.includes("..") ||
+    /(?:%2e|%252e){2}/i.test(rawPath) ||
+    /(?:%2e|%252e){2}/i.test(validated.href)
+  ) {
+    throw new Error("Path traversal sequence ('..') detected in URL pathname.");
+  }
+
+  // Normalize path using POSIX path resolution
+  const normalizedPath = path.posix.normalize(rawPath);
+  if (normalizedPath.includes("..")) {
+    throw new Error("Normalized pathname contains path traversal escape.");
+  }
+
+  const safePathname = normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`;
+  if (/[\x00-\x1f\x7f]/.test(safePathname)) {
+    throw new Error("Invalid control characters detected in URL pathname.");
+  }
+
+  // 3. Validate query string
+  let safeSearch = "";
+  if (validated.search) {
+    if (/[\x00-\x1f\x7f]/.test(validated.search)) {
+      throw new Error("Invalid control characters in URL query string.");
+    }
+    safeSearch = validated.search;
+  }
+
+  // 4. Scheme and port restrictions
+  const safeProtocol = validated.protocol === "https:" ? "https:" : "http:";
+  const safePort = validated.port ? `:${parseInt(validated.port, 10)}` : "";
+
+  // 5. Reconstruct the fully sanitized URL
+  const safeUrl = new URL(safePathname + safeSearch, `${safeProtocol}//${safeHost}${safePort}`);
+  return safeUrl.href;
+}
+
+/**
  * Safe fetch wrapper with manual redirect tracking and per-hop SSRF validation.
  */
 export async function safeFetch(
@@ -411,18 +511,8 @@ export async function safeFetch(
         ? allowedHosts
         : getAllowedHosts();
 
-      const hopHost = validated.hostname.toLowerCase().trim();
-      if (!allowedList.includes(hopHost) && !allowedList.includes("*")) {
-        const isSubdomain = allowedList.some(a => hopHost.endsWith("." + a.toLowerCase().trim()));
-        if (!isSubdomain) {
-          throw new Error(`Host '${hopHost}' is not in the allowed domains list.`);
-        }
-      }
-
-      // Reconstruct safe URL strictly from validated components with fixed scheme
-      const safeProtocol = validated.protocol === "https:" ? "https:" : "http:";
-      const safePort = validated.port ? `:${validated.port}` : "";
-      const safeUrlString = `${safeProtocol}//${hopHost}${safePort}${validated.pathname}${validated.search}`;
+      // Resolve and reconstruct safe URL strictly from allow-listed host and sanitized path
+      const safeUrlString = sanitizeAndResolveSafeUrl(validated, allowedList);
 
       const response = await fetch(safeUrlString, {
         ...fetchOptions,

@@ -5,7 +5,8 @@ import {
   isRestrictedIp,
   isDisallowedHostname,
   validateUrlForSsrf,
-  safeFetch
+  safeFetch,
+  sanitizeAndResolveSafeUrl
 } from "../../server/ssrf";
 
 describe("SSRF Protection Suite", () => {
@@ -224,6 +225,61 @@ describe("SSRF Protection Suite", () => {
       } finally {
         vi.unstubAllGlobals();
       }
+    });
+  });
+
+  describe("sanitizeAndResolveSafeUrl (CodeQL SSRF Barrier)", () => {
+    const allowed = ["buzzsprout.com", "example.com"];
+
+    it("reconstructs and normalizes legitimate URLs with exact domain match", () => {
+      const parsed = new URL("https://buzzsprout.com/episodes/123.mp3?feed=rss");
+      const safe = sanitizeAndResolveSafeUrl(parsed, allowed);
+      expect(safe).toBe("https://buzzsprout.com/episodes/123.mp3?feed=rss");
+    });
+
+    it("reconstructs legitimate URLs with valid subdomains", () => {
+      const parsed = new URL("https://media.buzzsprout.com/episodes/audio.mp3");
+      const safe = sanitizeAndResolveSafeUrl(parsed, allowed);
+      expect(safe).toBe("https://media.buzzsprout.com/episodes/audio.mp3");
+    });
+
+    it("rejects domains not present in the allowlist", () => {
+      const parsed = new URL("https://untrusted-site.org/audio.mp3");
+      expect(() => sanitizeAndResolveSafeUrl(parsed, allowed)).toThrow("not in the allowed domains list");
+    });
+
+    it("rejects path traversal attempts in URL pathname", async () => {
+      // Direct raw URL validation
+      await expect(
+        validateUrlForSsrf("https://buzzsprout.com/static/../internal/secret.json", { skipDns: true })
+      ).rejects.toThrow("Path traversal sequence");
+
+      // Custom URL object with un-normalized traversal
+      const fakeUrl = {
+        hostname: "buzzsprout.com",
+        protocol: "https:",
+        pathname: "/static/../secret.json",
+        search: "",
+        port: "",
+        href: "https://buzzsprout.com/static/../secret.json"
+      } as unknown as URL;
+      expect(() => sanitizeAndResolveSafeUrl(fakeUrl, allowed)).toThrow("Path traversal sequence");
+    });
+
+    it("rejects URL-encoded path traversal sequences in pathname", () => {
+      const parsed = new URL("https://buzzsprout.com/static/%252e%252e/admin");
+      expect(() => sanitizeAndResolveSafeUrl(parsed, allowed)).toThrow("Path traversal sequence");
+    });
+
+    it("rejects malformed subdomain prefixes with forbidden characters", () => {
+      const parsed = new URL("https://invalid_subdomain!.buzzsprout.com/audio.mp3");
+      expect(() => sanitizeAndResolveSafeUrl(parsed, allowed)).toThrow("Invalid subdomain prefix");
+    });
+
+    it("supports wildcard mode with strictly sanitized hostnames", () => {
+      const parsed = new URL("https://any-domain.org/audio.mp3");
+      const safe = sanitizeAndResolveSafeUrl(parsed, ["*"]);
+      expect(safe).toBe("https://any-domain.org/audio.mp3");
     });
   });
 });
