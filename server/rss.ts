@@ -50,8 +50,14 @@ export function cleanXmlText(text?: string | null): string {
 export function normalizeDuration(rawDuration?: string | null): string {
   if (!rawDuration) return "--:--";
   const trimmed = rawDuration.trim();
-  if (/^\d+$/.test(trimmed)) {
-    const totalSecs = parseInt(trimmed, 10);
+  if (!trimmed || trimmed === "--:--" || trimmed === "0" || trimmed === "00:00" || trimmed === "00:00:00") {
+    return "--:--";
+  }
+
+  // Handle numeric seconds (integer or decimal: e.g. "2739" or "2739.4")
+  if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
+    const totalSecs = Math.round(parseFloat(trimmed));
+    if (totalSecs <= 0) return "--:--";
     const hrs = Math.floor(totalSecs / 3600);
     const mins = Math.floor((totalSecs % 3600) / 60);
     const secs = totalSecs % 60;
@@ -60,7 +66,49 @@ export function normalizeDuration(rawDuration?: string | null): string {
     }
     return `${mins}:${String(secs).padStart(2, "0")}`;
   }
+
+  // Handle standard HH:MM:SS or MM:SS formatting
+  if (/^\d{1,2}:\d{2}(?::\d{2})?$/.test(trimmed)) {
+    const parts = trimmed.split(":").map(p => parseInt(p, 10));
+    if (parts.length === 3) {
+      const [h, m, s] = parts;
+      if (h === 0) {
+        return `${m}:${String(s).padStart(2, "0")}`;
+      }
+      return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+    return trimmed;
+  }
+
   return trimmed;
+}
+
+/**
+ * Estimates duration from audio file size in bytes, assuming standard podcast audio bitrate (~128 kbps).
+ * 128 kbps = 16,000 bytes per second.
+ */
+export function estimateDurationFromFileSize(fileSize?: number): string {
+  if (!fileSize || fileSize <= 0 || !Number.isFinite(fileSize)) return "--:--";
+  const totalSecs = Math.round(fileSize / 16000);
+  if (totalSecs <= 0) return "--:--";
+  const hrs = Math.floor(totalSecs / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  if (hrs > 0) {
+    return `~${hrs}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")} (est.)`;
+  }
+  return `~${mins}:${String(secs).padStart(2, "0")} (est.)`;
+}
+
+/**
+ * Resolves episode duration from explicit tags or estimates from file size length.
+ */
+export function resolveEpisodeDuration(rawDuration?: string | null, fileSize?: number): string {
+  const normalized = normalizeDuration(rawDuration);
+  if (normalized !== "--:--" && normalized !== "") {
+    return normalized;
+  }
+  return estimateDurationFromFileSize(fileSize);
 }
 
 /**
@@ -147,8 +195,22 @@ export function parseRssFeed(xml: string): RssFeedInfo {
     const pubDate = pubDateMatch ? cleanXmlText(pubDateMatch[1]) : "";
 
     // Duration
-    const durMatch = itemContent.match(/<itunes:duration[\s\S]*?>([\s\S]*?)<\/itunes:duration>/i);
-    const duration = normalizeDuration(durMatch ? cleanXmlText(durMatch[1]) : undefined);
+    let rawDuration: string | undefined = undefined;
+    const itunesDurMatch = itemContent.match(/<itunes:duration[\s\S]*?>([\s\S]*?)<\/itunes:duration>/i);
+    if (itunesDurMatch) {
+      rawDuration = cleanXmlText(itunesDurMatch[1]);
+    } else {
+      const genericDurMatch = itemContent.match(/<(?:media:)?duration[\s\S]*?>([\s\S]*?)<\/(?:media:)?duration>/i);
+      if (genericDurMatch) {
+        rawDuration = cleanXmlText(genericDurMatch[1]);
+      } else {
+        const attrDurMatch = itemContent.match(/(?:<media:content|<enclosure)[^>]*\sduration=["']([^"']+)["']/i);
+        if (attrDurMatch) {
+          rawDuration = attrDurMatch[1].trim();
+        }
+      }
+    }
+    const duration = resolveEpisodeDuration(rawDuration, fileSize);
 
     // Episode Artwork
     const epArtMatch = itemContent.match(/<itunes:image[^>]*href=["']([^"']+)["']/i);

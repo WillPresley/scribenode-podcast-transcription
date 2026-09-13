@@ -28,7 +28,7 @@
 
 ## 6. Test Suite & Coverage Maintenance (Vitest & Supertest)
 - **Continuous Test Coverage**: Any new helper utility, API endpoint, formatting rule, or backend storage logic MUST be accompanied by corresponding unit or integration tests in `tests/unit/` or `tests/integration/`.
-- **Prevent Regressions**: Ensure existing test suites (`tests/unit/transcript.test.ts`, `tests/unit/audio.test.ts`, `tests/unit/config.test.ts`, `tests/unit/transcriptionEngine.test.ts`, `tests/unit/storage.test.ts`, `tests/integration/api.test.ts`, `tests/integration/packaging.test.ts`) are updated whenever functional contracts or schemas change.
+- **Prevent Regressions**: Ensure existing test suites (`tests/unit/transcript.test.ts`, `tests/unit/audio.test.ts`, `tests/unit/audioDuration.test.ts`, `tests/unit/rss.test.ts`, `tests/unit/config.test.ts`, `tests/unit/transcriptionEngine.test.ts`, `tests/unit/storage.test.ts`, `tests/unit/banner.test.ts`, `tests/unit/ssrf.test.ts`, `tests/integration/api.test.ts`, `tests/integration/packaging.test.ts`) are updated whenever functional contracts or schemas change.
 - **Zero-Failure Mandate**: All test suites must execute cleanly (`npm test` / `npm run test:coverage`) with 100% passing tests before completing any task.
 
 ## 7. Verification & Quality Assurance Checklist Before Finishing
