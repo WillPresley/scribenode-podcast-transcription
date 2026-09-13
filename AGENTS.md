@@ -61,6 +61,17 @@ Before declaring any coding task complete, execute the following verification lo
     1. Backend engine & server routes (`server/transcriptionEngine.ts`, `server.ts`)
     2. Frontend UI diagnostics, monitors, and release notes (`src/App.tsx`)
     3. Unit & integration test suites (`tests/unit/transcriptionEngine.test.ts`, `tests/integration/api.test.ts`)
-    4. Documentation (`README.md`, `AGENTS.md`, `GEMINI.md`)
+    4. Documentation & Visual Architecture Assets (`README.md`, `docs/images/architecture-pipeline.svg`, `public/architecture-pipeline.svg`, `AGENTS.md`, `GEMINI.md`)
+
+## 10. CodeQL Security, SSRF Prevention & ReDoS Immunity (CRITICAL)
+- **Static Analysis & CodeQL Hygiene**:
+  - All user-supplied network inputs (e.g., RSS feeds, remote audio URLs) must pass strictly through `server/ssrf.ts` (`validateUrlForSsrf`, `sanitizeAndResolveSafeUrl`, and `safeFetch`).
+  - Never bypass DNS pre-flight verification or RFC 1918/RFC 3927/cloud metadata (169.254.169.254) CIDR checks.
+  - Outbound requests must enforce manual per-hop redirect resolution (`redirect: "manual"`), validating every subsequent hop URL against SSRF rules before following.
+- **Zero-Backtracking / ReDoS-Immune Parsers**:
+  - Strictly avoid regular expressions with nested quantifiers (e.g. `(a+)*` or `([a-z0-9-]*[a-z0-9]+)?*`) which trigger CodeQL `js/polynomial-redos` / `js/inefficient-regular-expression` alerts.
+  - Use deterministic, linear O(n) scanning algorithms or atomic label splitting (such as `isValidDnsLabelSequence`) for grammar, hostname, or format validation.
+- **CodeQL Query Filtering & Data Extensions**:
+  - Keep `.github/codeql/codeql-config.yml` and `.github/codeql/extensions/ssrf-barrier.yml` maintained so that repository-level CodeQL scans accurately identify custom sanitizers and compensate for false-positive static taint flows.
 
 
