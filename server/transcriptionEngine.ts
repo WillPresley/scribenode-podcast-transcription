@@ -973,7 +973,7 @@ export function cleanFallbackTranscript(
 }
 
 /**
- * Post-processes raw ASR transcript with gemini-3.7-flash (and downstream fallback models)
+ * Post-processes raw ASR transcript with gemini-3.8-flash (and downstream fallback models)
  * to format into publication-quality, diarized Markdown with true speaker attribution.
  */
 export async function refineTranscriptWithLLM(params: {
@@ -1270,7 +1270,7 @@ export async function generateContentWithFallback(params: {
               }
             ];
           } else {
-            // Non-transcribe models (gemini-3.7-flash, gemini-3.6-flash, etc.):
+            // Non-transcribe models (gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, etc.):
             // 1. Strictly remove transcribe-only configurations (audioTranscriptionConfig, audioTimestamp)
             delete modelConfig.audioTranscriptionConfig;
             delete modelConfig.audioTimestamp;
@@ -1366,7 +1366,7 @@ export async function generateContentWithFallback(params: {
           throw new Error(`Model ${model} returned empty or blank text response${reasonInfo}.`);
         }
 
-        // When transcribe model was used, run refinement pass with gemini-3.7-flash to produce publication-grade markdown with real speaker names
+        // When transcribe model was used, run refinement pass with gemini-3.8-flash to produce publication-grade markdown with real speaker names
         let finalTranscript = extractedText;
         if (params.fileUri && params.promptStyle && isTranscribeModel) {
           try {
