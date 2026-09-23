@@ -234,7 +234,7 @@ export class JobsStorage {
 
         const files = fs.readdirSync(this.uploadsDir);
         for (const file of files) {
-          if (file === "jobs.json") continue;
+          if (file === "jobs.json" || file === "backups") continue;
           const fullPath = path.resolve(path.join(this.uploadsDir, file));
           if (!activeFilePaths.has(fullPath)) {
             try {

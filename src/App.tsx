@@ -74,6 +74,7 @@ import { SpeakerRenameModal } from "./components/SpeakerRenameModal";
 import { TranscriptEditor } from "./components/TranscriptEditor";
 import { usePwa } from "./utils/usePwa";
 import { PwaBanner } from "./components/PwaBanner";
+import { BackupRestoreModal } from "./components/BackupRestoreModal";
 
 const ScribeNodeLogo = ({ className = "w-9 h-9" }: { className?: string }) => (
   <div className={`flex items-center justify-center rounded-xl bg-blue-600 p-2 shrink-0 shadow-sm ${className}`}>
@@ -360,7 +361,12 @@ export default function App() {
 
   const [showAboutModal, setShowAboutModal] = useState<boolean>(false);
   const [aboutModalTab, setAboutModalTab] = useState<'overview' | 'api_setup' | 'release_notes'>('overview');
+  const [showBackupModal, setShowBackupModal] = useState<boolean>(false);
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
+
+  const openBackupRestoreModal = () => {
+    setShowBackupModal(true);
+  };
 
   const openApiSetupGuide = () => {
     setAboutModalTab('api_setup');
@@ -1440,6 +1446,17 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => {
+                    openBackupRestoreModal();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 hover:text-blue-300 transition-colors cursor-pointer text-slate-300 font-medium"
+                >
+                  <Archive className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Backup & Restore</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
                     openApiSetupGuide();
                     setMobileMenuOpen(false);
                   }}
@@ -1540,6 +1557,14 @@ export default function App() {
         </nav>
 
         <div className="p-3.5 bg-slate-900/70 border-t border-slate-800/80 flex flex-col gap-2 text-xs">
+          <button
+            type="button"
+            onClick={openBackupRestoreModal}
+            className="flex items-center gap-2 text-slate-300 hover:text-blue-300 transition-colors cursor-pointer text-xs font-medium px-1.5 py-1 rounded hover:bg-slate-800/40"
+          >
+            <Archive className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <span className="truncate">Backup & Restore</span>
+          </button>
           <button
             type="button"
             onClick={openApiSetupGuide}
@@ -3802,6 +3827,27 @@ export default function App() {
                         </p>
                       </div>
 
+                      {/* Homelab Backup Banner */}
+                      <div className="p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-start gap-3">
+                        <Archive className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <span className="font-bold text-slate-900">Homelab & Docker Backup / Restore:</span>
+                          <p className="text-slate-600 text-[11px]">
+                            Easily export your transcripts, notes, and audio into dated ZIP snapshots, or restore a previous installation with one click.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAboutModal(false);
+                              openBackupRestoreModal();
+                            }}
+                            className="inline-flex items-center gap-1 text-indigo-700 hover:text-indigo-800 font-bold hover:underline mt-1 cursor-pointer"
+                          >
+                            Open Backup & Restore Center ➔
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Open Source Repository */}
                       <div className="pt-2 border-t border-slate-100">
                         <a
@@ -4101,6 +4147,15 @@ export default function App() {
           onClose={() => setShowRenameModal(false)}
           detectedSpeakers={detectedSpeakers}
           onRename={handleRenameSpeaker}
+        />
+
+        {/* Homelab Full Backup & Restore Modal */}
+        <BackupRestoreModal
+          isOpen={showBackupModal}
+          onClose={() => setShowBackupModal(false)}
+          onRestoreSuccess={() => {
+            fetchJobsList();
+          }}
         />
 
       </main>

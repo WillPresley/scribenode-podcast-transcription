@@ -31,6 +31,15 @@ import {
   resolveJobDuration,
   resolveJobDurationSync
 } from "./audioDuration";
+import {
+  createBackupArchive,
+  listStoredBackups,
+  deleteStoredBackup,
+  restoreBackupFromBuffer,
+  getBackupsDirectory,
+  sanitizeBackupFilename,
+  generateBackupFilename
+} from "./backup";
 import { ModelStatusInfo, ModelErrorDetails } from "../src/types";
 
 export type { ModelStatusInfo };
@@ -154,6 +163,23 @@ export function createApp(options: CreateAppOptions = {}): Express {
   const maxUploadSizeBytes = getMaxUploadSizeBytes(env);
 
   const upload = multer({
+    dest: os.tmpdir(),
+    limits: {
+      fileSize: maxUploadSizeBytes,
+    }
+  });
+
+  const backupLimiter = rateLimit({
+    windowMs: baseWindowMs,
+    max: isTest ? 1000 : 100,
+    limit: isTest ? 1000 : 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    validate: { xForwardedForHeader: false },
+    message: { error: "Backup action rate limit exceeded. Please try again later." }
+  });
+
+  const backupUpload = multer({
     dest: os.tmpdir(),
     limits: {
       fileSize: maxUploadSizeBytes,
@@ -994,6 +1020,171 @@ export function createApp(options: CreateAppOptions = {}): Express {
     storage.set(jobId, job);
     storage.saveToDisk();
     res.json({ success: true, job, updatedTranscript: updated });
+  });
+
+  // =========================================================================
+  // BACKUP & RESTORE ENDPOINTS (Homelab / Self-Host Full Snapshot System)
+  // =========================================================================
+
+  // GET /api/backups - list all backups in persistent volume
+  app.get("/api/backups", backupLimiter, async (req, res) => {
+    try {
+      const backups = await listStoredBackups(storage);
+      res.json({ backups });
+    } catch (err: any) {
+      console.error("[Backup] Failed to list backups:", err);
+      res.status(500).json({ error: "Failed to list backups" });
+    }
+  });
+
+  // POST /api/backups/create - create a new backup archive
+  app.post("/api/backups/create", backupLimiter, async (req, res) => {
+    try {
+      const includeAudio = req.body?.includeAudio !== false && req.body?.includeAudio !== "false";
+      const customFilename = typeof req.body?.customFilename === "string" ? req.body.customFilename.trim() : undefined;
+      
+      const result = await createBackupArchive({
+        storage,
+        includeAudio,
+        customFilename
+      });
+
+      res.json({
+        success: true,
+        backup: {
+          filename: result.filename,
+          sizeBytes: result.sizeBytes,
+          createdAt: Date.now(),
+          manifest: result.manifest
+        }
+      });
+    } catch (err: any) {
+      console.error("[Backup] Failed to create backup:", err);
+      res.status(500).json({ error: err.message || "Failed to create backup archive" });
+    }
+  });
+
+  // GET /api/backups/:filename/download - download backup zip file
+  app.get("/api/backups/:filename/download", backupLimiter, (req, res) => {
+    try {
+      const rawFilename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
+      const safeFilename = sanitizeBackupFilename(String(rawFilename || ""));
+      const backupsDir = getBackupsDirectory(storage);
+      const filePath = path.join(backupsDir, safeFilename);
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "Backup file not found" });
+      }
+
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"`);
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (err: any) {
+      console.error("[Backup] Download error:", err);
+      res.status(400).json({ error: err.message || "Invalid backup download request" });
+    }
+  });
+
+  // DELETE /api/backups/:filename - delete a stored backup
+  app.delete("/api/backups/:filename", backupLimiter, (req, res) => {
+    try {
+      const rawFilename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
+      const safeFilename = sanitizeBackupFilename(String(rawFilename || ""));
+      const deleted = deleteStoredBackup(storage, safeFilename);
+      if (!deleted) {
+        return res.status(404).json({ error: "Backup file not found" });
+      }
+      res.json({ success: true, message: `Backup ${safeFilename} deleted successfully` });
+    } catch (err: any) {
+      console.error("[Backup] Delete error:", err);
+      res.status(400).json({ error: err.message || "Failed to delete backup" });
+    }
+  });
+
+  // POST /api/backups/:filename/restore - restore from a stored backup
+  app.post("/api/backups/:filename/restore", backupLimiter, async (req, res) => {
+    try {
+      const rawFilename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
+      const safeFilename = sanitizeBackupFilename(String(rawFilename || ""));
+      const backupsDir = getBackupsDirectory(storage);
+      const filePath = path.join(backupsDir, safeFilename);
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "Backup file not found" });
+      }
+
+      const mode = req.body?.mode === "replace" ? "replace" : "merge";
+      const zipBuffer = fs.readFileSync(filePath);
+
+      const result = await restoreBackupFromBuffer({
+        storage,
+        zipBuffer,
+        mode
+      });
+
+      res.json({ success: true, result });
+    } catch (err: any) {
+      console.error("[Backup] Restore error:", err);
+      res.status(500).json({ error: err.message || "Failed to restore backup" });
+    }
+  });
+
+  // POST /api/backups/upload-restore - upload a backup zip and restore it
+  app.post("/api/backups/upload-restore", backupLimiter, (req, res, next) => {
+    backupUpload.single("backup")(req, res, (err: any) => {
+      if (err) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({ error: `File exceeds maximum allowed upload size of ${maxUploadSizeMB}MB.` });
+        }
+        return res.status(400).json({ error: err.message || "Failed to upload backup file." });
+      }
+      next();
+    });
+  }, async (req, res) => {
+    const rawUploadedPath = req.file?.path;
+    try {
+      if (!req.file || !rawUploadedPath || !fs.existsSync(rawUploadedPath)) {
+        return res.status(400).json({ error: "Please upload a valid .zip backup file." });
+      }
+
+      const mode = req.body?.mode === "replace" ? "replace" : "merge";
+      const zipBuffer = fs.readFileSync(rawUploadedPath);
+
+      const result = await restoreBackupFromBuffer({
+        storage,
+        zipBuffer,
+        mode
+      });
+
+      // Save a copy to stored backups directory with safe name
+      if (req.body?.saveToBackups !== "false" && req.body?.saveToBackups !== false) {
+        try {
+          const backupsDir = getBackupsDirectory(storage);
+          const origName = req.file.originalname && req.file.originalname.endsWith(".zip")
+            ? req.file.originalname
+            : generateBackupFilename("scribenode-restored-backup");
+          const safeName = sanitizeBackupFilename(origName);
+          const destPath = path.join(backupsDir, safeName);
+          if (!fs.existsSync(destPath)) {
+            fs.copyFileSync(rawUploadedPath, destPath);
+          }
+        } catch {}
+      }
+
+      // Cleanup temp uploaded file
+      try {
+        fs.unlinkSync(rawUploadedPath);
+      } catch {}
+
+      res.json({ success: true, result });
+    } catch (err: any) {
+      if (rawUploadedPath && fs.existsSync(rawUploadedPath)) {
+        try { fs.unlinkSync(rawUploadedPath); } catch {}
+      }
+      console.error("[Backup] Upload-Restore error:", err);
+      res.status(500).json({ error: err.message || "Failed to restore uploaded backup" });
+    }
   });
 
   app.post("/api/jobs/:id/analyze", async (req, res) => {

@@ -802,4 +802,95 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.appShortName).toBe('AudioScribe');
     });
   });
+
+  describe('Backup & Restore System (Homelab / Self-Host Snapshot API)', () => {
+    it('lists stored backups via GET /api/backups', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app).get('/api/backups');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.backups)).toBe(true);
+    });
+
+    it('creates a new backup archive via POST /api/backups/create and verifies file on disk', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const res = await request(app)
+        .post('/api/backups/create')
+        .send({ includeAudio: false });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.backup.filename).toMatch(/^scribenode-backup-.*\.zip$/);
+      expect(res.body.backup.manifest.jobCount).toBeGreaterThan(0);
+
+      // Verify it shows up in GET /api/backups
+      const listRes = await request(app).get('/api/backups');
+      expect(listRes.body.backups.some((b: any) => b.filename === res.body.backup.filename)).toBe(true);
+    });
+
+    it('downloads the created backup via GET /api/backups/:filename/download', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const createRes = await request(app)
+        .post('/api/backups/create')
+        .send({ includeAudio: false });
+
+      const filename = createRes.body.backup.filename;
+      const downloadRes = await request(app)
+        .get(`/api/backups/${filename}/download`)
+        .buffer(true)
+        .parse((res, callback) => {
+          const data: Buffer[] = [];
+          res.on('data', (chunk) => data.push(chunk));
+          res.on('end', () => callback(null, Buffer.concat(data)));
+        });
+
+      expect(downloadRes.status).toBe(200);
+      expect(downloadRes.headers['content-type']).toBe('application/zip');
+      expect(downloadRes.headers['content-disposition']).toContain(filename);
+      expect(downloadRes.body.length).toBeGreaterThan(0);
+    });
+
+    it('restores state from stored backup via POST /api/backups/:filename/restore', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const createRes = await request(app)
+        .post('/api/backups/create')
+        .send({ includeAudio: false });
+
+      const filename = createRes.body.backup.filename;
+
+      // Mutate storage
+      storage.clear();
+      expect(storage.values().length).toBe(0);
+
+      // Restore
+      const restoreRes = await request(app)
+        .post(`/api/backups/${filename}/restore`)
+        .send({ mode: 'replace' });
+
+      expect(restoreRes.status).toBe(200);
+      expect(restoreRes.body.success).toBe(true);
+      expect(storage.values().length).toBeGreaterThan(0);
+    });
+
+    it('deletes stored backup via DELETE /api/backups/:filename', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const createRes = await request(app)
+        .post('/api/backups/create')
+        .send({ includeAudio: false });
+
+      const filename = createRes.body.backup.filename;
+      const delRes = await request(app).delete(`/api/backups/${filename}`);
+      expect(delRes.status).toBe(200);
+      expect(delRes.body.success).toBe(true);
+
+      // 404 on subsequent delete
+      const delRes2 = await request(app).delete(`/api/backups/${filename}`);
+      expect(delRes2.status).toBe(404);
+    });
+
+    it('rejects directory traversal in download, restore, and delete', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const badRes = await request(app).get('/api/backups/..%2F..%2Fetc%2Fpasswd/download');
+      expect(badRes.status).toBe(404);
+    });
+  });
 });

@@ -77,3 +77,31 @@ export interface ModelStatusInfo {
   modelErrors?: Record<string, ModelErrorDetails>;
   isCustomSelection?: boolean;
 }
+
+export interface BackupFileInfo {
+  filename: string;
+  sizeBytes: number;
+  createdAt: number;
+  formattedDate: string;
+  jobCount?: number;
+  includesAudio?: boolean;
+}
+
+export interface BackupManifest {
+  formatVersion: number;
+  app: string;
+  appVersion: string;
+  createdAt: string;
+  jobCount: number;
+  includesAudio: boolean;
+  totalAudioSizeBytes: number;
+}
+
+export interface RestoreResult {
+  success: boolean;
+  restoredJobsCount: number;
+  restoredAudioCount: number;
+  mode: 'merge' | 'replace';
+  warnings: string[];
+}
+
