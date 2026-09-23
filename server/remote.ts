@@ -40,7 +40,7 @@ export async function downloadRemoteAudio(params: {
       signal: controller.signal,
       timeoutMs,
       headers: {
-        "User-Agent": "ScribeNode/1.5.0 (+https://github.com/WillPresley/scribenode-podcast-transcription)",
+        "User-Agent": "ScribeNode/1.5.1 (+https://github.com/WillPresley/scribenode-podcast-transcription)",
         "Accept": "audio/*, */*"
       }
     });

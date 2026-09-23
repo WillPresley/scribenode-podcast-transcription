@@ -253,7 +253,7 @@ export async function fetchRssFeed(feedUrl: string, timeoutMs: number = 10000): 
   const res = await safeFetch(validatedUrl, {
     timeoutMs,
     headers: {
-      "User-Agent": "ScribeNode/1.5.0 (+https://github.com/WillPresley/scribenode-podcast-transcription; podcast transcriber)",
+      "User-Agent": "ScribeNode/1.5.1 (+https://github.com/WillPresley/scribenode-podcast-transcription; podcast transcriber)",
       "Accept": "application/rss+xml, application/xml, text/xml, application/atom+xml, */*"
     }
   });

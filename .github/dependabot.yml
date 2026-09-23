@@ -1,16 +1,18 @@
 version: 2
 updates:
   # Track npm / Node.js package updates
+  # Security advisories & critical CVE fixes trigger immediately via GitHub Dependabot Security Updates.
+  # Routine version updates run weekly on Monday mornings (US Eastern / New York).
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "Etc/UTC"
-    open-pull-requests-limit: 3
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
     groups:
-      # Group all minor and patch dependency updates together into a single PR
+      # Group all routine minor and patch dependency updates together into a single PR
       minor-and-patch-dependencies:
         applies-to: "version-updates"
         update-types:
@@ -22,6 +24,7 @@ updates:
         update-types:
           - "major"
     ignore:
+      # Maintain TypeScript within stable major version line to prevent compiler regressions
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
 
@@ -29,11 +32,11 @@ updates:
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "Etc/UTC"
-    open-pull-requests-limit: 2
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
     groups:
       docker-dependencies:
         applies-to: "version-updates"
@@ -44,11 +47,11 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "Etc/UTC"
-    open-pull-requests-limit: 2
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
     groups:
       actions-dependencies:
         applies-to: "version-updates"

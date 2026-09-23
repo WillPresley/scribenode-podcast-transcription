@@ -20,8 +20,8 @@ describe('Server Startup Banner Formatter (server/banner.ts)', () => {
 
   describe('fitLine utility', () => {
     it('leaves values unchanged when they fit comfortably within maxWidth', () => {
-      const line = fitLine(' Version      : ', 'v1.5.0', 70);
-      expect(line).toBe(' Version      : v1.5.0');
+      const line = fitLine(' Version      : ', 'v1.5.1', 70);
+      expect(line).toBe(' Version      : v1.5.1');
       expect(line.length).toBeLessThanOrEqual(70);
     });
 

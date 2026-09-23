@@ -19,7 +19,8 @@
 - **Stateless Port Binding**: Server entry points must bind to `0.0.0.0` and respect `process.env.PORT` (default `3000`/`4200` per compose setup).
 
 ## 4. Dependabot & Supply Chain Maintenance
-- **Dependabot Grouping**: Keep Dependabot updates grouped (minor/patch combined, major isolated) with monthly cadences (`interval: "monthly"`) to minimize PR noise while keeping security fixes responsive.
+- **Dependabot Cadence & Immediate Security Alerts**: Configure Dependabot security updates to trigger immediately for high/critical security advisories without delay. Keep routine non-security dependencies scheduled weekly on Mondays (`interval: "weekly"`, `day: "monday"`, `timezone: "America/New_York"`).
+- **Logical Update Grouping**: Group routine minor and patch updates together (`minor-and-patch-dependencies`), and isolate major version bumps (`major-dependencies`) using `applies-to: "version-updates"` so security PRs remain unbundled and instant.
 - **Ignores & Constraints**: Maintain strict major version ignores on core infrastructure tools (e.g., `typescript`) until explicitly requested for upgrade.
 
 ## 5. GitHub Actions & Runner Compatibility

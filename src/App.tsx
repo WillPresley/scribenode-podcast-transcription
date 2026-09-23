@@ -1454,7 +1454,7 @@ export default function App() {
                   className="flex items-center gap-2 hover:text-blue-300 transition-colors cursor-pointer text-slate-400 hover:text-slate-200 font-medium"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>v1.5.0 Release Notes</span>
+                  <span>v1.5.1 Release Notes</span>
                 </button>
               </div>
             </motion.aside>
@@ -3636,7 +3636,7 @@ export default function App() {
             className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-2.5 sm:px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800">v1.5.0</span>
+            <span className="font-mono text-xs font-bold text-slate-800">v1.5.1</span>
             <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-1.5 sm:pl-2 hidden xs:inline">About & Release Notes</span>
           </button>
         </footer>
@@ -3660,7 +3660,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-base sm:text-lg text-white tracking-tight">Scribe<span className="text-blue-300">Node</span></h2>
                         <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                          v1.5.0
+                          v1.5.1
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -3712,7 +3712,7 @@ export default function App() {
                     }`}
                   >
                     <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    <span>What's New v1.5.0</span>
+                    <span>What's New v1.5.1</span>
                   </button>
                 </div>
 
@@ -3934,12 +3934,24 @@ export default function App() {
                       <div>
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
                           <Zap className="w-4 h-4 text-amber-500" />
-                          What's New in v1.5.0
+                          What's New in v1.5.1
                         </h3>
                         <ul className="space-y-3 border-l-2 border-blue-200 pl-3.5">
                           <li className="relative">
+                            <span className="font-bold text-slate-900">Dependabot Supply Chain Cadence & Instant Security Alerts:</span>
+                            <p className="text-slate-600 mt-0.5">Automated Dependabot security updates trigger immediately for critical and high-severity CVE advisories without delay. Routine non-security dependency version updates are scheduled weekly on Monday mornings (06:00 America/New_York) with isolated minor/patch and major update groupings.</p>
+                          </li>
+                          <li className="relative">
+                            <span className="font-bold text-slate-900">RSS Feed Episode Pagination & Navigation:</span>
+                            <p className="text-slate-600 mt-0.5">Enhanced the RSS podcast picker with clean 50 and 100 episodes-per-page pagination, smooth scrolling, direct page jumping, and real-time full-archive title, description, and date search filtering.</p>
+                          </li>
+                          <li className="relative">
+                            <span className="font-bold text-slate-900">Audio Enclosure Byte Duration Estimation:</span>
+                            <p className="text-slate-600 mt-0.5">Implemented resilient audio duration fallback estimation derived from enclosure file size lengths (~128 kbps podcast standard) alongside XML tags (<code className="font-mono text-[10px]">&lt;itunes:duration&gt;</code>, <code className="font-mono text-[10px]">&lt;duration&gt;</code>, <code className="font-mono text-[10px]">&lt;media:duration&gt;</code>), ensuring episode durations are always clearly presented.</p>
+                          </li>
+                          <li className="relative">
                             <span className="font-bold text-slate-900">Flagship Gemini 3.8 Flash & Full Fallback Cascade:</span>
-                            <p className="text-slate-600 mt-0.5">Upgraded primary multimodal reasoning and speech alignment engine to Google DeepMind's Gemini 3.8 Flash (304.6 tokens/sec, 1M context, 64k output). Backed by a comprehensive 9-tier automated fallback cascade spanning Gemini 3.7 Flash down to Flash Lite models.</p>
+                            <p className="text-slate-600 mt-0.5">Primary multimodal reasoning and speech alignment engine powered by Google DeepMind's Gemini 3.8 Flash (304.6 tokens/sec, 1M context, 64k output), backed by a comprehensive 9-tier automated fallback cascade spanning Gemini 3.7 Flash down to Flash Lite models.</p>
                           </li>
                           <li className="relative">
                             <span className="font-bold text-slate-900">Podcast RSS Feed & Remote URL Ingestion:</span>
@@ -3965,6 +3977,10 @@ export default function App() {
                           Previous Milestones
                         </h4>
                         <div className="space-y-2">
+                          <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
+                            <div className="font-bold text-slate-800">v1.5.0 — Flagship Gemini 3.8 Flash, RSS Feeds & Custom Vocabulary</div>
+                            <p className="text-[10px] text-slate-500">Multimodal Gemini 3.8 Flash, full 9-tier model cascade, RSS feed ingestion, custom glossary injection, and in-place transcript editor.</p>
+                          </div>
                           <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
                             <div className="font-bold text-slate-800">v1.4.5 — Flagship Gemini 3.7 Flash & Markdown Standards</div>
                             <p className="text-[10px] text-slate-500">Flagship multimodal transcription, publication-grade markdown layout, human-friendly error categorization, and granular model cascade failover diagnostics.</p>
