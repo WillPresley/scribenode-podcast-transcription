@@ -1457,7 +1457,7 @@ export default function App() {
                   className="flex items-center gap-2 hover:text-blue-300 transition-colors cursor-pointer text-slate-400 hover:text-slate-200 font-medium"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>v1.5.1 Release Notes</span>
+                  <span>v1.5.5 Release Notes</span>
                 </button>
                 {isInstallable && (
                   <button
@@ -3680,7 +3680,7 @@ export default function App() {
             className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-2.5 sm:px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800">v1.5.1</span>
+            <span className="font-mono text-xs font-bold text-slate-800">v1.5.5</span>
             <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-1.5 sm:pl-2 hidden xs:inline">About & Release Notes</span>
           </button>
         </footer>
@@ -3704,7 +3704,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <h2 className="font-bold text-base sm:text-lg text-white tracking-tight">Scribe<span className="text-blue-300">Node</span></h2>
                         <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                          v1.5.1
+                          v1.5.5
                         </span>
                       </div>
                       <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -3756,7 +3756,7 @@ export default function App() {
                     }`}
                   >
                     <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    <span>What's New v1.5.1</span>
+                    <span>What's New v1.5.5</span>
                   </button>
                 </div>
 
@@ -3978,20 +3978,20 @@ export default function App() {
                       <div>
                         <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
                           <Zap className="w-4 h-4 text-amber-500" />
-                          What's New in v1.5.1
+                          What's New in v1.5.5
                         </h3>
                         <ul className="space-y-3 border-l-2 border-blue-200 pl-3.5">
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Dependabot Supply Chain Cadence & Instant Security Alerts:</span>
-                            <p className="text-slate-600 mt-0.5">Automated Dependabot security updates trigger immediately for critical and high-severity CVE advisories without delay. Routine non-security dependency version updates are scheduled weekly on Monday mornings (06:00 America/New_York) with isolated minor/patch and major update groupings.</p>
+                            <span className="font-bold text-slate-900">Progressive Web App (PWA) & Standalone Windowing:</span>
+                            <p className="text-slate-600 mt-0.5">Install ScribeNode as a native application across macOS, Windows, Linux, Android, and iOS. Enjoy frameless standalone desktop windows, customized dock/home icons, quick in-app install actions, and auto-updating service worker precaching.</p>
                           </li>
                           <li className="relative">
-                            <span className="font-bold text-slate-900">RSS Feed Episode Pagination & Navigation:</span>
-                            <p className="text-slate-600 mt-0.5">Enhanced the RSS podcast picker with clean 50 and 100 episodes-per-page pagination, smooth scrolling, direct page jumping, and real-time full-archive title, description, and date search filtering.</p>
+                            <span className="font-bold text-slate-900">Offline Resilience & Saved Transcript Access:</span>
+                            <p className="text-slate-600 mt-0.5">Instant offline status detection with non-intrusive banner alerts. Seamlessly inspect, filter, format, and export previously transcribed podcast episodes and meetings even when disconnected or traveling.</p>
                           </li>
                           <li className="relative">
-                            <span className="font-bold text-slate-900">Audio Enclosure Byte Duration Estimation:</span>
-                            <p className="text-slate-600 mt-0.5">Implemented resilient audio duration fallback estimation derived from enclosure file size lengths (~128 kbps podcast standard) alongside XML tags (<code className="font-mono text-[10px]">&lt;itunes:duration&gt;</code>, <code className="font-mono text-[10px]">&lt;duration&gt;</code>, <code className="font-mono text-[10px]">&lt;media:duration&gt;</code>), ensuring episode durations are always clearly presented.</p>
+                            <span className="font-bold text-slate-900">Dynamic PWA App Naming via Docker & Environment:</span>
+                            <p className="text-slate-600 mt-0.5">Customize your application and manifest branding dynamically using <code className="font-mono text-[10px]">APP_NAME</code>, <code className="font-mono text-[10px]">APP_SHORT_NAME</code>, or <code className="font-mono text-[10px]">APP_TITLE</code> in Docker Compose or <code className="font-mono text-[10px]">.env</code> with zero container rebuilds required.</p>
                           </li>
                           <li className="relative">
                             <span className="font-bold text-slate-900">Flagship Gemini 3.8 Flash & Full Fallback Cascade:</span>
@@ -4000,6 +4000,14 @@ export default function App() {
                           <li className="relative">
                             <span className="font-bold text-slate-900">Podcast RSS Feed & Remote URL Ingestion:</span>
                             <p className="text-slate-600 mt-0.5">Directly transcribe podcasts from public RSS feeds or direct audio URLs. Preview feed metadata, browse episodes, and stream audio directly to the transcription pipeline without manual file downloads.</p>
+                          </li>
+                          <li className="relative">
+                            <span className="font-bold text-slate-900">RSS Feed Episode Pagination & Navigation:</span>
+                            <p className="text-slate-600 mt-0.5">Browse extensive podcast feeds with 50 and 100 episodes-per-page pagination, smooth scrolling, direct page jumping, and real-time full-archive title, description, and date search filtering.</p>
+                          </li>
+                          <li className="relative">
+                            <span className="font-bold text-slate-900">Audio Enclosure Byte Duration Estimation:</span>
+                            <p className="text-slate-600 mt-0.5">Resilient audio duration fallback estimation derived from enclosure file size lengths (~128 kbps standard) alongside XML tags (<code className="font-mono text-[10px]">&lt;itunes:duration&gt;</code>, <code className="font-mono text-[10px]">&lt;duration&gt;</code>, <code className="font-mono text-[10px]">&lt;media:duration&gt;</code>), ensuring episode durations are always clearly presented.</p>
                           </li>
                           <li className="relative">
                             <span className="font-bold text-slate-900">Custom Vocabulary & Technical Glossary:</span>
@@ -4013,6 +4021,10 @@ export default function App() {
                             <span className="font-bold text-slate-900">Unified Ingestion Card & Mode Switcher:</span>
                             <p className="text-slate-600 mt-0.5">Sleek, tabbed ingestion interface for switching effortlessly between local file upload, RSS podcast feeds, and direct URL streaming with persistent transcription presets.</p>
                           </li>
+                          <li className="relative">
+                            <span className="font-bold text-slate-900">Supply Chain Security & Maintenance:</span>
+                            <p className="text-slate-600 mt-0.5">Automated Dependabot security alerts for critical vulnerabilities alongside scheduled weekly grouped updates.</p>
+                          </li>
                         </ul>
                       </div>
 
@@ -4021,6 +4033,10 @@ export default function App() {
                           Previous Milestones
                         </h4>
                         <div className="space-y-2">
+                          <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
+                            <div className="font-bold text-slate-800">v1.5.1 — RSS Feed Pagination & Duration Fallbacks</div>
+                            <p className="text-[10px] text-slate-500">Enhanced RSS picker with 50/100 episode pagination, full-archive search filtering, enclosure byte duration estimation, and Dependabot supply chain setup.</p>
+                          </div>
                           <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
                             <div className="font-bold text-slate-800">v1.5.0 — Flagship Gemini 3.8 Flash, RSS Feeds & Custom Vocabulary</div>
                             <p className="text-[10px] text-slate-500">Multimodal Gemini 3.8 Flash, full 9-tier model cascade, RSS feed ingestion, custom glossary injection, and in-place transcript editor.</p>
