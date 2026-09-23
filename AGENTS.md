@@ -79,9 +79,10 @@ Before declaring any coding task complete, execute the following verification lo
 - **Vite PWA Architecture**:
   - Maintain `vite-plugin-pwa` in `vite.config.ts` configured with `registerType: 'autoUpdate'`, standalone web app manifest (`ScribeNode`), and branded icon sets (`public/pwa-192x192.png`, `public/pwa-512x512.png`, `public/pwa-maskable-512x512.png`, `public/apple-touch-icon.png`, `public/pwa-icon.svg`).
   - **API Exclusions & Network Fallbacks**: The service worker Workbox configuration MUST exclude `/api/*` and `/health*` routes (`navigateFallbackDenylist: [/^\/api\//, /^\/health/]`, `handler: 'NetworkOnly'`) so backend Gemini API proxying, audio streams, and health probes are never cached or intercepted.
-- **Offline User Experience**:
+- **Offline User Experience & Responsive Presentation**:
   - The application shell and precached assets allow instant launch and standalone window framing (`display: standalone`).
   - When offline (`navigator.onLine === false`), the UI communicates offline mode gracefully via `PwaBanner` / `usePwa` while preserving access to review, search, and export existing cached or saved transcripts.
+  - **Responsive Install Trigger Placement**: On desktop/large screens (`lg:` and up), present the prominent top banner (`hidden lg:flex`) while keeping the desktop fixed sidebar and top header clean and un-duplicated. On smaller/mobile screens, hide the top banner to conserve screen real estate and route install access through the mobile navigation drawer (`Install App`) alongside native browser toasts/prompts.
 - **Test Integrity**:
   - Maintain `tests/unit/pwa.test.ts` and packaging assertions in `tests/integration/packaging.test.ts` verifying manifest configurations, icon headers, and meta tags.
 

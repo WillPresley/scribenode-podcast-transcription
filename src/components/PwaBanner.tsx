@@ -28,9 +28,9 @@ export const PwaBanner: React.FC<PwaBannerProps> = ({
         </div>
       )}
 
-      {/* PWA Install Invitation Banner */}
+      {/* PWA Install Invitation Banner (Large screens only; smaller screens access via navigation drawer) */}
       {isInstallable && !installDismissed && (
-        <div className="bg-gradient-to-r from-blue-950/60 to-slate-900/90 border-b border-blue-500/20 px-4 py-2 text-xs sm:text-sm flex items-center justify-between text-slate-200 shadow-sm backdrop-blur-md">
+        <div className="hidden lg:flex bg-gradient-to-r from-blue-950/60 to-slate-900/90 border-b border-blue-500/20 px-4 py-2 text-xs sm:text-sm items-center justify-between text-slate-200 shadow-sm backdrop-blur-md">
           <div className="flex items-center space-x-2.5">
             <div className="w-6 h-6 rounded-md bg-blue-600/30 border border-blue-500/40 flex items-center justify-center text-blue-400 shrink-0">
               <Download className="w-3.5 h-3.5" />

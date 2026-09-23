@@ -1548,16 +1548,6 @@ export default function App() {
             <Key className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span className="truncate">Google Cloud & API Setup</span>
           </button>
-          {isInstallable && (
-            <button
-              type="button"
-              onClick={promptInstall}
-              className="flex items-center gap-2 text-blue-300 hover:text-blue-200 transition-colors cursor-pointer text-xs font-semibold px-2 py-1.5 rounded-md bg-blue-900/30 border border-blue-500/30 hover:bg-blue-900/50"
-            >
-              <Download className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="truncate">Install Desktop App</span>
-            </button>
-          )}
         </div>
       </aside>
 
@@ -1917,17 +1907,6 @@ export default function App() {
                 <RotateCcw className="h-3 w-3 shrink-0" />
                 <span className="hidden sm:inline">Back to List</span>
                 <span className="sm:hidden">List</span>
-              </button>
-            )}
-            {isInstallable && (
-              <button
-                type="button"
-                onClick={promptInstall}
-                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 transition-all cursor-pointer shadow-xs text-xs font-semibold"
-                title="Install ScribeNode as a standalone desktop or mobile application"
-              >
-                <Download className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                <span>Install App</span>
               </button>
             )}
             <button 

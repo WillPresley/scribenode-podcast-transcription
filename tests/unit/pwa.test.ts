@@ -126,4 +126,28 @@ describe('PWA Configuration, Icons & Offline Architecture', () => {
       expect(indexHtml).toContain('<link rel="apple-touch-icon" href="/apple-touch-icon.png" />');
     });
   });
+
+  describe('Responsive PWA Install Presentation Architecture', () => {
+    it('verifies PwaBanner displays the prominent install invitation only on large screens', () => {
+      const pwaBannerPath = path.join(rootDir, 'src/components/PwaBanner.tsx');
+      expect(fs.existsSync(pwaBannerPath)).toBe(true);
+
+      const pwaBanner = fs.readFileSync(pwaBannerPath, 'utf-8');
+      expect(pwaBanner).toContain('hidden lg:flex');
+      expect(pwaBanner).toContain('Install <strong>ScribeNode</strong> as a desktop or mobile application');
+      expect(pwaBanner).toContain('isOffline');
+    });
+
+    it('verifies App.tsx isolates drawer install button for mobile while keeping desktop sidebar clean', () => {
+      const appPath = path.join(rootDir, 'src/App.tsx');
+      expect(fs.existsSync(appPath)).toBe(true);
+
+      const appCode = fs.readFileSync(appPath, 'utf-8');
+      // Mobile drawer retains install button for small screens
+      expect(appCode).toContain('promptInstall');
+      expect(appCode).toContain('<span>Install App</span>');
+      // Desktop fixed sidebar should NOT have duplicated install button
+      expect(appCode).not.toContain('Install Desktop App');
+    });
+  });
 });
