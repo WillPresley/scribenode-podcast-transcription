@@ -748,4 +748,58 @@ describe('API Integration & Route Endpoints', () => {
       expect(h3.status).toBe(200);
     });
   });
+
+  describe('PWA Dynamic Manifest Route', () => {
+    it('serves default manifest when no custom APP_NAME or APP_TITLE is set', async () => {
+      const app = createApp({ storage, skipVite: true, env: {} });
+
+      const res = await request(app).get('/manifest.webmanifest');
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('application/manifest+json');
+      expect(res.body.name).toBe('ScribeNode — AI Speech & Transcript Engine');
+      expect(res.body.short_name).toBe('ScribeNode');
+      expect(res.body.display).toBe('standalone');
+      expect(res.body.icons).toBeDefined();
+      expect(res.body.icons.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it('dynamically adapts manifest name and short_name from APP_NAME environment variable', async () => {
+      const app = createApp({
+        storage,
+        skipVite: true,
+        env: { APP_NAME: 'Homelab Studio — Transcription Hub' }
+      });
+
+      const res = await request(app).get('/manifest.webmanifest');
+      expect(res.status).toBe(200);
+      expect(res.body.name).toBe('Homelab Studio — Transcription Hub');
+      expect(res.body.short_name).toBe('Homelab Studio');
+    });
+
+    it('honors APP_TITLE when APP_NAME is unset', async () => {
+      const app = createApp({
+        storage,
+        skipVite: true,
+        env: { APP_TITLE: 'Custom Pod Engine' }
+      });
+
+      const res = await request(app).get('/manifest.webmanifest');
+      expect(res.status).toBe(200);
+      expect(res.body.name).toBe('Custom Pod Engine');
+      expect(res.body.short_name).toBe('Custom Pod Engine');
+    });
+
+    it('returns appName and appShortName on GET /api/config', async () => {
+      const app = createApp({
+        storage,
+        skipVite: true,
+        env: { APP_NAME: 'Docker Audio Scribe', APP_SHORT_NAME: 'AudioScribe' }
+      });
+
+      const res = await request(app).get('/api/config');
+      expect(res.status).toBe(200);
+      expect(res.body.appName).toBe('Docker Audio Scribe');
+      expect(res.body.appShortName).toBe('AudioScribe');
+    });
+  });
 });

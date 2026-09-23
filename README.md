@@ -27,6 +27,7 @@
 - 🔍 **Interactive Live Viewer & Audio Sync**: Live transcript filtering, full-text search, jump-to-timestamp playback, and text-selection inspection.
 - 📥 **Export & Sharing Options**: Download transcripts and intelligence assets in Markdown (`.md`) or Plain Text (`.txt`), with instant copy-to-clipboard support.
 - 🛡️ **Enterprise SSRF Protection & Zero-ReDoS Parsers**: Hardened remote RSS/media ingestion featuring pre-flight DNS record inspection (RFC 1918, RFC 3927, loopback, and cloud metadata 169.254.169.254 blocking), strict manual redirect verification, POSIX traversal sanitization, and linear $O(n)$ ReDoS-immune validation.
+- 📲 **Progressive Web App (PWA) & Offline Reading**: Installable on macOS, Windows, Linux, Android, and iOS in standalone window mode with branded app icons, auto-updating service worker precaching, offline banner detection, and instant offline transcript access.
 - 🔒 **Private Homelab & Basic Auth Ready**: Native support for HTTP Basic Authentication and Docker containerization for secure private self-hosting.
 
 ---
@@ -36,6 +37,7 @@
 | Layer | Technology |
 | :--- | :--- |
 | **Frontend** | React 19, Vite 8, Tailwind CSS v4, Lucide React Icons, Motion v12 |
+| **PWA & Offline** | Vite Plugin PWA, Workbox Service Worker, Standalone Web App Manifest |
 | **Backend** | Node.js (v24 LTS & v26), Express 5, Multer File Upload |
 | **AI Audio Engine** | Google Gen AI SDK (`@google/genai`), Gemini 3.8 Flash (`gemini-3.8-flash`), Gemini 3.7 Flash |
 | **AI Reasoning & Analysis** | Google Gemini 3.8 Flash (`gemini-3.8-flash`), Gemini 3.7 Flash, Gemini 3.6 Flash / Flash Lite |

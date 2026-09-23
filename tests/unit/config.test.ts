@@ -8,7 +8,11 @@ import {
   getAppVersion,
   getMaxUploadSizeMB,
   getMaxUploadSizeBytes,
-  DEFAULT_MAX_UPLOAD_SIZE_MB
+  DEFAULT_MAX_UPLOAD_SIZE_MB,
+  getAppName,
+  getAppShortName,
+  DEFAULT_APP_NAME,
+  DEFAULT_APP_SHORT_NAME
 } from '../../server/config';
 
 describe('Server Configuration & Security Guard Engine', () => {
@@ -185,6 +189,37 @@ describe('Server Configuration & Security Guard Engine', () => {
       expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: '-50' })).toBe(100);
       expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: 'not-a-number' })).toBe(100);
       expect(getMaxUploadSizeMB({ MAX_UPLOAD_SIZE_MB: '' })).toBe(100);
+    });
+  });
+
+  describe('PWA & Application Naming Configuration (getAppName & getAppShortName)', () => {
+    it('returns default application name when no environment variable is provided', () => {
+      expect(DEFAULT_APP_NAME).toBe('ScribeNode — AI Speech & Transcript Engine');
+      expect(DEFAULT_APP_SHORT_NAME).toBe('ScribeNode');
+      expect(getAppName({})).toBe(DEFAULT_APP_NAME);
+      expect(getAppShortName({})).toBe(DEFAULT_APP_SHORT_NAME);
+    });
+
+    it('honors APP_NAME environment variable over default', () => {
+      const env = { APP_NAME: 'Custom Podcast Transcriber' };
+      expect(getAppName(env)).toBe('Custom Podcast Transcriber');
+      expect(getAppShortName(env)).toBe('Custom Podcast Transcriber');
+    });
+
+    it('derives short name by splitting on delimiter or uses APP_SHORT_NAME when provided', () => {
+      expect(getAppShortName({ APP_NAME: 'Studio Audio — High Fidelity Intelligence' })).toBe('Studio Audio');
+      expect(getAppShortName({ APP_NAME: 'VoxBox: Automated Transcripts' })).toBe('VoxBox');
+      expect(getAppShortName({ APP_NAME: 'Long Name', APP_SHORT_NAME: 'Shorty' })).toBe('Shorty');
+    });
+
+    it('respects APP_TITLE or VITE_APP_NAME fallback when APP_NAME is unset', () => {
+      expect(getAppName({ APP_TITLE: 'My Transcription Hub' })).toBe('My Transcription Hub');
+      expect(getAppName({ VITE_APP_NAME: 'Vite Audio Scribe' })).toBe('Vite Audio Scribe');
+    });
+
+    it('handles quoted environment variables gracefully', () => {
+      expect(getAppName({ APP_NAME: '"Clean Podcaster"' })).toBe('Clean Podcaster');
+      expect(getAppShortName({ APP_SHORT_NAME: "'Podcaster'" })).toBe('Podcaster');
     });
   });
 });

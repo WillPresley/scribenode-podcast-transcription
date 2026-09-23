@@ -72,6 +72,8 @@ import { RssFeedPicker } from "./components/RssFeedPicker";
 import { GlossaryInput } from "./components/GlossaryInput";
 import { SpeakerRenameModal } from "./components/SpeakerRenameModal";
 import { TranscriptEditor } from "./components/TranscriptEditor";
+import { usePwa } from "./utils/usePwa";
+import { PwaBanner } from "./components/PwaBanner";
 
 const ScribeNodeLogo = ({ className = "w-9 h-9" }: { className?: string }) => (
   <div className={`flex items-center justify-center rounded-xl bg-blue-600 p-2 shrink-0 shadow-sm ${className}`}>
@@ -324,6 +326,7 @@ function writeString(view: DataView, offset: number, string: string) {
 }
 
 export default function App() {
+  const { isInstallable, isOffline, promptInstall } = usePwa();
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [promptStyle, setPromptStyle] = useState<PromptStyle>("clean");
@@ -1456,6 +1459,19 @@ export default function App() {
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
                   <span>v1.5.1 Release Notes</span>
                 </button>
+                {isInstallable && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      promptInstall();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 text-blue-300 hover:text-blue-200 transition-colors cursor-pointer font-medium pt-1 border-t border-slate-800/50"
+                  >
+                    <Download className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Install App</span>
+                  </button>
+                )}
               </div>
             </motion.aside>
           </div>
@@ -1532,6 +1548,16 @@ export default function App() {
             <Key className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span className="truncate">Google Cloud & API Setup</span>
           </button>
+          {isInstallable && (
+            <button
+              type="button"
+              onClick={promptInstall}
+              className="flex items-center gap-2 text-blue-300 hover:text-blue-200 transition-colors cursor-pointer text-xs font-semibold px-2 py-1.5 rounded-md bg-blue-900/30 border border-blue-500/30 hover:bg-blue-900/50"
+            >
+              <Download className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="truncate">Install Desktop App</span>
+            </button>
+          )}
         </div>
       </aside>
 
@@ -1893,6 +1919,17 @@ export default function App() {
                 <span className="sm:hidden">List</span>
               </button>
             )}
+            {isInstallable && (
+              <button
+                type="button"
+                onClick={promptInstall}
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 transition-all cursor-pointer shadow-xs text-xs font-semibold"
+                title="Install ScribeNode as a standalone desktop or mobile application"
+              >
+                <Download className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                <span>Install App</span>
+              </button>
+            )}
             <button 
               onClick={handleReset}
               className="px-2.5 sm:px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-1 cursor-pointer"
@@ -1903,6 +1940,13 @@ export default function App() {
             </button>
           </div>
         </header>
+
+        {/* PWA Offline & Install Notification Banner */}
+        <PwaBanner
+          isInstallable={isInstallable}
+          isOffline={isOffline}
+          onInstall={promptInstall}
+        />
 
         {/* Content Body */}
         <div className="flex-1 p-3 sm:p-6 overflow-hidden">

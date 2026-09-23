@@ -140,3 +140,22 @@ export const formatDockerTag = (
   }
   return `${tag} (${trimmed})`;
 };
+
+export const DEFAULT_APP_NAME = "ScribeNode — AI Speech & Transcript Engine";
+export const DEFAULT_APP_SHORT_NAME = "ScribeNode";
+
+export const getAppName = (env = process.env): string => {
+  const custom = cleanEnvString(env.APP_NAME || env.VITE_APP_NAME || env.APP_TITLE);
+  return custom || DEFAULT_APP_NAME;
+};
+
+export const getAppShortName = (env = process.env): string => {
+  const customShort = cleanEnvString(env.APP_SHORT_NAME || env.VITE_APP_SHORT_NAME);
+  if (customShort) return customShort;
+  const customName = cleanEnvString(env.APP_NAME || env.VITE_APP_NAME || env.APP_TITLE);
+  if (customName) {
+    const split = customName.split(/[-—–:]/)[0]?.trim();
+    if (split) return split;
+  }
+  return DEFAULT_APP_SHORT_NAME;
+};

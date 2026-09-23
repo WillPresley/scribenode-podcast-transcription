@@ -37,6 +37,10 @@ services:
       # Optional: Custom page title for browser tab
       - APP_TITLE=${APP_TITLE:-ScribeNode – Transcription Engine}
       
+      # Optional: Custom application name in PWA manifest & mobile app banner
+      - APP_NAME=${APP_NAME:-ScribeNode — AI Speech & Transcript Engine}
+      - APP_SHORT_NAME=${APP_SHORT_NAME:-ScribeNode}
+      
       # Optional: Enable HTTP Basic Auth for private network access
       # Basic Auth is FULLY DISABLED by default. Set BASIC_AUTH_ENABLED=true in .env to enable.
       - BASIC_AUTH_ENABLED=${BASIC_AUTH_ENABLED:-false}

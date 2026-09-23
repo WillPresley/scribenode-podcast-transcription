@@ -19,6 +19,7 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(pkg.scripts['test:coverage']).toBe('vitest run --coverage');
     expect(pkg.dependencies.express).toBeDefined();
     expect(pkg.dependencies['@google/genai']).toBeDefined();
+    expect(pkg.devDependencies['vite-plugin-pwa']).toBeDefined();
     expect(pkg.overrides?.qs).toBe('^6.16.0');
     expect(pkg.overrides?.nanoid).toBeDefined();
   });
@@ -79,5 +80,22 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     const envExample = fs.readFileSync(envExamplePath, 'utf-8');
     expect(envExample).toContain('GEMINI_API_KEY');
     expect(envExample).toContain('PORT');
+  });
+
+  it('validates PWA icons, manifest configuration, and offline support assets', () => {
+    const publicDir = path.join(rootDir, 'public');
+    expect(fs.existsSync(path.join(publicDir, 'pwa-192x192.png'))).toBe(true);
+    expect(fs.existsSync(path.join(publicDir, 'pwa-512x512.png'))).toBe(true);
+    expect(fs.existsSync(path.join(publicDir, 'pwa-maskable-512x512.png'))).toBe(true);
+    expect(fs.existsSync(path.join(publicDir, 'apple-touch-icon.png'))).toBe(true);
+    expect(fs.existsSync(path.join(publicDir, 'pwa-icon.svg'))).toBe(true);
+
+    const viteConfig = fs.readFileSync(path.join(rootDir, 'vite.config.ts'), 'utf-8');
+    expect(viteConfig).toContain('VitePWA');
+    expect(viteConfig).toContain("display: 'standalone'");
+
+    const indexHtml = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf-8');
+    expect(indexHtml).toContain('name="theme-color"');
+    expect(indexHtml).toContain('apple-touch-icon');
   });
 });

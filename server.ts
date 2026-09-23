@@ -5,6 +5,7 @@ import { createServer as createViteServer } from "vite";
 import { createApp } from "./server/app";
 import { JobsStorage } from "./server/storage";
 import { printStartupBanner } from "./server/banner";
+import { getAppName, getAppShortName } from "./server/config";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const storage = new JobsStorage();
@@ -53,8 +54,11 @@ function expressStaticMiddleware(distPath: string) {
     const indexPath = path.join(distPath, 'index.html');
     if (fs.existsSync(indexPath)) {
       let html = fs.readFileSync(indexPath, 'utf-8');
-      const appTitle = process.env.APP_TITLE || "ScribeNode – Transcription Engine";
+      const appTitle = process.env.APP_TITLE || process.env.APP_NAME || "ScribeNode – Transcription Engine";
+      const appShortName = getAppShortName();
       html = html.replace(/<title>.*?<\/title>/i, `<title>${appTitle}</title>`);
+      html = html.replace(/<meta name="apple-mobile-web-app-title" content=".*?" \/>/i, `<meta name="apple-mobile-web-app-title" content="${appShortName}" />`);
+      html = html.replace(/<meta name="application-name" content=".*?" \/>/i, `<meta name="application-name" content="${appShortName}" />`);
       res.setHeader('Content-Type', 'text/html');
       return res.send(html);
     }

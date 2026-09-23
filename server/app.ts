@@ -5,7 +5,7 @@ import fs from "fs";
 import os from "os";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
-import { cleanEnvString, isDisableDefaultItems, getBasicAuthCredentials, getMaxUploadSizeMB, getMaxUploadSizeBytes } from "./config";
+import { cleanEnvString, isDisableDefaultItems, getBasicAuthCredentials, getMaxUploadSizeMB, getMaxUploadSizeBytes, getAppName, getAppShortName } from "./config";
 import { JobsStorage, TranscribeJob, sampleJobsList } from "./storage";
 import {
   getSystemInstruction,
@@ -224,15 +224,74 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   // API Routes
   app.get("/api/config", (req, res) => {
-    const appTitle = env.APP_TITLE || "ScribeNode – Transcription Engine";
+    const appTitle = env.APP_TITLE || env.APP_NAME || "ScribeNode – Transcription Engine";
+    const appName = getAppName(env);
+    const appShortName = getAppShortName(env);
     res.json({
       appTitle,
+      appName,
+      appShortName,
       basicAuthEnabled: authState.enabled,
       disableDefaultItems: isDisableDefaultItems(env),
       hasGeminiKey: Boolean(cleanEnvString(env.GEMINI_API_KEY)),
       modelStatus,
       maxUploadSizeMB
     });
+  });
+
+  // Dynamic PWA Web App Manifest (honors APP_NAME, APP_TITLE, APP_SHORT_NAME from environment or docker-compose)
+  app.get(["/manifest.webmanifest", "/manifest.json"], (req, res) => {
+    const distManifestPath = path.join(process.cwd(), "dist", "manifest.webmanifest");
+    let manifestBase: any = {};
+    if (fs.existsSync(distManifestPath)) {
+      try {
+        manifestBase = JSON.parse(fs.readFileSync(distManifestPath, "utf-8"));
+      } catch {}
+    }
+
+    const appName = getAppName(env);
+    const appShortName = getAppShortName(env);
+
+    const manifest = {
+      description: "High-fidelity audio transcription, speaker diarization, and multimodal speech intelligence engine powered by Gemini.",
+      theme_color: "#0f172a",
+      background_color: "#0f172a",
+      display: "standalone",
+      orientation: "any",
+      scope: "/",
+      start_url: "/",
+      categories: ["productivity", "utilities", "audio", "business"],
+      icons: manifestBase?.icons || [
+        {
+          src: "/pwa-192x192.png",
+          sizes: "192x192",
+          type: "image/png"
+        },
+        {
+          src: "/pwa-512x512.png",
+          sizes: "512x512",
+          type: "image/png"
+        },
+        {
+          src: "/pwa-maskable-512x512.png",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "maskable"
+        },
+        {
+          src: "/pwa-icon.svg",
+          sizes: "512x512",
+          type: "image/svg+xml",
+          purpose: "any"
+        }
+      ],
+      ...manifestBase,
+      name: appName,
+      short_name: appShortName
+    };
+
+    res.setHeader("Content-Type", "application/manifest+json");
+    res.json(manifest);
   });
 
   app.get("/api/model-status", (req, res) => {
