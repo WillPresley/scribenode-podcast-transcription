@@ -18,7 +18,7 @@
 - 📖 **Custom Vocabulary & Technical Glossary**: Inject domain-specific terminology, brand names, acronyms, and proper nouns into transcription prompts to maximize recognition accuracy.
 - ✏️ **Inline Quick Edit & Global Speaker Renaming**: In-place transcript editing via markdown editor and one-click global speaker alias replacement across entire transcripts.
 - 🎙️ **High-Fidelity Audio Transcription**: Multimodal transcription with `gemini-3.8-flash` featuring conversational reasoning, speaker diarization, and clean-verbatim parsing.
-- 🔄 **Intelligent Multi-Tier Failover Cascade**: Seamless automatic failover across `gemini-3.8-flash` ➡️ `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-2.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-flash-lite-latest` ➡️ `gemini-flash-latest`.
+- 🔄 **Intelligent Multi-Tier Failover Cascade**: Seamless automatic failover across `gemini-3.8-flash` ➡️ `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-2.5-flash-lite` ➡️ `gemini-flash-lite-latest` ➡️ `gemini-flash-latest`.
 - 🩺 **Per-Model Diagnostics & Error Translation**: Live Model Orchestration inspector translating raw 503/429/400/403 errors into human-friendly explanations with one-click recovery.
 - 📱 **Adaptive Mobile Workspace**: Full responsive mobile navigation drawer, segmented workspace tabs, and touch-friendly controls with zero desktop layout regression.
 - ⚡ **Clean Verbatim Transcription**: Specialized prompting removes speech disfluencies, filler words (*uh*, *um*, *like*), stutters, and false starts while preserving technical domain terms.
@@ -56,7 +56,7 @@
 1. **Upload & Ingestion**: Audio files are uploaded to the Express backend via streaming multipart forms with configurable payload limits (`MAX_UPLOAD_SIZE_MB`).
 2. **Multimodal Audio Comprehension**: The engine routes directly to **`gemini-3.8-flash`**, combining acoustic processing with contextual reasoning to recognize domain vocabulary, infer human speaker names, and generate structured clean-verbatim transcripts in a single pass.
 3. **Resilient Multi-Tier Fallback Cascade**: If the primary model encounters temporary capacity constraints (503), quota limits (429), or parameter incompatibilities, the engine automatically fails over through:
-   `gemini-3.8-flash` ➡️ `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-2.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-flash-lite-latest` ➡️ `gemini-flash-latest`
+   `gemini-3.8-flash` ➡️ `gemini-3.7-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-2.5-flash-lite` ➡️ `gemini-flash-lite-latest` ➡️ `gemini-flash-latest`
 4. **Interactive Model Selection & Instant Reset**: Users can specifically choose any model from the dropdown to prioritize it first, automatically re-ordering the fallback cascade with instant one-click reset to the standard built-in order.
 5. **Console & Container Startup Visibility**: ScribeNode displays the active primary model, port binding, and the complete fallback chain in the pretty console and Docker startup banner upon boot.
 6. **Developer System Instructions**: Full system instructions (`BASE_TRANSCRIPTION_STANDARDS` / `getSystemInstruction()`) guide model outputs to strict, publication-ready Markdown.

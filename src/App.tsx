@@ -96,9 +96,9 @@ const ALL_TRANSCRIPTION_MODELS: string[] = [
   "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
-  "gemini-2.5-flash",
   "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
+  "gemini-2.5-flash-lite",
   "gemini-flash-lite-latest",
   "gemini-flash-latest"
 ];
@@ -415,9 +415,9 @@ export default function App() {
       "gemini-3.7-flash",
       "gemini-3.6-flash",
       "gemini-3.5-flash",
-      "gemini-2.5-flash",
       "gemini-3.5-flash-lite",
       "gemini-3.1-flash-lite",
+      "gemini-2.5-flash-lite",
       "gemini-flash-lite-latest",
       "gemini-flash-latest"
     ],
@@ -457,9 +457,10 @@ export default function App() {
     }
   };
 
-  const fetchModelStatus = async () => {
+  const fetchModelStatus = async (options?: { refresh?: boolean }) => {
     try {
-      const res = await fetch("/api/model-status");
+      const url = options?.refresh ? "/api/model-status?refresh=true" : "/api/model-status";
+      const res = await fetch(url);
       if (res.ok) {
         const data: ModelStatusInfo = await res.json();
         setModelStatus(data);
@@ -1814,7 +1815,7 @@ export default function App() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => fetchModelStatus()}
+                              onClick={() => fetchModelStatus({ refresh: true })}
                               className="text-slate-500 hover:text-slate-700 font-medium flex items-center gap-1 cursor-pointer hover:underline"
                             >
                               <RotateCcw className="h-3 w-3" /> Refresh

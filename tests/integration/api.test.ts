@@ -92,8 +92,27 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.fallbackModels).toContain('gemini-3.7-flash');
       expect(res.body.fallbackModels).toContain('gemini-3.6-flash');
       expect(res.body.fallbackModels).toContain('gemini-3.5-flash');
-      expect(res.body.fallbackModels).toContain('gemini-2.5-flash');
+      expect(res.body.fallbackModels).toContain('gemini-2.5-flash-lite');
+      expect(res.body.fallbackModels).not.toContain('gemini-2.5-flash');
       expect(res.body.fallbackModels).toContain('gemini-flash-lite-latest');
+    });
+
+    it('returns available models and cascade verification via GET /api/models/available', async () => {
+      const mockAiClient: any = {
+        models: {
+          list: async () => [
+            { name: 'models/gemini-3.8-flash', displayName: 'Gemini 3.8 Flash', supportedActions: ['generateContent'] },
+            { name: 'models/gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite', supportedActions: ['generateContent'] }
+          ]
+        }
+      };
+      const app = createApp({ storage, aiClient: mockAiClient, skipVite: true });
+      const res = await request(app).get('/api/models/available');
+      expect(res.status).toBe(200);
+      expect(res.body.models).toBeInstanceOf(Array);
+      expect(res.body.configuredCascade).toBeInstanceOf(Array);
+      expect(res.body.source).toBe('live_genai_api');
+      expect(res.body.models[0].name).toBe('gemini-3.8-flash');
     });
 
     it('allows manually selecting a model and re-ordering fallbacks via POST /api/model-status', async () => {

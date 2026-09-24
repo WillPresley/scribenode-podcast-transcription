@@ -66,6 +66,14 @@ export interface ModelErrorDetails {
   timestamp: number;
 }
 
+export interface AvailableModelItem {
+  name: string;
+  rawName: string;
+  displayName: string;
+  supportedActions: string[];
+  isConfiguredInCascade: boolean;
+}
+
 export interface ModelStatusInfo {
   primaryModel: string;
   activeModel: string;
@@ -76,6 +84,8 @@ export interface ModelStatusInfo {
   lastTestedTimestamp?: number;
   modelErrors?: Record<string, ModelErrorDetails>;
   isCustomSelection?: boolean;
+  availableLiveModels?: AvailableModelItem[];
+  liveModelsVerifiedAt?: number;
 }
 
 export interface BackupFileInfo {

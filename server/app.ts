@@ -19,7 +19,9 @@ import {
   renameSpeakerInTranscript,
   DEFAULT_TRANSCRIPTION_MODELS,
   DEFAULT_ANALYSIS_MODELS,
-  getTranscriptionModelsForJob
+  getTranscriptionModelsForJob,
+  queryAvailableGenAIModels,
+  AvailableModelItem
 } from "./transcriptionEngine";
 import { fetchRssFeed } from "./rss";
 import { downloadRemoteAudio } from "./remote";
@@ -321,7 +323,62 @@ export function createApp(options: CreateAppOptions = {}): Express {
     res.json(manifest);
   });
 
-  app.get("/api/model-status", (req, res) => {
+  app.get("/api/models/available", async (req, res) => {
+    try {
+      const client = options.aiClient || (env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: env.GEMINI_API_KEY }) : null);
+      if (!client) {
+        return res.json({
+          models: DEFAULT_TRANSCRIPTION_MODELS.map(m => ({
+            name: m,
+            rawName: `models/${m}`,
+            displayName: formatModelDisplayName(m),
+            supportedActions: ["generateContent"],
+            isConfiguredInCascade: true
+          })),
+          configuredCascade: [...DEFAULT_TRANSCRIPTION_MODELS],
+          timestamp: Date.now(),
+          source: "fallback_static"
+        });
+      }
+
+      const result = await queryAvailableGenAIModels(client);
+      modelStatus.availableLiveModels = result.models;
+      modelStatus.liveModelsVerifiedAt = result.timestamp;
+      return res.json({
+        ...result,
+        source: "live_genai_api"
+      });
+    } catch (err: any) {
+      console.warn("Error querying available GenAI models:", err);
+      return res.json({
+        models: DEFAULT_TRANSCRIPTION_MODELS.map(m => ({
+          name: m,
+          rawName: `models/${m}`,
+          displayName: formatModelDisplayName(m),
+          supportedActions: ["generateContent"],
+          isConfiguredInCascade: true
+        })),
+        configuredCascade: [...DEFAULT_TRANSCRIPTION_MODELS],
+        timestamp: Date.now(),
+        source: "error_fallback"
+      });
+    }
+  });
+
+  app.get("/api/model-status", async (req, res) => {
+    const shouldRefreshLive = req.query.refresh === 'true' || req.query.verify === 'true';
+    if (shouldRefreshLive && !modelStatus.availableLiveModels) {
+      try {
+        const client = options.aiClient || (env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: env.GEMINI_API_KEY }) : null);
+        if (client) {
+          const result = await queryAvailableGenAIModels(client);
+          modelStatus.availableLiveModels = result.models;
+          modelStatus.liveModelsVerifiedAt = result.timestamp;
+        }
+      } catch (err) {
+        console.warn("Could not refresh live models in /api/model-status:", err);
+      }
+    }
     res.json(modelStatus);
   });
 

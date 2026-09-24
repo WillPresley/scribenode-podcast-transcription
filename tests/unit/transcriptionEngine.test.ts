@@ -30,7 +30,8 @@ import {
   formatTurnsToMarkdown,
   buildStructuringPrompt,
   cleanFallbackTranscript,
-  refineTranscriptWithLLM
+  refineTranscriptWithLLM,
+  queryAvailableGenAIModels
 } from '../../server/transcriptionEngine';
 
 describe('Transcription Engine & AI Fallback Mechanics', () => {
@@ -39,7 +40,8 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(PRIMARY_TRANSCRIPTION_MODEL).toBe('gemini-3.8-flash');
       expect(DEFAULT_TRANSCRIPTION_MODELS[0]).toBe('gemini-3.8-flash');
       expect(DEFAULT_TRANSCRIPTION_MODELS[1]).toBe('gemini-3.7-flash');
-      expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-2.5-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-2.5-flash-lite');
+      expect(DEFAULT_TRANSCRIPTION_MODELS).not.toContain('gemini-2.5-flash');
       expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-flash-lite-latest');
     });
 
@@ -48,10 +50,54 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(DEFAULT_ANALYSIS_MODELS[0]).toBe('gemini-3.8-flash');
       expect(DEFAULT_ANALYSIS_MODELS[1]).toBe('gemini-3.7-flash');
       expect(DEFAULT_ANALYSIS_MODELS).not.toContain('gemini-3.5-transcribe');
+      expect(DEFAULT_ANALYSIS_MODELS).toContain('gemini-2.5-flash-lite');
+      expect(DEFAULT_ANALYSIS_MODELS).not.toContain('gemini-2.5-flash');
     });
 
     it('sets MAX_TRANSCRIBE_MODEL_DURATION_SECONDS to 59 minutes (3540 seconds)', () => {
       expect(MAX_TRANSCRIBE_MODEL_DURATION_SECONDS).toBe(3540);
+    });
+  });
+
+  describe('queryAvailableGenAIModels', () => {
+    it('queries available models cleanly and sorts configured models first', async () => {
+      const mockList = [
+        { name: 'models/gemini-3.8-flash', displayName: 'Gemini 3.8 Flash', supportedActions: ['generateContent'] },
+        { name: 'models/gemini-embedding-001', displayName: 'Gemini Embedding', supportedActions: ['embedContent'] },
+        { name: 'models/gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite', supportedActions: ['generateContent'] },
+        { name: 'models/gemini-custom-future', displayName: 'Gemini Custom Future', supportedActions: ['generateContent'] }
+      ];
+
+      const mockAiClient: any = {
+        models: {
+          list: async () => mockList
+        }
+      };
+
+      const result = await queryAvailableGenAIModels(mockAiClient);
+      expect(result.models.length).toBe(3); // excludes embedContent
+      expect(result.models[0].name).toBe('gemini-3.8-flash');
+      expect(result.models[0].isConfiguredInCascade).toBe(true);
+      expect(result.models[1].name).toBe('gemini-2.5-flash-lite');
+      expect(result.models[1].isConfiguredInCascade).toBe(true);
+      expect(result.models[2].name).toBe('gemini-custom-future');
+      expect(result.models[2].isConfiguredInCascade).toBe(false);
+      expect(result.configuredCascade).toEqual(DEFAULT_TRANSCRIPTION_MODELS);
+    });
+
+    it('returns default fallback models gracefully when models.list throws an error', async () => {
+      const mockAiClient: any = {
+        models: {
+          list: async () => {
+            throw new Error('API network failure');
+          }
+        }
+      };
+
+      const result = await queryAvailableGenAIModels(mockAiClient);
+      expect(result.models.length).toBe(DEFAULT_TRANSCRIPTION_MODELS.length);
+      expect(result.models[0].name).toBe('gemini-3.8-flash');
+      expect(result.models.every(m => m.isConfiguredInCascade)).toBe(true);
     });
   });
 

@@ -387,9 +387,9 @@ export const DEFAULT_DOWNSTREAM_MODELS = [
   "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
-  "gemini-2.5-flash",
   "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
+  "gemini-2.5-flash-lite",
   "gemini-flash-lite-latest",
   "gemini-flash-latest"
 ];
@@ -399,14 +399,79 @@ export const DEFAULT_TRANSCRIPTION_MODELS = [
   "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
-  "gemini-2.5-flash",
   "gemini-3.5-flash-lite",
   "gemini-3.1-flash-lite",
+  "gemini-2.5-flash-lite",
   "gemini-flash-lite-latest",
   "gemini-flash-latest"
 ];
 
 export const DEFAULT_ANALYSIS_MODELS = [...DEFAULT_DOWNSTREAM_MODELS];
+
+export interface AvailableModelItem {
+  name: string;
+  rawName: string;
+  displayName: string;
+  supportedActions: string[];
+  isConfiguredInCascade: boolean;
+}
+
+/**
+ * Cleanly queries Google GenAI API for currently available models that support generateContent.
+ * Verifies live model availability against the active GenAI package and returns model metadata.
+ */
+export async function queryAvailableGenAIModels(aiClient: GoogleGenAI): Promise<{
+  models: AvailableModelItem[];
+  configuredCascade: string[];
+  timestamp: number;
+}> {
+  try {
+    const list = await aiClient.models.list();
+    const models: AvailableModelItem[] = [];
+    for await (const m of list) {
+      const actions = (m as any).supportedActions || (m as any).supportedGenerationMethods || [];
+      if (actions.includes("generateContent")) {
+        const cleanName = m.name ? m.name.replace(/^models\//, "") : "";
+        models.push({
+          name: cleanName,
+          rawName: m.name || "",
+          displayName: m.displayName || formatModelDisplayName(cleanName),
+          supportedActions: actions,
+          isConfiguredInCascade: DEFAULT_TRANSCRIPTION_MODELS.includes(cleanName)
+        });
+      }
+    }
+
+    // Sort models so that configured cascade models appear in hierarchy order, followed by other models
+    models.sort((a, b) => {
+      const idxA = DEFAULT_TRANSCRIPTION_MODELS.indexOf(a.name);
+      const idxB = DEFAULT_TRANSCRIPTION_MODELS.indexOf(b.name);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.displayName.localeCompare(b.displayName);
+    });
+
+    return {
+      models,
+      configuredCascade: [...DEFAULT_TRANSCRIPTION_MODELS],
+      timestamp: Date.now()
+    };
+  } catch (err) {
+    console.warn("[Gemini API] Failed to query live models via aiClient.models.list():", err);
+    return {
+      models: DEFAULT_TRANSCRIPTION_MODELS.map(m => ({
+        name: m,
+        rawName: `models/${m}`,
+        displayName: formatModelDisplayName(m),
+        supportedActions: ["generateContent"],
+        isConfiguredInCascade: true
+      })),
+      configuredCascade: [...DEFAULT_TRANSCRIPTION_MODELS],
+      timestamp: Date.now()
+    };
+  }
+}
 
 export const MAX_TRANSCRIBE_MODEL_DURATION_SECONDS = 59 * 60; // 59 minutes = 3540 seconds
 
