@@ -7,6 +7,7 @@ import { JobsStorage, TranscribeJob } from "../../server/storage";
 import {
   generateBackupFilename,
   sanitizeBackupFilename,
+  resolveSafeBackupPath,
   createBackupArchive,
   listStoredBackups,
   deleteStoredBackup,
@@ -41,6 +42,18 @@ describe("Backup & Restore Engine (Homelab / Self-Host)", () => {
       expect(sanitizeBackupFilename("backup-2026.zip")).toBe("backup-2026.zip");
       expect(sanitizeBackupFilename("../../secret/backup.zip")).toBe("backup.zip");
       expect(() => sanitizeBackupFilename("bad/name;rm -rf")).toThrow();
+    });
+
+    it("resolves and confines safe backup paths strictly inside backups directory", () => {
+      const resolved = resolveSafeBackupPath(storage, "backup-safe.zip");
+      const expectedDir = path.resolve(getBackupsDirectory(storage));
+      expect(resolved.startsWith(expectedDir)).toBe(true);
+      expect(path.basename(resolved)).toBe("backup-safe.zip");
+
+      // Verify path traversal attempts are rejected or sanitized safely
+      expect(() => resolveSafeBackupPath(storage, "")).toThrow();
+      expect(() => resolveSafeBackupPath(storage, null as any)).toThrow();
+      expect(() => resolveSafeBackupPath(storage, "foo/bar/bad.zip")).toThrow();
     });
   });
 

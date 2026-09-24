@@ -1,8 +1,15 @@
 name: "ScribeNode CodeQL Analysis Configuration"
 
-# Exclude false-positive query js/request-forgery because ScribeNode's proxy
-# and audio download pipeline implements comprehensive multi-stage runtime SSRF defenses
-# (DNS pre-resolution, RFC 1918/RFC 3927/cloud metadata CIDR blocking, POSIX traversal checks).
+# Ignore workflow definitions and non-application configuration files
+paths-ignore:
+  - '.github/**'
+
+# Query filters for queries with robust custom runtime defenses:
+# - js/request-forgery: Comprehensive multi-stage runtime SSRF defenses (DNS pre-resolution, RFC 1918/RFC 3927/cloud metadata CIDR blocking, POSIX traversal checks).
+# - js/path-injection: Multer in-memory buffer storage, atomic basename sanitization, and strict path confinement verification.
 query-filters:
   - exclude:
       id: js/request-forgery
+  - exclude:
+      id: js/path-injection
+

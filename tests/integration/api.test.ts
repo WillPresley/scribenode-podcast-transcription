@@ -887,6 +887,38 @@ describe('API Integration & Route Endpoints', () => {
       expect(delRes2.status).toBe(404);
     });
 
+    it('uploads and restores backup via POST /api/backups/upload-restore using memory buffer', async () => {
+      const app = createApp({ storage, skipVite: true });
+      const createRes = await request(app)
+        .post('/api/backups/create')
+        .send({ includeAudio: false });
+
+      const filename = createRes.body.backup.filename;
+      const downloadRes = await request(app)
+        .get(`/api/backups/${filename}/download`)
+        .buffer(true)
+        .parse((res, callback) => {
+          const data: Buffer[] = [];
+          res.on('data', (chunk) => data.push(chunk));
+          res.on('end', () => callback(null, Buffer.concat(data)));
+        });
+
+      // Clear storage
+      storage.clear();
+      expect(storage.values().length).toBe(0);
+
+      // Upload and restore
+      const uploadRes = await request(app)
+        .post('/api/backups/upload-restore')
+        .attach('backup', downloadRes.body, 'uploaded-backup.zip')
+        .field('mode', 'replace');
+
+      expect(uploadRes.status).toBe(200);
+      expect(uploadRes.body.success).toBe(true);
+      expect(uploadRes.body.result.restoredJobsCount).toBeGreaterThan(0);
+      expect(storage.values().length).toBeGreaterThan(0);
+    });
+
     it('rejects directory traversal in download, restore, and delete', async () => {
       const app = createApp({ storage, skipVite: true });
       const badRes = await request(app).get('/api/backups/..%2F..%2Fetc%2Fpasswd/download');

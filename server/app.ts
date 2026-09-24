@@ -38,7 +38,8 @@ import {
   restoreBackupFromBuffer,
   getBackupsDirectory,
   sanitizeBackupFilename,
-  generateBackupFilename
+  generateBackupFilename,
+  resolveSafeBackupPath
 } from "./backup";
 import { ModelStatusInfo, ModelErrorDetails } from "../src/types";
 
@@ -180,7 +181,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
   });
 
   const backupUpload = multer({
-    dest: os.tmpdir(),
+    storage: multer.memoryStorage(),
     limits: {
       fileSize: maxUploadSizeBytes,
     }
@@ -1068,21 +1069,19 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.get("/api/backups/:filename/download", backupLimiter, (req, res) => {
     try {
       const rawFilename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
-      const safeFilename = sanitizeBackupFilename(String(rawFilename || ""));
-      const backupsDir = getBackupsDirectory(storage);
-      const filePath = path.join(backupsDir, safeFilename);
+      const filePath = resolveSafeBackupPath(storage, String(rawFilename || ""));
 
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: "Backup file not found" });
       }
 
+      const safeFilename = path.basename(filePath);
       res.setHeader("Content-Type", "application/zip");
       res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"`);
       const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
-    } catch (err: any) {
-      console.error("[Backup] Download error:", err);
-      res.status(400).json({ error: err.message || "Invalid backup download request" });
+    } catch {
+      res.status(404).json({ error: "Backup file not found" });
     }
   });
 
@@ -1090,15 +1089,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.delete("/api/backups/:filename", backupLimiter, (req, res) => {
     try {
       const rawFilename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
-      const safeFilename = sanitizeBackupFilename(String(rawFilename || ""));
-      const deleted = deleteStoredBackup(storage, safeFilename);
+      const deleted = deleteStoredBackup(storage, String(rawFilename || ""));
       if (!deleted) {
         return res.status(404).json({ error: "Backup file not found" });
       }
-      res.json({ success: true, message: `Backup ${safeFilename} deleted successfully` });
-    } catch (err: any) {
-      console.error("[Backup] Delete error:", err);
-      res.status(400).json({ error: err.message || "Failed to delete backup" });
+      res.json({ success: true, message: "Backup deleted successfully" });
+    } catch {
+      res.status(404).json({ error: "Backup file not found" });
     }
   });
 
@@ -1106,9 +1103,12 @@ export function createApp(options: CreateAppOptions = {}): Express {
   app.post("/api/backups/:filename/restore", backupLimiter, async (req, res) => {
     try {
       const rawFilename = Array.isArray(req.params.filename) ? req.params.filename[0] : req.params.filename;
-      const safeFilename = sanitizeBackupFilename(String(rawFilename || ""));
-      const backupsDir = getBackupsDirectory(storage);
-      const filePath = path.join(backupsDir, safeFilename);
+      let filePath: string;
+      try {
+        filePath = resolveSafeBackupPath(storage, String(rawFilename || ""));
+      } catch {
+        return res.status(404).json({ error: "Backup file not found" });
+      }
 
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: "Backup file not found" });
@@ -1142,14 +1142,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
       next();
     });
   }, async (req, res) => {
-    const rawUploadedPath = req.file?.path;
     try {
-      if (!req.file || !rawUploadedPath || !fs.existsSync(rawUploadedPath)) {
+      if (!req.file || !req.file.buffer || req.file.buffer.length === 0) {
         return res.status(400).json({ error: "Please upload a valid .zip backup file." });
       }
 
       const mode = req.body?.mode === "replace" ? "replace" : "merge";
-      const zipBuffer = fs.readFileSync(rawUploadedPath);
+      const zipBuffer = req.file.buffer;
 
       const result = await restoreBackupFromBuffer({
         storage,
@@ -1157,31 +1156,22 @@ export function createApp(options: CreateAppOptions = {}): Express {
         mode
       });
 
-      // Save a copy to stored backups directory with safe name
+      // Optionally save a copy to stored backups directory with server-generated safe timestamped name
       if (req.body?.saveToBackups !== "false" && req.body?.saveToBackups !== false) {
         try {
           const backupsDir = getBackupsDirectory(storage);
-          const origName = req.file.originalname && req.file.originalname.endsWith(".zip")
-            ? req.file.originalname
-            : generateBackupFilename("scribenode-restored-backup");
-          const safeName = sanitizeBackupFilename(origName);
-          const destPath = path.join(backupsDir, safeName);
+          const safeServerName = generateBackupFilename("scribenode-restored-backup");
+          const destPath = path.join(backupsDir, safeServerName);
           if (!fs.existsSync(destPath)) {
-            fs.copyFileSync(rawUploadedPath, destPath);
+            fs.writeFileSync(destPath, zipBuffer);
           }
-        } catch {}
+        } catch (saveErr) {
+          console.warn("[Backup] Could not save uploaded backup copy to persistent storage:", saveErr);
+        }
       }
-
-      // Cleanup temp uploaded file
-      try {
-        fs.unlinkSync(rawUploadedPath);
-      } catch {}
 
       res.json({ success: true, result });
     } catch (err: any) {
-      if (rawUploadedPath && fs.existsSync(rawUploadedPath)) {
-        try { fs.unlinkSync(rawUploadedPath); } catch {}
-      }
       console.error("[Backup] Upload-Restore error:", err);
       res.status(500).json({ error: err.message || "Failed to restore uploaded backup" });
     }

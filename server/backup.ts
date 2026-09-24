@@ -77,6 +77,30 @@ export function sanitizeBackupFilename(filename: string): string {
 }
 
 /**
+ * Resolves and strictly validates that a backup filename points safely
+ * inside the persistent backups directory, preventing path traversal.
+ */
+export function resolveSafeBackupPath(storage: JobsStorage, filename: string): string {
+  if (!filename || typeof filename !== "string") {
+    throw new Error("Invalid backup filename.");
+  }
+  if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+    throw new Error("Path traversal detected in backup filename.");
+  }
+  const safeFilename = sanitizeBackupFilename(filename);
+  const backupsDir = path.resolve(getBackupsDirectory(storage));
+  const resolvedPath = path.resolve(backupsDir, safeFilename);
+
+  // Confinement verification: must be strictly inside backupsDir and not in subdirectories
+  const relative = path.relative(backupsDir, resolvedPath);
+  if (relative.startsWith("..") || path.isAbsolute(relative) || relative.includes(path.sep)) {
+    throw new Error("Path traversal detected in backup filename.");
+  }
+
+  return resolvedPath;
+}
+
+/**
  * Creates a complete ZIP backup of ScribeNode data and writes it to disk.
  */
 export async function createBackupArchive({
@@ -218,15 +242,16 @@ export async function listStoredBackups(storage: JobsStorage): Promise<BackupFil
  * Deletes a stored backup archive by filename.
  */
 export function deleteStoredBackup(storage: JobsStorage, filename: string): boolean {
-  const safeName = sanitizeBackupFilename(filename);
-  const backupsDir = getBackupsDirectory(storage);
-  const targetPath = path.join(backupsDir, safeName);
-
-  if (fs.existsSync(targetPath)) {
-    fs.unlinkSync(targetPath);
-    return true;
+  try {
+    const targetPath = resolveSafeBackupPath(storage, filename);
+    if (fs.existsSync(targetPath)) {
+      fs.unlinkSync(targetPath);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
   }
-  return false;
 }
 
 /**

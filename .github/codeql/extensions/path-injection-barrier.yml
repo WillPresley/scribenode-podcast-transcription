@@ -1,0 +1,15 @@
+# CodeQL Data Extension: Path Injection Barrier Models
+# Defines project-specific sanitizers and barriers for js/path-injection (CWE-22, CWE-73) analysis.
+extensions:
+  - addsTo:
+      pack: codeql/javascript-all
+      extensible: barrierModel
+    data:
+      # Module-scoped barrier models
+      - ["server/backup", "Member[sanitizeBackupFilename].ReturnValue", "path-injection"]
+      - ["server/backup", "Member[resolveSafeBackupPath].ReturnValue", "path-injection"]
+      - ["./backup", "Member[sanitizeBackupFilename].ReturnValue", "path-injection"]
+      - ["./backup", "Member[resolveSafeBackupPath].ReturnValue", "path-injection"]
+      # Global scope barrier models
+      - ["global", "Member[sanitizeBackupFilename].ReturnValue", "path-injection"]
+      - ["global", "Member[resolveSafeBackupPath].ReturnValue", "path-injection"]
