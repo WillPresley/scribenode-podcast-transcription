@@ -12,7 +12,9 @@ import {
   getAppName,
   getAppShortName,
   DEFAULT_APP_NAME,
-  DEFAULT_APP_SHORT_NAME
+  DEFAULT_APP_SHORT_NAME,
+  getGeminiUserAgent,
+  DEFAULT_GEMINI_USER_AGENT
 } from '../../server/config';
 
 describe('Server Configuration & Security Guard Engine', () => {
@@ -220,6 +222,23 @@ describe('Server Configuration & Security Guard Engine', () => {
     it('handles quoted environment variables gracefully', () => {
       expect(getAppName({ APP_NAME: '"Clean Podcaster"' })).toBe('Clean Podcaster');
       expect(getAppShortName({ APP_SHORT_NAME: "'Podcaster'" })).toBe('Podcaster');
+    });
+  });
+
+  describe('Gemini Telemetry & User-Agent Configuration (getGeminiUserAgent)', () => {
+    it('returns default "aistudio-build" when no custom user agent is configured', () => {
+      expect(DEFAULT_GEMINI_USER_AGENT).toBe('aistudio-build');
+      expect(getGeminiUserAgent({})).toBe('aistudio-build');
+      expect(getGeminiUserAgent({ GEMINI_USER_AGENT: '' })).toBe('aistudio-build');
+    });
+
+    it('honors custom GEMINI_USER_AGENT environment variable for self-hosted instances', () => {
+      expect(getGeminiUserAgent({ GEMINI_USER_AGENT: 'scribenode-homelab/1.5.5' })).toBe('scribenode-homelab/1.5.5');
+      expect(getGeminiUserAgent({ GEMINI_USER_AGENT: '"custom-agent"' })).toBe('custom-agent');
+    });
+
+    it('falls back to USER_AGENT if GEMINI_USER_AGENT is not provided', () => {
+      expect(getGeminiUserAgent({ USER_AGENT: 'my-bot/1.0' })).toBe('my-bot/1.0');
     });
   });
 });

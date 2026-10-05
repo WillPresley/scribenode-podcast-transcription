@@ -5,7 +5,16 @@ import fs from "fs";
 import os from "os";
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
-import { cleanEnvString, isDisableDefaultItems, getBasicAuthCredentials, getMaxUploadSizeMB, getMaxUploadSizeBytes, getAppName, getAppShortName } from "./config";
+import {
+  cleanEnvString,
+  isDisableDefaultItems,
+  getBasicAuthCredentials,
+  getMaxUploadSizeMB,
+  getMaxUploadSizeBytes,
+  getAppName,
+  getAppShortName,
+  getGeminiUserAgent
+} from "./config";
 import { JobsStorage, TranscribeJob, sampleJobsList } from "./storage";
 import {
   getSystemInstruction,
@@ -201,7 +210,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
         apiKey: apiKey,
         httpOptions: {
           headers: {
-            'User-Agent': 'aistudio-build',
+            'User-Agent': getGeminiUserAgent(env),
           }
         }
       });

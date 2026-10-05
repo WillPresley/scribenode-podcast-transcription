@@ -144,6 +144,10 @@ MAX_UPLOAD_SIZE_MB=100
 # Major podcast platforms and CDNs (Buzzsprout, Libsyn, Spotify, Apple, Transistor, Megaphone, AWS S3, Google Cloud, etc.) are permitted by default.
 # Set to "*" to permit all public internet domains while maintaining full IP/CIDR and cloud metadata SSRF defenses.
 ALLOWED_REMOTE_DOMAINS=""
+
+# 🤖 OPTIONAL: Custom Gemini API User-Agent Telemetry Header
+# Defaults to "aistudio-build". You can optionally customize this header for private homelab or self-hosted tracking (e.g., "scribenode/1.5.5").
+GEMINI_USER_AGENT="aistudio-build"
 ```
 
 ---

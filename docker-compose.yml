@@ -56,6 +56,9 @@ services:
       # Optional: Configurable remote SSRF allowlist
       - ALLOWED_REMOTE_DOMAINS=${ALLOWED_REMOTE_DOMAINS:-}
 
+      # Optional: Custom Gemini API User-Agent header (defaults to aistudio-build)
+      - GEMINI_USER_AGENT=${GEMINI_USER_AGENT:-aistudio-build}
+
     volumes:
       - scribenode_uploads:/app/uploads
 
