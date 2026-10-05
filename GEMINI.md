@@ -56,6 +56,14 @@ Before declaring any coding task complete, execute the following verification lo
 - **Live GenAI Package Verification & Zero-Ghost-Model Policy**:
   - Every model included in default arrays or fallback cascades MUST be verified against the active `@google/genai` SDK and Google Generative Language API via `ai.models.list()`. Ghost or unversioned IDs (such as `gemini-2.5-flash`, which returns HTTP 404) are strictly prohibited; always use verified active IDs like `gemini-2.5-flash-lite`.
   - The backend provides clean interrogation routines via `queryAvailableGenAIModels(aiClient)` and `GET /api/models/available` so model availability, capabilities (`generateContent`), and cascade configuration can be inspected and verified at runtime without trial-and-error failures.
+- **@google/genai Modern Architecture & Best Practices**:
+  - **Shared Client Singleton & Telemetry**: Always initialize `new GoogleGenAI` with `httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }` on the server. Never instantiate ad-hoc client instances missing telemetry headers or credentials. Client-side browser code must NEVER import `@google/genai` or handle `GEMINI_API_KEY`.
+  - **Strict Deprecated API Ban**: Strictly prohibit deprecated legacy APIs (`GoogleGenerativeAI`, `generationConfig`, `GoogleGenAIError`, `GenerateContentResult`, `GenerateContentRequest`, `SchemaType`). Always use `GoogleGenAI`, `GenerateContentResponse`, `GenerateContentParameters`, and the `Type` enum. Access extracted text via the `.text` property (never call `.text()`).
+  - **Token Management & Thinking Models**: In Gemini 3 series (`gemini-3.8-flash`), do NOT use hard `maxOutputTokens` limits to shape output length because reasoning/thinking tokens count toward `maxOutputTokens`, which risks truncating the actual response prematurely. Always enforce output length, paragraphing, and structural depth inside `systemInstruction`.
+  - **Mode-Specific Configuration Hygiene**:
+    - Dedicated speech models (`gemini-3.5-transcribe`): Never send developer `systemInstruction` (avoids HTTP 400 parameter errors); pass `audioTranscriptionConfig` instead.
+    - General reasoning & multimodal models (`gemini-3.8-flash` through `gemini-flash-latest`): Strictly strip `audioTranscriptionConfig` and `audioTimestamp` parameters; inject developer `systemInstruction` and prompt directives directly.
+  - **Continuation Tokens & Large Output Streaming**: Keep engine logic compatible with modern streaming patterns (`generateContentStream` and v2.26.0 `continuation_token`) for resumed or long-running content generation.
 - **Dynamic Parameter & Prompt Adaptation**:
   - Multimodal audio transcription directly passes developer system instructions (`BASE_TRANSCRIPTION_STANDARDS` / `getSystemInstruction()`) alongside prompt directives (`buildTranscriptionPrompt`), ensuring publication-grade output layout and speaker detection in a single pass.
 - **Human-Readable Error Categorization**:

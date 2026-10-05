@@ -209,6 +209,15 @@ export function createApp(options: CreateAppOptions = {}): Express {
     return aiInstance;
   }
 
+  function tryGetAIClient(): GoogleGenAI | null {
+    if (options.aiClient) return options.aiClient;
+    try {
+      return getAIClient();
+    } catch {
+      return null;
+    }
+  }
+
   // Parse json and urlencoded payloads
   app.use(express.json({ limit: '10mb' }));
 
@@ -325,7 +334,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
   app.get("/api/models/available", async (req, res) => {
     try {
-      const client = options.aiClient || (env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: env.GEMINI_API_KEY }) : null);
+      const client = tryGetAIClient();
       if (!client) {
         return res.json({
           models: DEFAULT_TRANSCRIPTION_MODELS.map(m => ({
@@ -369,7 +378,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
     const shouldRefreshLive = req.query.refresh === 'true' || req.query.verify === 'true';
     if (shouldRefreshLive && !modelStatus.availableLiveModels) {
       try {
-        const client = options.aiClient || (env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: env.GEMINI_API_KEY }) : null);
+        const client = tryGetAIClient();
         if (client) {
           const result = await queryAvailableGenAIModels(client);
           modelStatus.availableLiveModels = result.models;
