@@ -39,7 +39,7 @@
     "@vitest/coverage-v8": "^5.0.3",
     "autoprefixer": "^10.6.1",
     "esbuild": "^0.28.2",
-    "supertest": "^7.3.0",
+    "supertest": "^7.3.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "~5.9.3",
