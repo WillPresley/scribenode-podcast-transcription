@@ -31,7 +31,8 @@ import {
   buildStructuringPrompt,
   cleanFallbackTranscript,
   refineTranscriptWithLLM,
-  queryAvailableGenAIModels
+  queryAvailableGenAIModels,
+  sanitizeGenerationConfig
 } from '../../server/transcriptionEngine';
 
 describe('Transcription Engine & AI Fallback Mechanics', () => {
@@ -392,7 +393,8 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       const callArgs = mockGenerateContent.mock.calls[0][0];
       // systemInstruction must NOT be passed in config to transcribe models
       expect(callArgs.config?.systemInstruction).toBeUndefined();
-      expect(callArgs.config?.temperature).toBe(0.2);
+      // Deprecated temperature parameter is safely stripped to prevent 400 errors
+      expect(callArgs.config?.temperature).toBeUndefined();
       // instruction should be cleanly integrated into contents
       expect(callArgs.contents[0].text).toContain('Custom instruction for transcription');
       expect(callArgs.contents[0].text).toContain('User audio prompt');
@@ -421,6 +423,8 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(result.model).toBe('gemini-3.7-flash');
       const callArgs = mockGenerateContent.mock.calls[0][0];
       expect(callArgs.config?.systemInstruction).toBe('Developer instruction');
+      // Deprecated temperature parameter is safely stripped
+      expect(callArgs.config?.temperature).toBeUndefined();
     });
 
     it('strictly isolates transcribe parameters on fileUri audio transcription with fallback', async () => {
@@ -467,7 +471,8 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(call2Args.config?.audioTimestamp).toBeUndefined();
       // Developer systemInstruction must be present
       expect(call2Args.config?.systemInstruction).toBeDefined();
-      expect(call2Args.config?.temperature).toBe(0.2);
+      // Deprecated temperature parameter is stripped
+      expect(call2Args.config?.temperature).toBeUndefined();
     });
 
     it('automatically fails over to next model when primary model returns an empty or whitespace response', async () => {
@@ -963,6 +968,69 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
     it('formats Generative Language API error messages correctly', () => {
       const formatted = formatGeminiErrorMessage('API error at https://generativelanguage.googleapis.com/v1beta/models');
       expect(formatted).toContain('Generative Language API is disabled');
+    });
+  });
+
+  describe('sanitizeGenerationConfig (Google AI Studio Deprecation & Thinking Levels Guard)', () => {
+    it('strips deprecated sampling parameters to avoid upcoming 400 errors', () => {
+      const input = {
+        temperature: 0.2,
+        top_p: 0.95,
+        top_k: 40,
+        topP: 0.9,
+        topK: 50,
+        systemInstruction: 'Test instruction'
+      };
+
+      const result = sanitizeGenerationConfig(input, 'gemini-3.8-flash');
+      expect(result).toBeDefined();
+      expect(result.systemInstruction).toBe('Test instruction');
+      expect(result.temperature).toBeUndefined();
+      expect(result.top_p).toBeUndefined();
+      expect(result.top_k).toBeUndefined();
+      expect(result.topP).toBeUndefined();
+      expect(result.topK).toBeUndefined();
+    });
+
+    it('returns undefined if all fields were deprecated sampling parameters and config becomes empty', () => {
+      const input = {
+        temperature: 0.7,
+        topP: 0.95
+      };
+      const result = sanitizeGenerationConfig(input, 'gemini-3.8-flash');
+      expect(result).toBeUndefined();
+    });
+
+    it('migrates deprecated thinking_budget to thinkingConfig.thinkingLevel', () => {
+      const input = {
+        thinking_budget: 0,
+        systemInstruction: 'Keep instructions'
+      };
+      const result = sanitizeGenerationConfig(input, 'gemini-3.8-flash');
+      expect(result.thinking_budget).toBeUndefined();
+      expect(result.thinkingConfig).toEqual({ thinkingLevel: 'minimal' });
+
+      const inputHigh = {
+        thinkingBudget: 2048
+      };
+      const resultHigh = sanitizeGenerationConfig(inputHigh, 'gemini-3.8-flash');
+      expect(resultHigh.thinkingBudget).toBeUndefined();
+      expect(resultHigh.thinkingConfig).toEqual({ thinkingLevel: 'high' });
+    });
+
+    it('places top-level thinking_level into thinkingConfig.thinkingLevel', () => {
+      const input = {
+        thinking_level: 'high',
+        systemInstruction: 'Solve riddle'
+      };
+      const result = sanitizeGenerationConfig(input, 'gemini-3.8-flash');
+      expect(result.thinking_level).toBeUndefined();
+      expect(result.thinkingConfig).toEqual({ thinkingLevel: 'high' });
+    });
+
+    it('handles null and undefined configurations gracefully', () => {
+      expect(sanitizeGenerationConfig(undefined)).toBeUndefined();
+      expect(sanitizeGenerationConfig(null)).toBeNull();
     });
   });
 });

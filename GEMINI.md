@@ -63,7 +63,12 @@ Before declaring any coding task complete, execute the following verification lo
   - **Mode-Specific Configuration Hygiene**:
     - Dedicated speech models (`gemini-3.5-transcribe`): Never send developer `systemInstruction` (avoids HTTP 400 parameter errors); pass `audioTranscriptionConfig` instead.
     - General reasoning & multimodal models (`gemini-3.8-flash` through `gemini-flash-latest`): Strictly strip `audioTranscriptionConfig` and `audioTimestamp` parameters; inject developer `systemInstruction` and prompt directives directly.
+  - **Zero-Deprecated-Sampling-Parameters Policy (CRITICAL)**:
+    - Never send `temperature`, `top_p`, `top_k`, `topP`, or `topK` in request configurations. Since Gemini 3.6 Flash, custom sampling values have had no effect, and upcoming Gemini models reject requests with `400 INVALID_ARGUMENT` if sampling parameters are supplied. All request configs must omit these fields so models utilize optimal defaults, and `sanitizeGenerationConfig` enforces this dynamically before API submission.
+  - **Thinking Budget Deprecation & Migration to `thinking_level`**:
+    - Strictly prohibit `thinking_budget` or `thinkingBudget` (which will return `400 INVALID_ARGUMENT` in upcoming models). Use `thinkingConfig: { thinkingLevel: ... }` ("minimal", "low", "medium", "high") or omit it entirely to use the model's adaptive default reasoning.
   - **Continuation Tokens & Large Output Streaming**: Keep engine logic compatible with modern streaming patterns (`generateContentStream` and v2.26.0 `continuation_token`) for resumed or long-running content generation.
+  - **Interactions API Awareness**: The Google AI Studio Interactions API is now in GA and recommended for agent and Omni workloads (`ai.interactions.create()`). While `generateContent` remains fully supported for standard foundation models, ensure architecture stays clean and modular for future endpoint routing.
 - **Dynamic Parameter & Prompt Adaptation**:
   - Multimodal audio transcription directly passes developer system instructions (`BASE_TRANSCRIPTION_STANDARDS` / `getSystemInstruction()`) alongside prompt directives (`buildTranscriptionPrompt`), ensuring publication-grade output layout and speaker detection in a single pass.
 - **Human-Readable Error Categorization**:

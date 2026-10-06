@@ -557,9 +557,6 @@ export function createApp(options: CreateAppOptions = {}): Express {
         audioTitle,
         fileUri: file.uri,
         mimeType: file.mimeType,
-        config: {
-          temperature: 0.2,
-        },
         onModelSelected: (selectedModel) => {
           job.modelUsed = selectedModel;
           storage.set(jobId, job);
@@ -1285,8 +1282,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
           { text: prompt }
         ],
         config: {
-          systemInstruction: "You are a professional content marketing and podcast assistant. Your goal is to analyze transcripts and generate high-quality, engaging promotional material, clear documentation, and listener sharing drafts.",
-          temperature: 0.3
+          systemInstruction: "You are a professional content marketing and podcast assistant. Your goal is to analyze transcripts and generate high-quality, engaging promotional material, clear documentation, and listener sharing drafts."
         },
         onModelSelected: (selectedModel) => {
           updateModelStatus(selectedModel);

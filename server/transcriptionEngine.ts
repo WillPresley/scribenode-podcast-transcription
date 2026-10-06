@@ -1073,10 +1073,7 @@ export async function refineTranscriptWithLLM(params: {
           {
             text: structuringPrompt
           }
-        ],
-        config: {
-          temperature: 0.2
-        }
+        ]
       });
 
       const refined = extractResponseText(response);
@@ -1248,6 +1245,58 @@ export function extractResponseText(response: any, promptStyle?: string, title?:
   return "";
 }
 
+/**
+ * Sanitizes model generation configuration according to modern Gemini API guidelines:
+ * - Strips deprecated sampling parameters (temperature, top_p, top_k, topP, topK)
+ *   to avoid 400 INVALID_ARGUMENT errors as Google enforces model defaults across Gemini 3+ and upcoming models.
+ * - Migrates deprecated thinking_budget / thinkingBudget to thinkingConfig.thinkingLevel or removes it.
+ * - Ensures thinkingLevel is placed properly in thinkingConfig.
+ */
+export function sanitizeGenerationConfig(config?: any, model?: string): any {
+  if (!config || typeof config !== "object") return config;
+  const sanitized = { ...config };
+
+  // Always strip deprecated sampling parameters (temperature, top_p, top_k, topP, topK)
+  // Since Gemini 3.6 Flash, these have had no effect and upcoming Gemini models return 400 errors.
+  delete sanitized.temperature;
+  delete sanitized.topP;
+  delete sanitized.top_p;
+  delete sanitized.topK;
+  delete sanitized.top_k;
+
+  // Remap or remove deprecated thinking_budget / thinkingBudget
+  if (sanitized.thinking_budget !== undefined || sanitized.thinkingBudget !== undefined) {
+    const budget = sanitized.thinking_budget ?? sanitized.thinkingBudget;
+    delete sanitized.thinking_budget;
+    delete sanitized.thinkingBudget;
+
+    // Translate budget heuristically if thinkingConfig is not yet defined
+    if (!sanitized.thinkingConfig) {
+      if (typeof budget === "number" && budget <= 0) {
+        sanitized.thinkingConfig = { thinkingLevel: "minimal" };
+      } else if (typeof budget === "number" && budget > 0 && budget <= 1024) {
+        sanitized.thinkingConfig = { thinkingLevel: "low" };
+      } else if (typeof budget === "number" && budget > 1024) {
+        sanitized.thinkingConfig = { thinkingLevel: "high" };
+      }
+    }
+  }
+
+  // If thinking_level or thinkingLevel is passed top-level, migrate into thinkingConfig.thinkingLevel
+  if (sanitized.thinking_level !== undefined || sanitized.thinkingLevel !== undefined) {
+    const level = sanitized.thinking_level ?? sanitized.thinkingLevel;
+    delete sanitized.thinking_level;
+    delete sanitized.thinkingLevel;
+    if (!sanitized.thinkingConfig) {
+      sanitized.thinkingConfig = { thinkingLevel: level };
+    } else if (!sanitized.thinkingConfig.thinkingLevel) {
+      sanitized.thinkingConfig.thinkingLevel = level;
+    }
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
 export async function generateContentWithFallback(params: {
   aiClient: GoogleGenAI;
   contents?: any;
@@ -1398,6 +1447,9 @@ export async function generateContentWithFallback(params: {
             }
           }
         }
+
+        // Apply global sanitization (strip deprecated temperature/top_p/top_k and remap thinking_budget)
+        modelConfig = sanitizeGenerationConfig(modelConfig, model);
 
         let responsePromise = params.aiClient.models.generateContent({
           model,
