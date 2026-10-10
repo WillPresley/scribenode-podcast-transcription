@@ -83,7 +83,7 @@ describe('Server Startup Banner Formatter (server/banner.ts)', () => {
     });
   });
 
-  it('preserves all 9 models and their display names in the fallback hierarchy', () => {
+  it('preserves all configured models and their display names in the fallback hierarchy', () => {
     const lines = buildStartupBannerLines();
     const joined = lines.join('\n');
 

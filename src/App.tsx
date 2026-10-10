@@ -93,14 +93,13 @@ const ScribeNodeLogo = ({ className = "w-9 h-9" }: { className?: string }) => (
 
 const ALL_TRANSCRIPTION_MODELS: string[] = [
   "gemini-3.8-flash",
-  "gemini-3.7-flash",
   "gemini-3.6-flash",
-  "gemini-3.5-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
-  "gemini-2.5-flash-lite",
   "gemini-flash-lite-latest",
-  "gemini-flash-latest"
+  "gemini-flash-latest",
+  "gemini-3.1-flash-lite",
+  "gemini-3.7-flash",
+  "gemini-3.5-flash",
+  "gemini-3.5-flash-lite"
 ];
 
 const SAMPLE_JOBS: Record<string, TranscribeJob> = {
@@ -412,14 +411,13 @@ export default function App() {
     activeModel: "gemini-3.8-flash",
     fallbackModels: [
       "gemini-3.8-flash",
-      "gemini-3.7-flash",
       "gemini-3.6-flash",
-      "gemini-3.5-flash",
-      "gemini-3.5-flash-lite",
-      "gemini-3.1-flash-lite",
-      "gemini-2.5-flash-lite",
       "gemini-flash-lite-latest",
-      "gemini-flash-latest"
+      "gemini-flash-latest",
+      "gemini-3.1-flash-lite",
+      "gemini-3.7-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite"
     ],
     status: "optimal"
   });

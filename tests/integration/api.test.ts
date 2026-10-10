@@ -92,7 +92,7 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.fallbackModels).toContain('gemini-3.7-flash');
       expect(res.body.fallbackModels).toContain('gemini-3.6-flash');
       expect(res.body.fallbackModels).toContain('gemini-3.5-flash');
-      expect(res.body.fallbackModels).toContain('gemini-2.5-flash-lite');
+      expect(res.body.fallbackModels).not.toContain('gemini-2.5-flash-lite');
       expect(res.body.fallbackModels).not.toContain('gemini-2.5-flash');
       expect(res.body.fallbackModels).toContain('gemini-flash-lite-latest');
     });
@@ -102,7 +102,7 @@ describe('API Integration & Route Endpoints', () => {
         models: {
           list: async () => [
             { name: 'models/gemini-3.8-flash', displayName: 'Gemini 3.8 Flash', supportedActions: ['generateContent'] },
-            { name: 'models/gemini-2.5-flash-lite', displayName: 'Gemini 2.5 Flash Lite', supportedActions: ['generateContent'] }
+            { name: 'models/gemini-3.6-flash', displayName: 'Gemini 3.6 Flash', supportedActions: ['generateContent'] }
           ]
         }
       };
@@ -450,9 +450,9 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.error).toBe('Invalid analysis mode');
     });
 
-    it('successfully falls over to secondary analysis models (gemini-3.5-flash) during 503 high demand', async () => {
+    it('successfully falls over to secondary analysis models (gemini-3.6-flash) during 503 high demand', async () => {
       const mockGenerateContent = vi.fn().mockImplementation(async ({ model }) => {
-        if (model === 'gemini-3.8-flash' || model === 'gemini-3.7-flash' || model === 'gemini-3.6-flash') {
+        if (model === 'gemini-3.8-flash') {
           throw new Error('503 Service Unavailable: This model is currently experiencing high demand.');
         }
         return { text: `Generated summary from fallback model ${model}` };
@@ -470,12 +470,12 @@ describe('API Integration & Route Endpoints', () => {
         .send({ mode: 'summary' });
 
       expect(res.status).toBe(200);
-      expect(res.body.result).toContain('Generated summary from fallback model gemini-3.5-flash');
-      expect(res.body.modelUsed).toBe('gemini-3.5-flash');
+      expect(res.body.result).toContain('Generated summary from fallback model gemini-3.6-flash');
+      expect(res.body.modelUsed).toBe('gemini-3.6-flash');
       expect(res.body.job).toBeDefined();
 
       const updatedJob = storage.get('sample-sarah');
-      expect(updatedJob?.summary).toContain('gemini-3.5-flash');
+      expect(updatedJob?.summary).toContain('gemini-3.6-flash');
     });
   });
 
