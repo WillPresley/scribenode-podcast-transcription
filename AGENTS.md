@@ -52,7 +52,7 @@ Before declaring any coding task complete, execute the following verification lo
 - **Strict Model Registry & Topology**:
   - **Primary Audio Transcription & Multimodal Reasoning Model**: `gemini-3.8-flash` (high-fidelity audio comprehension, native speaker diarization, clean-verbatim parsing, and rich Markdown formatting).
   - **Primary Downstream & Extended Analysis Model**: `gemini-3.8-flash` (executive summaries, structured chapters, key takeaways, and social assets).
-  - **Full Multi-Tier Fallback Cascade**: `gemini-3.8-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-flash-lite-latest` ➡️ `gemini-flash-latest` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-3.7-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite`.
+  - **Full Multi-Tier Fallback Cascade**: `gemini-3.8-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-flash-latest` ➡️ `gemini-flash-lite-latest` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-3.7-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite`.
 - **Live GenAI Package Verification & Zero-Ghost-Model Policy**:
   - Every model included in default arrays or fallback cascades MUST be verified against the active `@google/genai` SDK and Google Generative Language API via `ai.models.list()`. Ghost or unversioned/deprecated IDs (such as `gemini-2.5-flash` or `gemini-2.5-flash-lite`, which return HTTP 404) are strictly prohibited; always use verified active IDs.
   - The backend provides clean interrogation routines via `queryAvailableGenAIModels(aiClient)` and `GET /api/models/available` so model availability, capabilities (`generateContent`), and cascade configuration can be inspected and verified at runtime without trial-and-error failures.

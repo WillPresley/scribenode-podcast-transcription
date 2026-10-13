@@ -41,9 +41,12 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(PRIMARY_TRANSCRIPTION_MODEL).toBe('gemini-3.8-flash');
       expect(DEFAULT_TRANSCRIPTION_MODELS[0]).toBe('gemini-3.8-flash');
       expect(DEFAULT_TRANSCRIPTION_MODELS[1]).toBe('gemini-3.6-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS[2]).toBe('gemini-flash-latest');
+      expect(DEFAULT_TRANSCRIPTION_MODELS[3]).toBe('gemini-flash-lite-latest');
       expect(DEFAULT_TRANSCRIPTION_MODELS).not.toContain('gemini-2.5-flash-lite');
       expect(DEFAULT_TRANSCRIPTION_MODELS).not.toContain('gemini-2.5-flash');
       expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-flash-lite-latest');
+      expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-flash-latest');
     });
 
     it('defines primary downstream analysis model as gemini-3.8-flash', () => {
@@ -134,7 +137,8 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       const models59m = getTranscriptionModelsForJob('59:00');
       expect(models59m[0]).toBe('gemini-3.8-flash');
       expect(models59m[1]).toBe('gemini-3.6-flash');
-      expect(models59m[2]).toBe('gemini-flash-lite-latest');
+      expect(models59m[2]).toBe('gemini-flash-latest');
+      expect(models59m[3]).toBe('gemini-flash-lite-latest');
 
       const models30m = getTranscriptionModelsForJob('30:00');
       expect(models30m[0]).toBe('gemini-3.8-flash');
