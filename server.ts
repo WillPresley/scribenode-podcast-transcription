@@ -1,11 +1,10 @@
 import path from "path";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
-import { createServer as createViteServer } from "vite";
 import { createApp } from "./server/app";
 import { JobsStorage } from "./server/storage";
 import { printStartupBanner } from "./server/banner";
-import { getAppName, getAppShortName } from "./server/config";
+import { getAppShortName } from "./server/config";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const storage = new JobsStorage();
@@ -14,7 +13,9 @@ async function startServer() {
   const app = createApp({ storage });
 
   // Vite Integration & Static File Serving
+  // In development, dynamically load Vite middleware. In production, serve precompiled static dist.
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
