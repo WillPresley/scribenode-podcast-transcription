@@ -119,6 +119,7 @@ export class JobsStorage {
   private jobs = new Map<string, TranscribeJob>();
   public uploadsDir: string;
   public dbPath: string;
+  private debounceTimer: NodeJS.Timeout | null = null;
 
   constructor(uploadsDir = path.join(process.cwd(), "uploads")) {
     this.uploadsDir = uploadsDir;
@@ -167,12 +168,45 @@ export class JobsStorage {
   }
 
   public saveToDisk(): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
     try {
+      if (!fs.existsSync(this.uploadsDir)) {
+        fs.mkdirSync(this.uploadsDir, { recursive: true });
+      }
       const list = Array.from(this.jobs.values());
-      fs.writeFileSync(this.dbPath, JSON.stringify(list, null, 2), "utf-8");
+      const tmpPath = `${this.dbPath}.${Date.now()}.${Math.random().toString(36).substring(2, 8)}.tmp`;
+      fs.writeFileSync(tmpPath, JSON.stringify(list, null, 2), "utf-8");
+      fs.renameSync(tmpPath, this.dbPath);
     } catch (err) {
       console.error("[Storage] Failed to save jobs to disk:", err);
     }
+  }
+
+  /**
+   * Verifies that a target file path is safely contained within uploadsDir,
+   * preventing path traversal or directory escaping.
+   */
+  public isPathWithinUploads(targetPath: string): boolean {
+    if (!targetPath || typeof targetPath !== "string") return false;
+    const resolvedBase = path.resolve(this.uploadsDir);
+    const resolvedTarget = path.resolve(targetPath);
+    return resolvedTarget.startsWith(resolvedBase + path.sep);
+  }
+
+  /**
+   * Debounces disk serialization to consolidate rapid job status updates or progress events.
+   */
+  public saveToDiskDebounced(delayMs = 150): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+    this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = null;
+      this.saveToDisk();
+    }, delayMs);
   }
 
   public initialize(env = process.env): void {

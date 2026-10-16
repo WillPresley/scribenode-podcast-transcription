@@ -14,55 +14,55 @@ export function GlossaryInput({ value, onChange }: GlossaryInputProps) {
     : 0;
 
   return (
-    <div className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-3.5 space-y-2.5">
+    <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/90 dark:border-slate-700/80 rounded-xl p-3.5 space-y-2.5">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between text-left cursor-pointer select-none"
       >
         <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-indigo-600 shrink-0" />
+          <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
           <div>
-            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
               Custom Glossary & Vocabulary Hints
               {termsCount > 0 && (
-                <span className="px-1.5 py-0.2 bg-indigo-100 text-indigo-800 text-[9px] font-mono rounded font-extrabold">
+                <span className="px-1.5 py-0.2 bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 text-[9px] font-mono rounded font-extrabold border border-indigo-200/60 dark:border-indigo-800/80">
                   {termsCount} {termsCount === 1 ? "term" : "terms"}
                 </span>
               )}
             </span>
-            <p className="text-[10px] text-slate-500 mt-0.5">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
               Guide the AI model to accurately spell domain acronyms, technical terms, and speaker names.
             </p>
           </div>
         </div>
-        <div className="text-slate-400 p-1">
+        <div className="text-slate-400 dark:text-slate-500 p-1">
           {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
       </button>
 
       {isOpen && (
-        <div className="space-y-2 pt-1 border-t border-slate-200/60">
+        <div className="space-y-2 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
           <div className="relative">
             <textarea
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder="e.g. Kubernetes, eBPF, Cilium, Satya Nadella, LLVM, ScribeNode, PyTorch"
               rows={2}
-              className="w-full text-xs bg-white border border-slate-200 rounded-lg p-2.5 text-slate-800 placeholder-slate-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none leading-relaxed resize-y"
+              className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-hidden leading-relaxed resize-y"
             />
             {value.trim() && (
               <button
                 type="button"
                 onClick={() => onChange("")}
-                className="absolute top-2 right-2 p-1 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                className="absolute top-2 right-2 p-1 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded cursor-pointer"
                 title="Clear glossary"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
-          <div className="flex items-center justify-between text-[10px] text-slate-400">
+          <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
             <span className="flex items-center gap-1">
               <Tag className="w-3 h-3 text-indigo-400" />
               Separate terms with commas, semicolons, or line breaks.

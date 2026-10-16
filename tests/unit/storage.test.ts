@@ -81,4 +81,68 @@ describe('Storage & Persistence Engine', () => {
     expect(gcResult.removedCount).toBeGreaterThanOrEqual(1);
     expect(fs.existsSync(orphanFilePath)).toBe(false);
   });
+
+  it('debounces multiple rapid disk write requests into a single write', async () => {
+    const testJob = {
+      id: 'debounced-job',
+      filename: 'debounced.mp3',
+      fileSize: 500,
+      status: 'completed' as const,
+      progress: 100,
+      createdAt: Date.now(),
+      transcript: 'Test'
+    };
+
+    storage.set(testJob.id, testJob);
+    storage.saveToDiskDebounced(30);
+
+    // Immediately check - should not yet be on disk
+    const freshStorage = new JobsStorage(tempStorageDir);
+    freshStorage.loadFromDisk();
+    expect(freshStorage.has('debounced-job')).toBe(false);
+
+    // Wait for debounce timer to fire
+    await new Promise((resolve) => setTimeout(resolve, 60));
+
+    freshStorage.loadFromDisk();
+    expect(freshStorage.has('debounced-job')).toBe(true);
+  });
+
+  it('validates that paths are strictly contained within uploads directory', () => {
+    const validInside = path.join(tempStorageDir, 'valid-audio.mp3');
+    const validNested = path.join(tempStorageDir, 'nested', 'audio.mp3');
+    const traversalEscape = path.join(tempStorageDir, '..', 'secret.txt');
+    const rootEscape = '/etc/passwd';
+
+    expect(storage.isPathWithinUploads(validInside)).toBe(true);
+    expect(storage.isPathWithinUploads(validNested)).toBe(true);
+    expect(storage.isPathWithinUploads(traversalEscape)).toBe(false);
+    expect(storage.isPathWithinUploads(rootEscape)).toBe(false);
+    expect(storage.isPathWithinUploads('')).toBe(false);
+  });
+
+  it('performs atomic writes without leaving orphaned temporary files', () => {
+    const testJob = {
+      id: 'atomic-job',
+      filename: 'atomic.mp3',
+      fileSize: 100,
+      status: 'completed' as const,
+      progress: 100,
+      createdAt: Date.now(),
+      transcript: 'Atomic persistence check'
+    };
+
+    storage.set(testJob.id, testJob);
+    storage.saveToDisk();
+
+    // Verify main DB file exists and contains the job
+    expect(fs.existsSync(storage.dbPath)).toBe(true);
+    const savedContent = JSON.parse(fs.readFileSync(storage.dbPath, 'utf-8'));
+    expect(savedContent.some((j: any) => j.id === 'atomic-job')).toBe(true);
+
+    // Verify no temporary .tmp files remain in uploadsDir
+    const files = fs.readdirSync(tempStorageDir);
+    const tmpFiles = files.filter(f => f.endsWith('.tmp'));
+    expect(tmpFiles.length).toBe(0);
+  });
 });

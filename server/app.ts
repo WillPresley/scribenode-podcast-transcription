@@ -859,7 +859,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       return res.status(404).json({ error: "Job not found" });
     }
 
-    if (!job.localFilePath || !fs.existsSync(job.localFilePath)) {
+    if (!job.localFilePath || !fs.existsSync(job.localFilePath) || !storage.isPathWithinUploads(job.localFilePath)) {
       return res.status(404).json({ error: "Audio file not available on disk" });
     }
 
@@ -920,7 +920,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       return res.status(404).json({ error: "Job not found" });
     }
     
-    if (job.localFilePath) {
+    if (job.localFilePath && storage.isPathWithinUploads(job.localFilePath)) {
       try {
         if (fs.existsSync(job.localFilePath)) {
           fs.unlinkSync(job.localFilePath);
@@ -985,7 +985,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       }
 
       // Handle real job re-transcription
-      if (!parentJob.localFilePath || !fs.existsSync(parentJob.localFilePath)) {
+      if (!parentJob.localFilePath || !fs.existsSync(parentJob.localFilePath) || !storage.isPathWithinUploads(parentJob.localFilePath)) {
         return res.status(400).json({ error: "The audio file for this job is no longer available. Please upload the file again." });
       }
 

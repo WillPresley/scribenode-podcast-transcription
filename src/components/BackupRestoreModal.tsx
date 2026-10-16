@@ -256,7 +256,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 10 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]"
+        className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]"
       >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-900 text-white flex items-center justify-between shrink-0">
@@ -286,14 +286,14 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-200 bg-slate-50/80 px-4 pt-2 gap-1.5 shrink-0 overflow-x-auto">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 px-4 pt-2 gap-1.5 shrink-0 overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab("export")}
             className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-t border-x ${
               activeTab === "export"
-                ? "bg-white text-blue-600 border-slate-200 -mb-[1px] shadow-2xs"
-                : "bg-transparent text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100"
+                ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border-slate-200 dark:border-slate-800 -mb-[1px] shadow-2xs"
+                : "bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50"
             }`}
           >
             <Download className="w-3.5 h-3.5" />
@@ -305,8 +305,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
             onClick={() => setActiveTab("import")}
             className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-t border-x ${
               activeTab === "import"
-                ? "bg-white text-blue-600 border-slate-200 -mb-[1px] shadow-2xs"
-                : "bg-transparent text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100"
+                ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border-slate-200 dark:border-slate-800 -mb-[1px] shadow-2xs"
+                : "bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50"
             }`}
           >
             <Upload className="w-3.5 h-3.5" />
@@ -321,8 +321,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
             }}
             className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-t border-x ${
               activeTab === "stored"
-                ? "bg-white text-blue-600 border-slate-200 -mb-[1px] shadow-2xs"
-                : "bg-transparent text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100"
+                ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border-slate-200 dark:border-slate-800 -mb-[1px] shadow-2xs"
+                : "bg-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/50"
             }`}
           >
             <FolderArchive className="w-3.5 h-3.5" />
@@ -331,7 +331,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-slate-700 text-xs leading-relaxed">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-slate-700 dark:text-slate-200 text-xs leading-relaxed">
           {/* Status Alert Banner */}
           {statusMessage && (
             <motion.div

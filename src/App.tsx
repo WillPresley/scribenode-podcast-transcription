@@ -75,6 +75,15 @@ import { TranscriptEditor } from "./components/TranscriptEditor";
 import { usePwa } from "./utils/usePwa";
 import { PwaBanner } from "./components/PwaBanner";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
+import { AboutReleaseNotesModal, AboutModalTab } from "./components/AboutReleaseNotesModal";
+import { ThemeToggle } from "./components/ThemeToggle";
+import {
+  ThemeMode,
+  getStoredTheme,
+  setStoredTheme,
+  applyTheme,
+  watchSystemTheme
+} from "./utils/theme";
 
 const ScribeNodeLogo = ({ className = "w-9 h-9" }: { className?: string }) => (
   <div className={`flex items-center justify-center rounded-xl bg-blue-600 p-2 shrink-0 shadow-sm ${className}`}>
@@ -362,6 +371,25 @@ export default function App() {
   const [aboutModalTab, setAboutModalTab] = useState<'overview' | 'api_setup' | 'release_notes'>('overview');
   const [showBackupModal, setShowBackupModal] = useState<boolean>(false);
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
+
+  // Theme Management (Light, Dark, and System Sync)
+  const [themeMode, setThemeMode] = useState<ThemeMode>(getStoredTheme);
+
+  useEffect(() => {
+    applyTheme(themeMode);
+    if (themeMode === 'system') {
+      const unwatch = watchSystemTheme(() => {
+        applyTheme('system');
+      });
+      return unwatch;
+    }
+  }, [themeMode]);
+
+  const handleThemeChange = (mode: ThemeMode) => {
+    setThemeMode(mode);
+    setStoredTheme(mode);
+    applyTheme(mode);
+  };
 
   const openBackupRestoreModal = () => {
     setShowBackupModal(true);
@@ -1230,20 +1258,20 @@ export default function App() {
     const getSpeakerColors = (name: string) => {
       const clean = name.trim().toUpperCase();
       if (clean.includes("A") || clean.includes("1") || clean.includes("SARAH") || clean.includes("HOST")) {
-        return { border: "border-blue-300", text: "text-blue-700 bg-blue-50/80" };
+        return { border: "border-blue-300 dark:border-blue-500", text: "text-blue-700 dark:text-blue-300 bg-blue-50/80 dark:bg-blue-950/80" };
       }
       if (clean.includes("B") || clean.includes("2") || clean.includes("GUEST") || clean.includes("DRABNER")) {
-        return { border: "border-emerald-300", text: "text-emerald-700 bg-emerald-50/80" };
+        return { border: "border-emerald-300 dark:border-emerald-500", text: "text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/80" };
       }
       // Simple deterministic mapping for other names
       let sum = 0;
       for (let i = 0; i < clean.length; i++) sum += clean.charCodeAt(i);
       if (sum % 3 === 0) {
-        return { border: "border-violet-300", text: "text-violet-700 bg-violet-50/80" };
+        return { border: "border-violet-300 dark:border-violet-500", text: "text-violet-700 dark:text-violet-300 bg-violet-50/80 dark:bg-violet-950/80" };
       } else if (sum % 3 === 1) {
-        return { border: "border-amber-300", text: "text-amber-700 bg-amber-50/80" };
+        return { border: "border-amber-300 dark:border-amber-500", text: "text-amber-700 dark:text-amber-300 bg-amber-50/80 dark:bg-amber-950/80" };
       } else {
-        return { border: "border-rose-300", text: "text-rose-700 bg-rose-50/80" };
+        return { border: "border-rose-300 dark:border-rose-500", text: "text-rose-700 dark:text-rose-300 bg-rose-50/80 dark:bg-rose-950/80" };
       }
     };
 
@@ -1273,7 +1301,7 @@ export default function App() {
       }
     }
 
-    const speakerColors = speaker ? getSpeakerColors(speaker) : { border: "border-slate-100", text: "" };
+    const speakerColors = speaker ? getSpeakerColors(speaker) : { border: "border-slate-100 dark:border-slate-800", text: "" };
 
     const highlightText = (rawText: string) => {
       if (!searchQuery.trim()) return rawText;
@@ -1283,7 +1311,7 @@ export default function App() {
         <>
           {parts.map((part, i) =>
             part.toLowerCase() === searchQuery.toLowerCase() ? (
-              <mark key={i} className="bg-amber-100 text-amber-950 px-0.5 rounded font-medium">
+              <mark key={i} className="bg-amber-100 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 px-0.5 rounded font-medium">
                 {part}
               </mark>
             ) : (
@@ -1295,12 +1323,12 @@ export default function App() {
     };
 
     return (
-      <p className={`leading-relaxed text-slate-700 py-1.5 border-l-2 pl-3 sm:pl-4 transition-all hover:border-slate-300 ${
+      <p className={`leading-relaxed text-slate-700 dark:text-slate-300 py-1.5 border-l-2 pl-3 sm:pl-4 transition-all hover:border-slate-300 dark:hover:border-slate-600 ${
         isActivePlaying 
-          ? "border-l-blue-600 bg-blue-50/40 rounded-r-lg" 
+          ? "border-l-blue-600 dark:border-l-blue-500 bg-blue-50/40 dark:bg-blue-950/30 rounded-r-lg" 
           : speaker 
             ? speakerColors.border 
-            : "border-slate-100"
+            : "border-slate-100 dark:border-slate-800"
       }`}>
         {timestamp && (
           <button
@@ -1309,15 +1337,15 @@ export default function App() {
               e.stopPropagation();
               onTimestampClick(timestamp);
             }}
-            className="font-mono text-[10px] text-blue-700 bg-blue-50/90 hover:bg-blue-100 hover:text-blue-800 border border-blue-200/80 px-2 py-0.5 rounded mr-2 font-bold cursor-pointer transition-all hover:scale-105 active:scale-95 group inline-flex items-center gap-1 shadow-2xs select-none"
+            className="font-mono text-[10px] text-blue-700 dark:text-blue-300 bg-blue-50/90 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-800 dark:hover:text-blue-200 border border-blue-200/80 dark:border-blue-800 px-2 py-0.5 rounded mr-2 font-bold cursor-pointer transition-all hover:scale-105 active:scale-95 group inline-flex items-center gap-1 shadow-2xs select-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden"
             title={`Play audio from ${timestamp}`}
           >
-            <Play className="h-2.5 w-2.5 fill-blue-600 text-blue-600 opacity-60 group-hover:opacity-100 transition-opacity" />
+            <Play className="h-2.5 w-2.5 fill-blue-600 dark:fill-blue-400 text-blue-600 dark:text-blue-400 opacity-60 group-hover:opacity-100 transition-opacity" />
             <span>{timestamp}</span>
           </button>
         )}
         {isActivePlaying && (
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold bg-blue-600 text-white font-sans mr-2 uppercase tracking-wider animate-pulse shadow-2xs">
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-extrabold bg-blue-600 dark:bg-blue-500 text-white font-sans mr-2 uppercase tracking-wider animate-pulse shadow-2xs">
             <Radio className="h-2.5 w-2.5" />
             <span>PLAYING</span>
           </span>
@@ -1327,7 +1355,7 @@ export default function App() {
             {speaker}
           </span>
         )}
-        <span className="text-xs text-slate-800 leading-relaxed font-sans">
+        <span className="text-xs text-slate-800 dark:text-slate-100 leading-relaxed font-sans">
           {highlightText(speechText)}
         </span>
       </p>
@@ -1337,7 +1365,7 @@ export default function App() {
   const readyInsightsCount = (["summary", "key_takeaways", "chapters", "social_media"] as AnalysisMode[]).filter(k => !!(job && (job[k] || analysisResults[k]))).length;
 
   return (
-    <div className="flex h-screen w-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden" id="app-root">
+    <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 overflow-hidden transition-colors" id="app-root">
       {/* Mobile Navigation Slide-Over Drawer */}
       <AnimatePresence>
         {mobileMenuOpen && (
@@ -1488,6 +1516,13 @@ export default function App() {
                     <span>Install App</span>
                   </button>
                 )}
+                <div className="pt-2 border-t border-slate-800/60">
+                  <ThemeToggle
+                    currentMode={themeMode}
+                    onSelectMode={handleThemeChange}
+                    variant="drawer"
+                  />
+                </div>
               </div>
             </motion.aside>
           </div>
@@ -1579,19 +1614,19 @@ export default function App() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-3.5 sm:px-6 shrink-0 select-none relative z-20">
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3.5 sm:px-6 shrink-0 select-none relative z-20 transition-colors">
           <div className="flex items-center gap-2 sm:gap-3.5 min-w-0">
             {/* Mobile Navigation Drawer Hamburger Button */}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              className="lg:hidden p-2 -ml-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
               aria-label="Open Navigation Menu"
             >
               <Menu className="h-5 w-5" />
             </button>
 
-            <h2 className="font-semibold text-slate-800 truncate text-xs sm:text-base max-w-[140px] xs:max-w-[200px] sm:max-w-xs md:max-w-md">
+            <h2 className="font-semibold text-slate-800 dark:text-slate-100 truncate text-xs sm:text-base max-w-[140px] xs:max-w-[200px] sm:max-w-xs md:max-w-md">
               {job?.status === "completed" ? `Review: ${job.filename}` : "Transcript Queue"}
             </h2>
           </div>
@@ -1602,7 +1637,9 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowModelPopover(!showModelPopover)}
-                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-lg border border-slate-200/90 bg-slate-50/90 hover:bg-slate-100/90 text-slate-700 transition-all cursor-pointer shadow-xs hover:border-slate-300 text-xs"
+                aria-live="polite"
+                aria-atomic="true"
+                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-lg border border-slate-200/90 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-800/80 hover:bg-slate-100/90 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-xs hover:border-slate-300 dark:hover:border-slate-700 text-xs focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden"
                 title="Click to view Gemini Model fallback chain & health status"
               >
                 <span className="relative flex h-2 w-2">
@@ -1626,25 +1663,25 @@ export default function App() {
                   />
                 </span>
                 <div className="flex items-center gap-1 sm:gap-1.5 text-xs">
-                  <Sparkles className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                  <span className="hidden md:inline text-slate-500 font-medium text-[11px]">Model:</span>
-                  <span className="font-bold text-slate-800 text-[10px] sm:text-[11px] truncate max-w-[85px] sm:max-w-none">
+                  <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <span className="hidden md:inline text-slate-500 dark:text-slate-400 font-medium text-[11px]">Model:</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-100 text-[10px] sm:text-[11px] truncate max-w-[85px] sm:max-w-none">
                     {formatModelDisplayName(modelStatus.activeModel)}
                   </span>
                   {modelStatus.status === "fallback_active" ? (
-                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 text-amber-800 rounded border border-amber-200">
+                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 rounded border border-amber-200 dark:border-amber-800">
                       Fallback
                     </span>
                   ) : modelStatus.status === "degraded" ? (
-                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-red-100 text-red-800 rounded border border-red-200">
+                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 rounded border border-red-200 dark:border-red-800">
                       High Demand
                     </span>
                   ) : modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel ? (
-                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-indigo-100 text-indigo-800 rounded border border-indigo-200">
+                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 rounded border border-indigo-200 dark:border-indigo-800">
                       Custom Priority
                     </span>
                   ) : (
-                    <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700 rounded border border-blue-200/60">
+                    <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded border border-blue-200/60 dark:border-blue-800/80">
                       Next Task
                     </span>
                   )}
@@ -1658,7 +1695,7 @@ export default function App() {
                   <>
                     {/* Mobile backdrop for outside tap dismissal */}
                     <div 
-                      className="fixed inset-0 bg-slate-900/20 backdrop-blur-xs z-40 md:hidden"
+                      className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 md:hidden"
                       onClick={() => setShowModelPopover(false)}
                       aria-hidden="true"
                     />
@@ -1668,28 +1705,28 @@ export default function App() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.98 }}
                       transition={{ duration: 0.15 }}
-                      className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 md:-right-24 lg:right-0 top-16 sm:top-full mt-2 w-auto sm:w-[500px] md:w-[740px] lg:w-[780px] max-w-[calc(100vw-24px)] bg-white rounded-2xl shadow-2xl border border-slate-200/90 z-50 text-slate-800 p-4 sm:p-5 max-h-[85vh] md:max-h-none overflow-y-auto"
+                      className="fixed sm:absolute left-3 right-3 sm:left-auto sm:right-0 md:-right-24 lg:right-0 top-16 sm:top-full mt-2 w-auto sm:w-[500px] md:w-[740px] lg:w-[780px] max-w-[calc(100vw-24px)] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 z-50 text-slate-800 dark:text-slate-100 p-4 sm:p-5 max-h-[85vh] md:max-h-none overflow-y-auto"
                     >
                       {/* Top Header */}
-                      <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                      <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
                         <div className="flex items-center gap-2.5">
-                          <div className="p-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-100/60 shrink-0">
+                          <div className="p-2 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-100/60 dark:border-blue-800/60 shrink-0">
                             <Cpu className="h-4 w-4" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <h4 className="text-sm font-bold text-slate-900">Gemini Model Orchestration</h4>
-                              <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-blue-50 text-blue-700 rounded-md border border-blue-200/60">
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Gemini Model Orchestration</h4>
+                              <span className="hidden xs:inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded-md border border-blue-200/60 dark:border-blue-800/80">
                                 9-Tier Cascade
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-500">Real-time model routing & multi-tier automatic failover cascade</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">Real-time model routing & multi-tier automatic failover cascade</p>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => setShowModelPopover(false)}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
                           aria-label="Close Model Orchestration Modal"
                         >
                           <X className="h-4 w-4" />
@@ -1703,18 +1740,18 @@ export default function App() {
                         <div className="md:col-span-5 flex flex-col justify-between space-y-3 md:space-y-3.5 md:pr-1">
                           
                           {/* Active Loaded Model Card */}
-                          <div className="p-3.5 bg-gradient-to-br from-blue-50/80 via-slate-50/50 to-indigo-50/40 rounded-xl border border-blue-100">
+                          <div className="p-3.5 bg-gradient-to-br from-blue-50/80 via-slate-50/50 to-indigo-50/40 dark:from-blue-950/40 dark:via-slate-800/40 dark:to-indigo-950/40 rounded-xl border border-blue-100 dark:border-blue-900/60">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400">
                                 Active Loaded Model
                               </span>
                               <span
                                 className={`px-2 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-wider border whitespace-nowrap ${
                                   modelStatus.status === "optimal"
-                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                                     : modelStatus.status === "fallback_active"
-                                      ? "bg-amber-50 text-amber-700 border-amber-200"
-                                      : "bg-red-50 text-red-700 border-red-200"
+                                      ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                                      : "bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
                                 }`}
                               >
                                 {modelStatus.status === "optimal" 
@@ -1724,31 +1761,31 @@ export default function App() {
                                     : "All Models Busy"}
                               </span>
                             </div>
-                            <div className="text-base font-extrabold text-slate-900 mt-1 flex items-center gap-1.5">
+                            <div className="text-base font-extrabold text-slate-900 dark:text-slate-100 mt-1 flex items-center gap-1.5">
                               <span>{formatModelDisplayName(modelStatus.activeModel)}</span>
                               {modelStatus.activeModel === modelStatus.primaryModel && (
-                                <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded border border-blue-200/60">
+                                <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded border border-blue-200/60 dark:border-blue-800">
                                   Flagship
                                 </span>
                               )}
                             </div>
-                            <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                               {modelStatus.activeModel}
                             </div>
                           </div>
 
                           {/* Choose Primary Model Card */}
-                          <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/90">
+                          <div className="p-3.5 bg-slate-50/80 dark:bg-slate-800/60 rounded-xl border border-slate-200/90 dark:border-slate-700/80">
                             <div className="flex items-center justify-between mb-1.5">
-                              <label htmlFor="model-select-dropdown" className="text-[10px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1">
-                                <Sparkles className="h-3 w-3 text-blue-600" />
+                              <label htmlFor="model-select-dropdown" className="text-[10px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                                <Sparkles className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                                 Prioritize Model
                               </label>
                               {(modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel) && (
                                 <button
                                   type="button"
                                   onClick={handleResetModelCascade}
-                                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
+                                  className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
                                   title="Reset to default Gemini 3.8 Flash cascade"
                                 >
                                   <RotateCcw className="h-2.5 w-2.5" />
@@ -1761,17 +1798,17 @@ export default function App() {
                                 id="model-select-dropdown"
                                 value={modelStatus.activeModel}
                                 onChange={(e) => handleSelectModel(e.target.value)}
-                                className="w-full pl-2.5 pr-8 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none shadow-xs"
+                                className="w-full pl-2.5 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none shadow-xs"
                               >
                                 {ALL_TRANSCRIPTION_MODELS.map((m) => (
-                                  <option key={m} value={m}>
+                                  <option key={m} value={m} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                                     {formatModelDisplayName(m)} {m === modelStatus.primaryModel ? "★ (Flagship Default)" : ""}
                                   </option>
                                 ))}
                               </select>
                               <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                             </div>
-                            <p className="text-[10px] text-slate-500 mt-1.5 leading-normal">
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5 leading-normal">
                               Prioritizes this model first. If high demand or rate limits occur, ScribeNode cascades down the sequence.
                             </p>
                           </div>
@@ -1923,10 +1960,16 @@ export default function App() {
               </AnimatePresence>
             </div>
 
+            <ThemeToggle
+              currentMode={themeMode}
+              onSelectMode={handleThemeChange}
+              variant="header"
+            />
+
             {job?.status === "completed" && (
               <button 
                 onClick={handleReset}
-                className="px-2.5 sm:px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md text-xs font-bold hover:bg-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
+                className="px-2.5 sm:px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <RotateCcw className="h-3 w-3 shrink-0" />
                 <span className="hidden sm:inline">Back to List</span>
@@ -1935,7 +1978,7 @@ export default function App() {
             )}
             <button 
               onClick={handleReset}
-              className="px-2.5 sm:px-3 py-1.5 bg-blue-600 text-white rounded-md text-xs font-bold shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-1 cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-xs hover:bg-blue-700 transition-colors flex items-center gap-1 cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden sm:inline">New Transcription</span>
@@ -1999,72 +2042,72 @@ export default function App() {
                 </div>
 
                 {/* Left side: Scrollable text + controls */}
-                <div className={`col-span-12 lg:col-span-8 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-col h-full min-h-0 ${
+                <div className={`col-span-12 lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm flex-col h-full min-h-0 transition-colors ${
                   mobileWorkspaceTab === "transcript" ? "flex" : "hidden lg:flex"
                 }`}>
                   
                   {/* File Metadata & Actions Header */}
-                  <div className="p-3.5 sm:p-4 bg-slate-50 border-b border-slate-200 flex flex-col gap-3 shrink-0">
+                  <div className="p-3.5 sm:p-4 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 flex flex-col gap-3 shrink-0">
                     {/* Tier 1: Document Details (Left) + Export / Copy Actions (Right) */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                       <div className="min-w-0 flex-1 pr-2">
-                        <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1 flex items-center flex-wrap gap-1.5">
+                        <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1 flex items-center flex-wrap gap-1.5">
                           <span>ACTIVE TRANSCRIPT</span>
                           {job.sourceType === "rss" && (
-                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-[9px] font-bold flex items-center gap-1 border border-amber-200">
+                            <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 rounded text-[9px] font-bold flex items-center gap-1 border border-amber-200 dark:border-amber-800">
                               <Radio className="h-2.5 w-2.5" /> PODCAST RSS
                             </span>
                           )}
                           {job.sourceType === "url" && (
-                            <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-800 rounded text-[9px] font-bold flex items-center gap-1 border border-indigo-200">
+                            <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-950/70 text-indigo-800 dark:text-indigo-300 rounded text-[9px] font-bold flex items-center gap-1 border border-indigo-200 dark:border-indigo-800">
                               <Globe className="h-2.5 w-2.5" /> AUDIO STREAM
                             </span>
                           )}
                           {job.modelUsed && (
-                            <span className="px-1.5 py-0.5 bg-slate-200/90 text-slate-700 rounded text-[9px] font-mono border border-slate-300/60 select-all font-semibold uppercase">
+                            <span className="px-1.5 py-0.5 bg-slate-200/90 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded text-[9px] font-mono border border-slate-300/60 dark:border-slate-700 select-all font-semibold uppercase">
                               {job.modelUsed}
                             </span>
                           )}
                           {job.duration && job.duration !== "--:--" && (
-                            <span className="text-[10px] text-slate-400 font-mono font-medium">
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono font-medium">
                               · {job.duration}
                             </span>
                           )}
                         </div>
-                        <div className="text-sm font-bold text-slate-900 truncate leading-snug" title={job.filename}>
+                        <div className="text-sm font-bold text-slate-900 dark:text-white truncate leading-snug" title={job.filename}>
                           {job.filename}
                         </div>
                       </div>
 
                       {/* Export & Copy Cluster */}
-                      <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-2xs shrink-0 self-start sm:self-auto">
+                      <div className="flex items-center gap-1 bg-white dark:bg-slate-800/90 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs shrink-0 self-start sm:self-auto">
                         <button
                           type="button"
                           onClick={() => copyToClipboardWithFeedback(job.transcript || "", "transcript-top")}
                           className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
                             copiedSnippet === "transcript-top"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "text-slate-700 hover:text-blue-600 hover:bg-slate-50"
+                              ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                              : "text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-700/60"
                           }`}
                           title="Copy full transcript text to clipboard"
                         >
                           {copiedSnippet === "transcript-top" ? (
                             <>
-                              <Check className="h-3 w-3 text-emerald-600" />
+                              <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
                               <span>Copied!</span>
                             </>
                           ) : (
                             <>
-                              <Copy className="h-3 w-3 text-slate-500" />
+                              <Copy className="h-3 w-3 text-slate-500 dark:text-slate-400" />
                               <span>Copy</span>
                             </>
                           )}
                         </button>
-                        <span className="w-px h-3.5 bg-slate-200" />
+                        <span className="w-px h-3.5 bg-slate-200 dark:bg-slate-700" />
                         <button
                           type="button"
                           onClick={() => downloadFile(job.transcript || "", "txt", "transcript")}
-                          className="px-2 py-1 text-[11px] font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-md transition-all flex items-center gap-1 cursor-pointer"
+                          className="px-2 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-md transition-all flex items-center gap-1 cursor-pointer"
                           title="Download plain text (.txt)"
                         >
                           <Download className="h-3 w-3 text-slate-400" />
@@ -2073,7 +2116,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => downloadFile(job.transcript || "", "md", "transcript")}
-                          className="px-2 py-1 text-[11px] font-bold text-slate-700 hover:text-blue-600 hover:bg-slate-50 rounded-md transition-all flex items-center gap-1 cursor-pointer"
+                          className="px-2 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-md transition-all flex items-center gap-1 cursor-pointer"
                           title="Download formatted Markdown (.md)"
                         >
                           <Download className="h-3 w-3 text-slate-400" />
@@ -2083,7 +2126,7 @@ export default function App() {
                     </div>
 
                     {/* Tier 2: Studio Tools (Left) + Clean Re-Run Controller (Right) */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-2.5 border-t border-slate-200/70">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 pt-2.5 border-t border-slate-200/70 dark:border-slate-800">
                       {/* Left Side: Studio & Editing Tools */}
                       <div className="flex flex-wrap items-center gap-1.5">
                         {/* Quick Edit Toggle */}
@@ -2092,12 +2135,12 @@ export default function App() {
                           onClick={() => setIsEditingTranscript(prev => !prev)}
                           className={`px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer border ${
                             isEditingTranscript
-                              ? "bg-amber-50 text-amber-800 border-amber-300 ring-1 ring-amber-400/40"
-                              : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300"
+                              ? "bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700 ring-1 ring-amber-400/40"
+                              : "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                           }`}
                           title="Edit transcript text manually"
                         >
-                          <Edit3 className={`h-3.5 w-3.5 ${isEditingTranscript ? "text-amber-600" : "text-amber-500"}`} />
+                          <Edit3 className={`h-3.5 w-3.5 ${isEditingTranscript ? "text-amber-600 dark:text-amber-400" : "text-amber-500"}`} />
                           <span>{isEditingTranscript ? "Close Editor" : "Quick Edit"}</span>
                         </button>
 
@@ -2106,12 +2149,12 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => setShowRenameModal(true)}
-                            className="px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer border bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300 hover:text-blue-700"
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer border bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:text-blue-700 dark:hover:text-blue-400"
                             title="Rename speakers across the entire transcript"
                           >
-                            <Users className="h-3.5 w-3.5 text-blue-600" />
+                            <Users className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                             <span>Rename Speaker</span>
-                            <span className="ml-0.5 px-1.5 py-0.2 bg-blue-50 text-blue-700 border border-blue-200/60 rounded text-[10px] font-mono font-bold">
+                            <span className="ml-0.5 px-1.5 py-0.2 bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800 rounded text-[10px] font-mono font-bold">
                               {detectedSpeakers.length}
                             </span>
                           </button>
@@ -2226,25 +2269,25 @@ export default function App() {
                   ) : (
                     <>
                       {/* Search bar wrapper */}
-                      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 bg-white shrink-0">
+                      <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
                           <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search words within transcription..."
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pl-9 pr-24 text-xs focus:ring-1 focus:ring-blue-500 outline-none placeholder-slate-400 transition-all text-slate-800"
+                            className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 pl-9 pr-24 text-xs focus:ring-1 focus:ring-blue-500 outline-none placeholder-slate-400 dark:placeholder-slate-500 transition-all text-slate-800 dark:text-slate-100"
                           />
                           {searchQuery && (
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-slate-100/90 px-2 py-0.5 rounded-md border border-slate-200/50 shadow-sm">
-                              <span className="text-[9px] font-mono font-bold text-slate-500 select-none mr-1.5 shrink-0">
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/90 px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-slate-700/50 shadow-sm">
+                              <span className="text-[9px] font-mono font-bold text-slate-500 dark:text-slate-400 select-none mr-1.5 shrink-0">
                                 {searchMatches.length > 0 ? `${activeMatchIndex + 1}/${searchMatches.length}` : '0/0'}
                               </span>
                               <button
                                 onClick={handlePrevMatch}
                                 disabled={searchMatches.length === 0}
-                                className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed flex items-center justify-center"
+                                className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed flex items-center justify-center focus-visible:ring-1 focus-visible:ring-blue-500"
                                 title="Previous Match"
                               >
                                 <ChevronUp className="h-3 w-3" />
@@ -2252,15 +2295,15 @@ export default function App() {
                               <button
                                 onClick={handleNextMatch}
                                 disabled={searchMatches.length === 0}
-                                className="p-0.5 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed flex items-center justify-center"
+                                className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed flex items-center justify-center focus-visible:ring-1 focus-visible:ring-blue-500"
                                 title="Next Match"
                               >
                                 <ChevronDown className="h-3 w-3" />
                               </button>
-                              <div className="h-2.5 w-[1px] bg-slate-300 mx-0.5" />
+                              <div className="h-2.5 w-[1px] bg-slate-300 dark:bg-slate-700 mx-0.5" />
                               <button
                                 onClick={() => setSearchQuery("")}
-                                className="p-0.5 hover:bg-slate-200 rounded text-slate-400 hover:text-slate-600 cursor-pointer flex items-center justify-center"
+                                className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer flex items-center justify-center focus-visible:ring-1 focus-visible:ring-blue-500"
                                 title="Clear search"
                               >
                                 <X className="h-3 w-3" />
@@ -2271,17 +2314,17 @@ export default function App() {
                       </div>
 
                       {/* Real Transcript text lines */}
-                      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4" id="transcript-scroll-area">
+                      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-white dark:bg-slate-900" id="transcript-scroll-area">
                         {(() => {
                           const title = inferPodcastTitle(job.filename, job.transcript);
                           const speakers = inferSpeakers(job.transcript);
                           return (
-                            <div className="pb-3 border-b border-slate-200/80 mb-3">
-                              <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">{title}</h2>
+                            <div className="pb-3 border-b border-slate-200/80 dark:border-slate-800 mb-3">
+                              <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight">{title}</h2>
                               {speakers.length > 0 && (
-                                <p className="text-xs text-slate-600 mt-1">
-                                  <span className="font-bold text-slate-800">Hosts: </span>
-                                  <span className="italic text-slate-700">{speakers.join(", ")}</span>
+                                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                                  <span className="font-bold text-slate-800 dark:text-slate-200">Hosts: </span>
+                                  <span className="italic text-slate-700 dark:text-slate-300">{speakers.join(", ")}</span>
                                 </p>
                               )}
                             </div>
@@ -2298,10 +2341,10 @@ export default function App() {
                                 id={`transcript-paragraph-${idx}`}
                                 className={`transition-all duration-300 px-2 py-1 rounded-lg ${
                                   isCurrentMatch 
-                                    ? "bg-amber-50 border border-amber-200 shadow-sm ring-1 ring-amber-300/30 scale-[1.01]" 
+                                    ? "bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 shadow-sm ring-1 ring-amber-300/30 scale-[1.01]" 
                                     : isActivePlaying
-                                      ? "bg-blue-50/80 border border-blue-200/80 shadow-xs ring-1 ring-blue-300/30"
-                                      : "border border-transparent hover:bg-slate-50/50"
+                                      ? "bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/80 shadow-xs ring-1 ring-blue-300/30"
+                                      : "border border-transparent hover:bg-slate-50/50 dark:hover:bg-slate-800/40"
                                 }`}
                               >
                                 <HighlightedParagraph 
@@ -2321,33 +2364,33 @@ export default function App() {
                 </div>
 
                 {/* Right side: Insights tabs */}
-                <div className={`col-span-12 lg:col-span-4 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex-col h-full min-h-0 ${
+                <div className={`col-span-12 lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm flex-col h-full min-h-0 ${
                   mobileWorkspaceTab === "insights" ? "flex" : "hidden lg:flex"
                 }`}>
                   
                   {/* Insights hub header */}
-                  <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-2 shrink-0">
+                  <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Post-Production Insights Hub</h3>
+                      <h3 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Post-Production Insights Hub</h3>
                     </div>
                     {readyInsightsCount > 0 && (
-                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono">
+                      <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-mono">
                         {readyInsightsCount}/4 Ready
                       </span>
                     )}
                   </div>
 
                   {/* Tab list */}
-                  <div className="flex border-b border-slate-200 bg-white shrink-0 overflow-x-auto">
+                  <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 overflow-x-auto">
                     {(["summary", "key_takeaways", "chapters", "social_media"] as AnalysisMode[]).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setActiveAnalysisTab(tab)}
                         className={`flex-1 py-2.5 px-2 text-center text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 relative cursor-pointer border-b-2 whitespace-nowrap shrink-0 ${
                           activeAnalysisTab === tab 
-                            ? "text-blue-700 font-extrabold border-blue-600 bg-blue-50/20" 
-                            : "text-slate-500 hover:text-blue-700 hover:bg-slate-50/50 border-transparent"
+                            ? "text-blue-700 dark:text-blue-400 font-extrabold border-blue-600 dark:border-blue-500 bg-blue-50/20 dark:bg-blue-950/20" 
+                            : "text-slate-500 dark:text-slate-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 border-transparent"
                         }`}
                       >
                         {tab === "summary" && <FileText className="h-3 w-3" />}
@@ -2371,43 +2414,43 @@ export default function App() {
 
                   {/* Sticky Assets Actions Row */}
                   {analysisResults[activeAnalysisTab] && !loadingAnalysis[activeAnalysisTab] && (
-                    <div className="bg-slate-50 border-b border-slate-200/80 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-1.5 shrink-0 select-none">
-                      <span className="text-[9px] font-extrabold uppercase text-slate-500 tracking-wider">Asset Actions:</span>
+                    <div className="bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200/80 dark:border-slate-800 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-1.5 shrink-0 select-none">
+                      <span className="text-[9px] font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Asset Actions:</span>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => generateAnalysis(activeAnalysisTab)}
-                          className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 cursor-pointer transition-colors flex items-center gap-1"
+                          className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 dark:border-slate-700 cursor-pointer transition-colors flex items-center gap-1 focus-visible:ring-1 focus-visible:ring-blue-500"
                           title="Regenerate this insight"
                         >
-                          <RefreshCw className="h-2.5 w-2.5 text-slate-500" /> Regenerate
+                          <RefreshCw className="h-2.5 w-2.5 text-slate-500 dark:text-slate-400" /> Regenerate
                         </button>
                         <button
                           onClick={() => copyToClipboard(analysisResults[activeAnalysisTab] || "")}
-                          className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 cursor-pointer transition-colors flex items-center gap-1"
+                          className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 dark:border-slate-700 cursor-pointer transition-colors flex items-center gap-1 focus-visible:ring-1 focus-visible:ring-blue-500"
                           title="Copy to Clipboard"
                         >
-                          <Copy className="h-2.5 w-2.5 text-slate-500" /> Copy
+                          <Copy className="h-2.5 w-2.5 text-slate-500 dark:text-slate-400" /> Copy
                         </button>
                         <button
                           onClick={() => downloadFile(analysisResults[activeAnalysisTab] || "", "txt", activeAnalysisTab)}
-                          className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 cursor-pointer transition-colors flex items-center gap-1"
+                          className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 dark:border-slate-700 cursor-pointer transition-colors flex items-center gap-1 focus-visible:ring-1 focus-visible:ring-blue-500"
                           title="Download as TXT"
                         >
-                          <Download className="h-2.5 w-2.5 text-slate-500" /> TXT
+                          <Download className="h-2.5 w-2.5 text-slate-500 dark:text-slate-400" /> TXT
                         </button>
                         <button
                           onClick={() => downloadFile(analysisResults[activeAnalysisTab] || "", "md", activeAnalysisTab)}
-                          className="px-2 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 cursor-pointer transition-colors flex items-center gap-1"
+                          className="px-2 py-1 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-bold rounded shadow-sm border border-slate-200/60 dark:border-slate-700 cursor-pointer transition-colors flex items-center gap-1 focus-visible:ring-1 focus-visible:ring-blue-500"
                           title="Download as Markdown"
                         >
-                          <Download className="h-2.5 w-2.5 text-slate-500" /> MD
+                          <Download className="h-2.5 w-2.5 text-slate-500 dark:text-slate-400" /> MD
                         </button>
                       </div>
                     </div>
                   )}
 
                   {/* Insights scrolling output */}
-                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-white relative">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-white dark:bg-slate-900 relative">
                     <AnimatePresence mode="wait">
                       
                       {analysisResults[activeAnalysisTab] ? (
@@ -2430,26 +2473,26 @@ export default function App() {
                                   return (
                                     <div 
                                       key={lIdx}
-                                      className="flex items-start gap-2 p-1.5 sm:p-2 rounded-lg hover:bg-blue-50/50 border border-slate-100 hover:border-blue-200 transition-colors group"
+                                      className="flex items-start gap-2 p-1.5 sm:p-2 rounded-lg hover:bg-blue-50/50 dark:hover:bg-blue-950/40 border border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800 transition-colors group"
                                     >
                                       <button
                                         type="button"
                                         onClick={() => handleTimestampClick(ts)}
-                                        className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-mono text-[10px] font-bold rounded-md border border-blue-200/80 cursor-pointer flex items-center gap-1 shrink-0 transition-all hover:scale-105 select-none shadow-2xs"
+                                        className="px-2 py-0.5 bg-blue-50 dark:bg-blue-950/80 hover:bg-blue-100 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 font-mono text-[10px] font-bold rounded-md border border-blue-200/80 dark:border-blue-800 cursor-pointer flex items-center gap-1 shrink-0 transition-all hover:scale-105 select-none shadow-2xs focus-visible:ring-1 focus-visible:ring-blue-500"
                                         title={`Play audio from ${ts}`}
                                       >
-                                        <Play className="h-2.5 w-2.5 fill-blue-600 text-blue-600 opacity-70 group-hover:opacity-100" />
+                                        <Play className="h-2.5 w-2.5 fill-blue-600 dark:fill-blue-400 text-blue-600 dark:text-blue-400 opacity-70 group-hover:opacity-100" />
                                         <span>{ts.replace(/[[\]]/g, '')}</span>
                                       </button>
-                                      <span className="text-xs text-slate-800 font-medium leading-relaxed">{rest}</span>
+                                      <span className="text-xs text-slate-800 dark:text-slate-200 font-medium leading-relaxed">{rest}</span>
                                     </div>
                                   );
                                 }
-                                return <p key={lIdx} className="text-xs text-slate-700 leading-relaxed font-sans">{cleanLine}</p>;
+                                return <p key={lIdx} className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-sans">{cleanLine}</p>;
                               })}
                             </div>
                           ) : (
-                            <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap select-text font-sans flex-1">
+                            <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap select-text font-sans flex-1">
                               {analysisResults[activeAnalysisTab]}
                             </div>
                           )}
@@ -2464,14 +2507,14 @@ export default function App() {
                         >
                           <Sparkles className="h-6 w-6 text-blue-500 animate-spin mb-3" />
                           <div className="text-center">
-                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Generating Assets</p>
-                            <p className="text-[10px] text-slate-400 mt-1">Gemini is processing speech semantics...</p>
+                            <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Generating Assets</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Gemini is processing speech semantics...</p>
                           </div>
                           
                           <div className="w-full space-y-2 mt-6">
-                            <div className="h-2 bg-slate-100 rounded w-full animate-pulse" />
-                            <div className="h-2 bg-slate-100 rounded w-5/6 animate-pulse" />
-                            <div className="h-2 bg-slate-100 rounded w-4/5 animate-pulse" />
+                            <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded w-full animate-pulse" />
+                            <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded w-5/6 animate-pulse" />
+                            <div className="h-2 bg-slate-100 dark:bg-slate-800 rounded w-4/5 animate-pulse" />
                           </div>
                         </motion.div>
                       ) : (
@@ -2483,29 +2526,29 @@ export default function App() {
                           className="h-full flex flex-col items-center justify-center text-center py-12 space-y-4"
                         >
                           {analysisErrors[activeAnalysisTab] ? (
-                            <div className="w-full max-w-md mx-auto p-4 rounded-xl bg-amber-50/90 border border-amber-200 text-left space-y-2.5 shadow-sm">
+                            <div className="w-full max-w-md mx-auto p-4 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 text-left space-y-2.5 shadow-sm">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2">
-                                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                                  <p className="text-xs font-bold text-amber-900">Insight Generation Notice</p>
+                                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                  <p className="text-xs font-bold text-amber-900 dark:text-amber-200">Insight Generation Notice</p>
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => setAnalysisErrors(prev => ({ ...prev, [activeAnalysisTab]: null }))}
-                                  className="text-amber-500 hover:text-amber-700 p-0.5 rounded cursor-pointer"
+                                  className="text-amber-500 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 p-0.5 rounded cursor-pointer"
                                   title="Dismiss notice"
                                 >
                                   <X className="h-3.5 w-3.5" />
                                 </button>
                               </div>
-                              <p className="text-xs text-amber-800 leading-relaxed font-sans">
+                              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-sans">
                                 {analysisErrors[activeAnalysisTab]}
                               </p>
                               <div className="pt-1 flex items-center gap-2">
                                 <button
                                   type="button"
                                   onClick={() => generateAnalysis(activeAnalysisTab)}
-                                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:ring-1 focus-visible:ring-amber-500"
                                 >
                                   <RefreshCw className="h-3 w-3" />
                                   Retry Generation
@@ -2513,7 +2556,7 @@ export default function App() {
                                 <button
                                   type="button"
                                   onClick={() => setAnalysisErrors(prev => ({ ...prev, [activeAnalysisTab]: null }))}
-                                  className="text-[10px] text-amber-700 hover:text-amber-900 font-medium px-2 py-1 cursor-pointer"
+                                  className="text-[10px] text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 font-medium px-2 py-1 cursor-pointer"
                                 >
                                   Dismiss
                                 </button>
@@ -2521,17 +2564,17 @@ export default function App() {
                             </div>
                           ) : (
                             <>
-                              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
+                              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center">
                                 <Sparkles className="h-5 w-5 animate-pulse" />
                               </div>
                               <div className="space-y-1">
-                                <p className="font-bold text-slate-700 text-xs uppercase tracking-wider">
+                                <p className="font-bold text-slate-700 dark:text-slate-200 text-xs uppercase tracking-wider">
                                   {activeAnalysisTab === "summary" && "Executive Summary"}
                                   {activeAnalysisTab === "key_takeaways" && "Actionable Takeaways"}
                                   {activeAnalysisTab === "chapters" && "Episode Chapters"}
                                   {activeAnalysisTab === "social_media" && "Social Share Snippets"}
                                 </p>
-                                <p className="text-[10px] text-slate-400 max-w-xs mx-auto leading-relaxed">
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 max-w-xs mx-auto leading-relaxed">
                                   {activeAnalysisTab === "summary" && "Extract a polished overview of the core discussion and themes discussed in this file."}
                                   {activeAnalysisTab === "key_takeaways" && "Extract top lessons, valuable definitions, and ideas from the episode."}
                                   {activeAnalysisTab === "chapters" && "Logically structure the episode into time-coded outlines."}
@@ -2541,7 +2584,7 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => generateAnalysis(activeAnalysisTab)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] uppercase tracking-wider py-2 px-4 rounded shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] uppercase tracking-wider py-2 px-4 rounded shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500"
                               >
                                 <Sparkles className="h-3.5 w-3.5" />
                                 Generate with Gemini
@@ -2568,20 +2611,20 @@ export default function App() {
                 className="flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-6 h-full overflow-y-auto"
               >
                 {/* Mobile Segmented Switcher for Dashboard Queue vs Preview */}
-                <div className="lg:hidden flex rounded-xl bg-slate-200/80 p-1 shrink-0 shadow-inner">
+                <div className="lg:hidden flex rounded-xl bg-slate-200/80 dark:bg-slate-800 p-1 shrink-0 shadow-inner">
                   <button
                     type="button"
                     onClick={() => setMobileDashboardTab("queue")}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       mobileDashboardTab === "queue"
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 shadow-sm"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                     }`}
                   >
                     <Upload className="h-3.5 w-3.5" />
                     <span>Upload & Queue</span>
                     {jobsList.length > 0 && (
-                      <span className="px-1.5 py-0.5 text-[9px] font-extrabold rounded-full bg-slate-200 text-slate-700 font-mono leading-none">
+                      <span className="px-1.5 py-0.5 text-[9px] font-extrabold rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono leading-none">
                         {jobsList.length}
                       </span>
                     )}
@@ -2591,8 +2634,8 @@ export default function App() {
                     onClick={() => setMobileDashboardTab("preview")}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       mobileDashboardTab === "preview"
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 shadow-sm"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                     }`}
                   >
                     <FileAudio className="h-3.5 w-3.5 text-blue-500" />
@@ -2610,17 +2653,20 @@ export default function App() {
                   
                   {/* Conditionally show ACTIVE RUNNING PROGRESS or UPLOAD CARD */}
                   {job && job.status !== "completed" && job.status !== "failed" ? (
-                    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col items-center justify-center text-center space-y-6">
-                      
+                    <div 
+                      aria-live="polite"
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm flex flex-col items-center justify-center text-center space-y-6"
+                    >
                       {/* Circle indicator */}
                       <div className="relative h-20 w-20 flex items-center justify-center shrink-0">
-                        <div className="absolute inset-0 bg-blue-50 rounded-full animate-ping opacity-60" />
+                        <div className="absolute inset-0 bg-blue-50 dark:bg-blue-950/40 rounded-full animate-ping opacity-60" />
                         <svg className="w-full h-full transform -rotate-90">
                           <circle
                             cx="40"
                             cy="40"
                             r="34"
-                            stroke="#f1f5f9"
+                            stroke="currentColor"
+                            className="text-slate-100 dark:text-slate-800"
                             strokeWidth="5"
                             fill="transparent"
                           />
@@ -2636,20 +2682,20 @@ export default function App() {
                             className="transition-all duration-700 ease-out"
                           />
                         </svg>
-                        <span className="absolute text-sm font-bold text-slate-800 font-mono">
+                        <span className="absolute text-sm font-bold text-slate-800 dark:text-slate-100 font-mono">
                           {job.progress}%
                         </span>
                       </div>
 
                       <div className="space-y-1">
-                        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">Processing Transcription Pipeline</h3>
-                        <p className="text-xs text-slate-500 font-mono">File: {job.filename}</p>
+                        <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm uppercase tracking-wide">Processing Transcription Pipeline</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">File: {job.filename}</p>
                       </div>
 
                       {/* Line steps */}
-                      <div className="w-full max-w-md bg-slate-50 rounded-lg p-4 border border-slate-100 space-y-3">
+                      <div className="w-full max-w-md bg-slate-50 dark:bg-slate-800/60 rounded-lg p-4 border border-slate-100 dark:border-slate-800 space-y-3">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-500 font-medium">1. Local file buffered</span>
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">1. Local file buffered</span>
                           {job.progress >= 20 ? (
                             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                           ) : (
@@ -2657,7 +2703,7 @@ export default function App() {
                           )}
                         </div>
                         <div className="flex items-center justify-between text-xs">
-                          <span className={`font-medium ${job.progress >= 20 ? "text-slate-800" : "text-slate-400"}`}>
+                          <span className={`font-medium ${job.progress >= 20 ? "text-slate-800 dark:text-slate-100" : "text-slate-400 dark:text-slate-500"}`}>
                             2. {formatModelDisplayName(job.modelUsed || modelStatus.activeModel)} Encoding
                           </span>
                           {job.progress >= 70 ? (
@@ -2665,11 +2711,11 @@ export default function App() {
                           ) : job.progress >= 20 ? (
                             <span className="h-3.5 w-3.5 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
                           ) : (
-                            <div className="h-1.5 w-1.5 rounded-full bg-slate-200" />
+                            <div className="h-1.5 w-1.5 rounded-full bg-slate-200 dark:bg-slate-700" />
                           )}
                         </div>
                         <div className="flex items-center justify-between text-xs">
-                          <span className={`font-medium ${job.progress >= 70 ? "text-slate-800" : "text-slate-400"}`}>
+                          <span className={`font-medium ${job.progress >= 70 ? "text-slate-800 dark:text-slate-100" : "text-slate-400 dark:text-slate-500"}`}>
                             3. Formatting Transcript Paragraphs
                           </span>
                           {job.progress >= 100 ? (
@@ -2677,51 +2723,54 @@ export default function App() {
                           ) : job.progress >= 70 ? (
                             <span className="h-3.5 w-3.5 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
                           ) : (
-                            <div className="h-1.5 w-1.5 rounded-full bg-slate-200" />
+                            <div className="h-1.5 w-1.5 rounded-full bg-slate-200 dark:bg-slate-700" />
                           )}
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-slate-400 italic max-w-xs leading-relaxed">
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 italic max-w-xs leading-relaxed">
                         {job.status === "processing_audio" && "Encoding audio wavelengths and segmenting speakers... (~10-30 seconds)"}
                         {job.status === "transcribing" && "Formatting high-fidelity textual transcript..."}
                         {job.status === "uploading" && "Securely passing stream payload..."}
                       </p>
                     </div>
                   ) : isPending && !job ? (
-                    <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm flex flex-col items-center justify-center text-center space-y-6 min-h-[350px]">
+                    <div 
+                      aria-live="polite"
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-8 shadow-sm flex flex-col items-center justify-center text-center space-y-6 min-h-[350px]"
+                    >
                       <div className="relative h-16 w-16 flex items-center justify-center">
-                        <div className="absolute inset-0 bg-blue-50 rounded-full animate-ping opacity-60" />
+                        <div className="absolute inset-0 bg-blue-50 dark:bg-blue-950/40 rounded-full animate-ping opacity-60" />
                         <div className="h-10 w-10 rounded-full border-4 border-blue-600 border-t-transparent animate-spin relative" />
                       </div>
                       <div className="space-y-2">
-                        <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">
+                        <h3 className="font-bold text-slate-800 dark:text-slate-100 text-sm uppercase tracking-wide">
                           {optimizationStatus ? "Optimizing & Compressing Audio" : "Uploading Audio Payload"}
                         </h3>
-                        <p className="text-xs text-slate-500 font-mono">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                           {optimizationStatus || "Sending audio to transcription pipeline..."}
                         </p>
                       </div>
-                      <div className="w-full max-w-xs bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full max-w-xs bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                         <div className="bg-blue-600 h-1.5 rounded-full animate-pulse" style={{ width: "100%" }} />
                       </div>
-                      <p className="text-[10px] text-slate-400 max-w-xs italic leading-normal">
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 max-w-xs italic leading-normal">
                         This processes your file locally using the Web Audio API to resample, downmix, and compress the voice stream.
                       </p>
                     </div>
                   ) : (
                     /* UPLOAD & CONFIGURATION CARD */
-                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-5">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-5">
                       
                       {/* INGESTION SOURCE TAB SWITCHER */}
-                      <div className="flex border-b border-slate-200 bg-slate-50/80 rounded-t-xl overflow-hidden -mx-5 -mt-5 mb-5">
+                      <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/80 rounded-t-xl overflow-hidden -mx-5 -mt-5 mb-5">
                         <button
                           type="button"
                           onClick={() => setInputSource("upload")}
                           className={`flex-1 py-3 px-3 text-xs font-bold flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer ${
                             inputSource === "upload"
-                              ? "border-blue-600 text-blue-600 bg-white"
-                              : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                              ? "border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900"
+                              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                           }`}
                         >
                           <UploadCloud className="w-4 h-4" />
@@ -2732,8 +2781,8 @@ export default function App() {
                           onClick={() => setInputSource("rss")}
                           className={`flex-1 py-3 px-3 text-xs font-bold flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer ${
                             inputSource === "rss"
-                              ? "border-blue-600 text-blue-600 bg-white"
-                              : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                              ? "border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900"
+                              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                           }`}
                         >
                           <Radio className="w-4 h-4 text-orange-500" />
@@ -2744,8 +2793,8 @@ export default function App() {
                           onClick={() => setInputSource("url")}
                           className={`flex-1 py-3 px-3 text-xs font-bold flex items-center justify-center gap-2 border-b-2 transition-all cursor-pointer ${
                             inputSource === "url"
-                              ? "border-blue-600 text-blue-600 bg-white"
-                              : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                              ? "border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900"
+                              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                           }`}
                         >
                           <Globe className="w-4 h-4 text-emerald-500" />
@@ -2754,7 +2803,10 @@ export default function App() {
                       </div>
 
                       {errorMessage && (
-                        <div className="p-3 bg-red-50 border border-red-200/80 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-red-700 text-xs">
+                        <div 
+                          aria-live="polite"
+                          className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200/80 dark:border-red-900/60 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-red-700 dark:text-red-300 text-xs"
+                        >
                           <div className="flex gap-2.5 items-start">
                             <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                             <div>
@@ -2764,7 +2816,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={openApiSetupGuide}
-                            className="self-start sm:self-auto shrink-0 px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-800 font-bold rounded text-[10px] border border-red-300 uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-colors"
+                            className="self-start sm:self-auto shrink-0 px-2.5 py-1 bg-red-100 dark:bg-red-900/60 hover:bg-red-200 dark:hover:bg-red-900 text-red-800 dark:text-red-200 font-bold rounded text-[10px] border border-red-300 dark:border-red-800 uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-colors focus-visible:ring-1 focus-visible:ring-red-500"
                           >
                             <Key className="h-3 w-3" />
                             API Setup Guide
@@ -2781,55 +2833,55 @@ export default function App() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
                             {/* Formatting Workflow */}
                             <div className="space-y-2">
-                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Formatting Preset</label>
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Formatting Preset</label>
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 <button
                                   type="button"
                                   onClick={() => setPromptStyle("clean")}
-                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                     promptStyle === "clean" 
-                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                      ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                   }`}
                                 >
-                                  <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600" : "text-slate-400"}`} />
-                                  <div className="text-[10px] font-bold text-slate-800">Clean</div>
+                                  <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Clean</div>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPromptStyle("timestamped")}
-                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                     promptStyle === "timestamped" 
-                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                      ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                   }`}
                                 >
-                                  <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600" : "text-slate-400"}`} />
-                                  <div className="text-[10px] font-bold text-slate-800">Timestamps</div>
+                                  <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Timestamps</div>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPromptStyle("verbatim")}
-                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                     promptStyle === "verbatim" 
-                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                      ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                   }`}
                                 >
-                                  <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600" : "text-slate-400"}`} />
-                                  <div className="text-[10px] font-bold text-slate-800">Speakers</div>
+                                  <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Speakers</div>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPromptStyle("combined")}
-                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                     promptStyle === "combined" 
-                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                      ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                   }`}
                                 >
-                                  <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600" : "text-slate-400"}`} />
-                                  <div className="text-[10px] font-bold text-slate-800">Combined</div>
+                                  <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Combined</div>
                                 </button>
                               </div>
                             </div>
@@ -2842,8 +2894,8 @@ export default function App() {
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-3">
-                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                                <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                                <Globe className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                                 Audio Stream URL (.mp3 / .wav / .m4a)
                               </label>
                               <input
@@ -2851,11 +2903,11 @@ export default function App() {
                                 value={directAudioUrl}
                                 onChange={(e) => setDirectAudioUrl(e.target.value)}
                                 placeholder="https://example.com/audio/episode-42.mp3"
-                                className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 font-mono focus:ring-1 focus:ring-blue-500 outline-none"
+                                className="w-full text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:ring-1 focus:ring-blue-500 outline-none"
                               />
 
                               <div>
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                                   Optional Episode Title
                                 </label>
                                 <input
@@ -2863,62 +2915,62 @@ export default function App() {
                                   value={directEpisodeTitle}
                                   onChange={(e) => setDirectEpisodeTitle(e.target.value)}
                                   placeholder="e.g. Episode 42: Next-Gen AI"
-                                  className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg p-2 text-slate-800 focus:ring-1 focus:ring-blue-500 outline-none mt-1"
+                                  className="w-full text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:ring-1 focus:ring-blue-500 outline-none mt-1"
                                 />
                               </div>
                             </div>
 
                             {/* Formats Selector */}
                             <div className="space-y-2">
-                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Formatting Preset</label>
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Formatting Preset</label>
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 <button
                                   type="button"
                                   onClick={() => setPromptStyle("clean")}
-                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                     promptStyle === "clean" 
-                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                      ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                   }`}
                                 >
-                                  <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600" : "text-slate-400"}`} />
-                                  <div className="text-[10px] font-bold text-slate-800">Clean</div>
+                                  <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Clean</div>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPromptStyle("timestamped")}
-                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                     promptStyle === "timestamped" 
-                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                      ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                   }`}
                                 >
-                                  <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600" : "text-slate-400"}`} />
-                                  <div className="text-[10px] font-bold text-slate-800">Timestamps</div>
+                                  <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Timestamps</div>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPromptStyle("verbatim")}
-                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                     promptStyle === "verbatim" 
-                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                      ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                   }`}
                                 >
-                                  <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600" : "text-slate-400"}`} />
-                                  <div className="text-[10px] font-bold text-slate-800">Speakers</div>
+                                  <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Speakers</div>
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPromptStyle("combined")}
-                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                  className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                     promptStyle === "combined" 
-                                      ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                      : "border-slate-200 bg-white hover:bg-slate-50"
+                                      ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                      : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                   }`}
                                 >
-                                  <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600" : "text-slate-400"}`} />
-                                  <div className="text-[10px] font-bold text-slate-800">Combined</div>
+                                  <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                  <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Combined</div>
                                 </button>
                               </div>
                             </div>
@@ -2930,9 +2982,9 @@ export default function App() {
                             type="button"
                             onClick={handleStartDirectUrlTranscription}
                             disabled={!directAudioUrl.trim() || isPending}
-                            className={`w-full py-2.5 px-4 rounded-lg text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all ${
+                            className={`w-full py-2.5 px-4 rounded-lg text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                               !directAudioUrl.trim() 
-                                ? "bg-slate-300 cursor-not-allowed" 
+                                ? "bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed" 
                                 : "bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] cursor-pointer"
                             }`}
                           >
@@ -2946,19 +2998,19 @@ export default function App() {
                             
                             {/* Step 1: File selection */}
                             <div className="space-y-2">
-                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Step 1: Choose Audio File</label>
+                              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Step 1: Choose Audio File</label>
                               <div
                                 onDragEnter={handleDrag}
                                 onDragOver={handleDrag}
                                 onDragLeave={handleDrag}
                                 onDrop={handleDrop}
                                 onClick={() => fileInputRef.current?.click()}
-                                className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[140px] ${
+                                className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[140px] focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                   dragActive 
-                                    ? "border-blue-500 bg-blue-50/40" 
+                                    ? "border-blue-500 bg-blue-50/40 dark:bg-blue-950/40" 
                                     : file 
-                                      ? "border-emerald-500 bg-emerald-50/10 hover:border-emerald-600" 
-                                      : "border-slate-200 hover:border-blue-400 hover:bg-slate-50/50"
+                                      ? "border-emerald-500 bg-emerald-50/10 dark:bg-emerald-950/20 hover:border-emerald-600" 
+                                      : "border-slate-200 dark:border-slate-700 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-slate-50/50 dark:hover:bg-slate-800/40"
                                 }`}
                               >
                                 <input
@@ -2971,59 +3023,59 @@ export default function App() {
 
                                 {file ? (
                                   <div className="space-y-1.5 flex flex-col items-center">
-                                    <FileAudio className="h-8 w-8 text-emerald-600 animate-pulse" />
+                                    <FileAudio className="h-8 w-8 text-emerald-600 dark:text-emerald-400 animate-pulse" />
                                     <div className="max-w-[200px]">
-                                      <p className="font-semibold text-slate-800 text-xs truncate">{file.name}</p>
-                                      <p className="text-[9px] text-slate-400 font-mono">
+                                      <p className="font-semibold text-slate-800 dark:text-slate-100 text-xs truncate">{file.name}</p>
+                                      <p className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">
                                         {(file.size / (1024 * 1024)).toFixed(1)} MB
                                       </p>
                                     </div>
-                                    <span className="inline-block text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                                    <span className="inline-block text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800 px-2 py-0.5 rounded-full">
                                       Selected
                                     </span>
                                   </div>
                                 ) : (
                                   <div className="space-y-2 flex flex-col items-center">
-                                    <UploadCloud className="h-6 w-6 text-blue-500" />
+                                    <UploadCloud className="h-6 w-6 text-blue-500 dark:text-blue-400" />
                                     <div>
-                                      <p className="font-bold text-slate-700 text-xs">Drag & drop podcast audio</p>
-                                      <p className="text-[10px] text-slate-400 mt-0.5">MP3, WAV, M4A, OGG, FLAC (max {maxUploadSizeMB}MB)</p>
+                                      <p className="font-bold text-slate-700 dark:text-slate-200 text-xs">Drag & drop podcast audio</p>
+                                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">MP3, WAV, M4A, OGG, FLAC (max {maxUploadSizeMB}MB)</p>
                                     </div>
                                   </div>
                                 )}
                               </div>
 
                               {/* Client-side Audio Optimization Box */}
-                              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 mt-2.5 space-y-3">
+                              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 rounded-xl p-3.5 mt-2.5 space-y-3">
                                 <div className="flex items-start gap-2.5">
                                   <input
                                     type="checkbox"
                                     id="optimize-audio-checkbox"
                                     checked={optimizeAudio}
                                     onChange={(e) => setOptimizeAudio(e.target.checked)}
-                                    className="mt-0.5 h-3.5 w-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                                    className="mt-0.5 h-3.5 w-3.5 text-blue-600 border-slate-300 dark:border-slate-600 rounded focus:ring-blue-500 cursor-pointer"
                                   />
                                   <div className="space-y-0.5">
-                                    <label htmlFor="optimize-audio-checkbox" className="text-[10px] font-bold text-slate-700 cursor-pointer flex items-center gap-1.5">
-                                      Optimize & Compress Audio <span className="px-1.5 py-0.5 bg-blue-100 text-blue-800 text-[8px] font-mono rounded font-extrabold uppercase tracking-wider">Recommended</span>
+                                    <label htmlFor="optimize-audio-checkbox" className="text-[10px] font-bold text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1.5">
+                                      Optimize & Compress Audio <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 text-[8px] font-mono rounded font-extrabold uppercase tracking-wider">Recommended</span>
                                     </label>
-                                    <p className="text-[9px] text-slate-500 leading-normal">
+                                    <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-normal">
                                       Resamples and downmixes audio locally before upload to stay under network limits and ensure lightning-fast transfers.
                                     </p>
                                   </div>
                                 </div>
 
                                 {optimizeAudio && (
-                                  <div className="pl-6 pt-1.5 space-y-2 border-t border-slate-200/60 mt-2">
-                                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Compression Profile</label>
+                                  <div className="pl-6 pt-1.5 space-y-2 border-t border-slate-200/60 dark:border-slate-700/60 mt-2">
+                                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Compression Profile</label>
                                     <div className="grid grid-cols-2 gap-1.5">
                                       <button
                                         type="button"
                                         onClick={() => setAudioOptimizationProfile('auto')}
                                         className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
                                           audioOptimizationProfile === 'auto'
-                                            ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
-                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
+                                            ? "border-blue-500 bg-blue-50/30 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold"
+                                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-700/50"
                                         }`}
                                       >
                                         Auto Smart Limit (Safe)
@@ -3033,8 +3085,8 @@ export default function App() {
                                         onClick={() => setAudioOptimizationProfile('high')}
                                         className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
                                           audioOptimizationProfile === 'high'
-                                            ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
-                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
+                                            ? "border-blue-500 bg-blue-50/30 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold"
+                                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-700/50"
                                         }`}
                                       >
                                         High Quality (16kHz, 16-bit)
@@ -3044,8 +3096,8 @@ export default function App() {
                                         onClick={() => setAudioOptimizationProfile('standard')}
                                         className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
                                           audioOptimizationProfile === 'standard'
-                                            ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
-                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
+                                            ? "border-blue-500 bg-blue-50/30 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold"
+                                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-700/50"
                                         }`}
                                       >
                                         Balanced (12kHz, 16-bit)
@@ -3055,14 +3107,14 @@ export default function App() {
                                         onClick={() => setAudioOptimizationProfile('compact')}
                                         className={`py-1 px-2 text-[9px] font-medium rounded-md border text-center transition-all cursor-pointer ${
                                           audioOptimizationProfile === 'compact'
-                                            ? "border-blue-500 bg-blue-50/30 text-blue-700 font-bold"
-                                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100/50"
+                                            ? "border-blue-500 bg-blue-50/30 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 font-bold"
+                                            : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100/50 dark:hover:bg-slate-700/50"
                                         }`}
                                       >
                                         Voice Compact (8kHz, 8-bit)
                                       </button>
                                     </div>
-                                    <p className="text-[8px] text-slate-400 italic">
+                                    <p className="text-[8px] text-slate-400 dark:text-slate-500 italic">
                                       {audioOptimizationProfile === 'auto' && "Automatically shrinks large/long files to stay safely under the 25MB container network limit."}
                                       {audioOptimizationProfile === 'high' && "Uses high-fidelity 16kHz sample rate with 16-bit resolution. Great for short podcasts."}
                                       {audioOptimizationProfile === 'standard' && "Optimized 12kHz, 16-bit mono profile. Cuts file size in half with great speech legibility."}
@@ -3076,60 +3128,60 @@ export default function App() {
                             {/* Step 2: Formats Selector & Glossary */}
                             <div className="space-y-4 flex flex-col justify-between">
                               <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Step 2: Formatting Workflow</label>
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Step 2: Formatting Workflow</label>
                                 
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                   <button
                                     type="button"
                                     onClick={() => setPromptStyle("clean")}
-                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                       promptStyle === "clean" 
-                                        ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                        : "border-slate-200 bg-white hover:bg-slate-50"
+                                        ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                     }`}
                                   >
-                                    <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600" : "text-slate-400"}`} />
-                                    <div className="text-[10px] font-bold text-slate-800">Clean</div>
+                                    <FileText className={`h-4.5 w-4.5 mb-1 ${promptStyle === "clean" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                    <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Clean</div>
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => setPromptStyle("timestamped")}
-                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                       promptStyle === "timestamped" 
-                                        ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                        : "border-slate-200 bg-white hover:bg-slate-50"
+                                        ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                     }`}
                                   >
-                                    <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600" : "text-slate-400"}`} />
-                                    <div className="text-[10px] font-bold text-slate-800">Timestamps</div>
+                                    <Clock className={`h-4.5 w-4.5 mb-1 ${promptStyle === "timestamped" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                    <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Timestamps</div>
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => setPromptStyle("verbatim")}
-                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                       promptStyle === "verbatim" 
-                                        ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                        : "border-slate-200 bg-white hover:bg-slate-50"
+                                        ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                     }`}
                                   >
-                                    <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600" : "text-slate-400"}`} />
-                                    <div className="text-[10px] font-bold text-slate-800">Speakers</div>
+                                    <User className={`h-4.5 w-4.5 mb-1 ${promptStyle === "verbatim" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                    <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Speakers</div>
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => setPromptStyle("combined")}
-                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                                    className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                                       promptStyle === "combined" 
-                                        ? "border-blue-500 bg-blue-50/10 ring-1 ring-blue-500" 
-                                        : "border-slate-200 bg-white hover:bg-slate-50"
+                                        ? "border-blue-500 bg-blue-50/10 dark:bg-blue-950/30 ring-1 ring-blue-500" 
+                                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750"
                                     }`}
                                     title="Combines Speaker tags, precise Timestamps, and fully cleaned text"
                                   >
-                                    <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600" : "text-slate-400"}`} />
-                                    <div className="text-[10px] font-bold text-slate-800">Combined</div>
+                                    <Layers className={`h-4.5 w-4.5 mb-1 ${promptStyle === "combined" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
+                                    <div className="text-[10px] font-bold text-slate-800 dark:text-slate-100">Combined</div>
                                   </button>
                                 </div>
                               </div>
@@ -3140,8 +3192,8 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={() => setPromptStyle(promptStyle === "custom" ? "clean" : "custom")}
-                                className={`text-[10px] font-bold inline-flex items-center gap-1 hover:underline text-left ${
-                                  promptStyle === "custom" ? "text-blue-600" : "text-slate-400"
+                                className={`text-[10px] font-bold inline-flex items-center gap-1 hover:underline text-left cursor-pointer ${
+                                  promptStyle === "custom" ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"
                                 }`}
                               >
                                 <Sparkles className="h-3 w-3" />
@@ -3153,13 +3205,13 @@ export default function App() {
 
                           {/* Custom Prompt Expanded */}
                           {promptStyle === "custom" && (
-                            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1.5">
-                              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Enter Custom Transcription Prompt</label>
+                            <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg space-y-1.5">
+                              <label className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Enter Custom Transcription Prompt</label>
                               <textarea
                                 value={customPrompt}
                                 onChange={(e) => setCustomPrompt(e.target.value)}
                                 placeholder="Example: Transcribe only the first 5 minutes, correct names, and output paragraphs in English."
-                                className="w-full text-xs bg-white border border-slate-200 rounded-md p-2 h-14 focus:ring-1 focus:ring-blue-500 outline-none leading-normal text-slate-800"
+                                className="w-full text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md p-2 h-14 focus:ring-1 focus:ring-blue-500 outline-none leading-normal text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500"
                               />
                             </div>
                           )}
@@ -3169,9 +3221,9 @@ export default function App() {
                             type="button"
                             onClick={handleStartTranscription}
                             disabled={!file || isPending}
-                            className={`w-full py-2.5 px-4 rounded-lg text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all ${
+                            className={`w-full py-2.5 px-4 rounded-lg text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden ${
                               !file 
-                                ? "bg-slate-300 cursor-not-allowed" 
+                                ? "bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed" 
                                 : "bg-blue-600 hover:bg-blue-700 active:scale-[0.99] cursor-pointer"
                             }`}
                           >
@@ -3184,18 +3236,18 @@ export default function App() {
                   )}
 
                   {/* ACTIVE/SAMPLE QUEUE LIST */}
-                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
-                    <div className="hidden sm:grid grid-cols-12 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider p-3 border-b border-slate-200">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm flex flex-col">
+                    <div className="hidden sm:grid grid-cols-12 bg-slate-50 dark:bg-slate-900/80 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider p-3 border-b border-slate-200 dark:border-slate-800">
                       <div className="col-span-6 pl-2">Filename & Metadata</div>
                       <div className="col-span-1">Duration</div>
                       <div className="col-span-2">Status</div>
                       <div className="col-span-3 pl-2">Actions</div>
                     </div>
                     
-                    <div className="divide-y divide-slate-100">
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
                       
                       {jobsList.length === 0 ? (
-                        <div className="p-8 text-center text-xs text-slate-400">
+                        <div className="p-8 text-center text-xs text-slate-400 dark:text-slate-500">
                           No transcription jobs found. Start by uploading an audio file above.
                         </div>
                       ) : (
@@ -3213,10 +3265,10 @@ export default function App() {
                               }}
                               className={`p-3 transition-all border-l-2 ${
                                 isSelected 
-                                  ? "bg-blue-50/50 border-blue-500 shadow-sm" 
+                                  ? "bg-blue-50/50 dark:bg-blue-950/40 border-blue-500 shadow-sm" 
                                   : isPreviewed 
-                                    ? "bg-slate-100/80 border-slate-400 shadow-sm" 
-                                    : "border-transparent hover:bg-slate-50/80"
+                                    ? "bg-slate-100/80 dark:bg-slate-800/80 border-slate-400 dark:border-slate-600 shadow-sm" 
+                                    : "border-transparent hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                               } ${isSelectableForPreview ? "cursor-pointer" : ""}`}
                             >
                               {/* Desktop row view */}
@@ -3224,27 +3276,27 @@ export default function App() {
                                 <div className="col-span-6 flex items-center gap-3 min-w-0">
                                   <div className={`w-8 h-8 rounded flex items-center justify-center text-[10px] font-bold font-mono shrink-0 ${
                                     item.status === "completed" 
-                                      ? "bg-emerald-100 text-emerald-600" 
+                                      ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400" 
                                       : item.status === "failed" 
-                                        ? "bg-red-100 text-red-600"
+                                        ? "bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400"
                                         : item.status === "archived"
-                                          ? "bg-slate-100 text-slate-400"
-                                          : "bg-blue-100 text-blue-600"
+                                          ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
+                                          : "bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
                                   }`}>
                                     {item.filename.split(".").pop()?.toUpperCase().slice(0, 4) || "AUD"}
                                   </div>
                                   <div className="truncate pr-2">
-                                    <div className="text-xs font-bold text-slate-800 truncate" title={item.filename}>
+                                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate" title={item.filename}>
                                       {item.filename}
                                     </div>
-                                    <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5 flex-wrap">
+                                    <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono flex items-center gap-1.5 flex-wrap">
                                       <span>{new Date(item.createdAt).toLocaleDateString()} {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                       <span>•</span>
                                       <span>{(item.fileSize / (1024 * 1024)).toFixed(1)}MB</span>
                                       {item.modelUsed && (
                                         <>
                                           <span>•</span>
-                                          <span className="px-1.5 py-0.2 bg-slate-100 border border-slate-200 text-slate-500 rounded text-[8px] uppercase tracking-wide font-semibold">{item.modelUsed}</span>
+                                          <span className="px-1.5 py-0.2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 rounded text-[8px] uppercase tracking-wide font-semibold">{item.modelUsed}</span>
                                         </>
                                       )}
                                     </div>
@@ -3252,25 +3304,25 @@ export default function App() {
                                     {/* Available hub assets status indicators */}
                                     {(item.summary || item.key_takeaways || item.chapters || item.social_media) && (
                                       <div className="flex items-center gap-1.5 mt-1.5 select-none">
-                                        <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider">Available Assets:</span>
+                                        <span className="text-[8px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Available Assets:</span>
                                         <div className="flex items-center gap-1">
                                           {item.summary && (
-                                            <span className="p-0.5 bg-blue-50 border border-blue-100 text-blue-600 rounded flex items-center" title="Summary Available">
+                                            <span className="p-0.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 rounded flex items-center" title="Summary Available">
                                               <FileText className="h-2.5 w-2.5" />
                                             </span>
                                           )}
                                           {item.key_takeaways && (
-                                            <span className="p-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded flex items-center" title="Takeaways Available">
+                                            <span className="p-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 rounded flex items-center" title="Takeaways Available">
                                               <CheckCircle2 className="h-2.5 w-2.5" />
                                             </span>
                                           )}
                                           {item.chapters && (
-                                            <span className="p-0.5 bg-amber-50 border border-amber-100 text-amber-600 rounded flex items-center" title="Chapters Available">
+                                            <span className="p-0.5 bg-amber-50 dark:bg-amber-950/60 border border-amber-100 dark:border-amber-800 text-amber-600 dark:text-amber-400 rounded flex items-center" title="Chapters Available">
                                               <Clock className="h-2.5 w-2.5" />
                                             </span>
                                           )}
                                           {item.social_media && (
-                                            <span className="p-0.5 bg-purple-50 border border-purple-100 text-purple-600 rounded flex items-center" title="Social Share Available">
+                                            <span className="p-0.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 text-purple-600 dark:text-purple-400 rounded flex items-center" title="Social Share Available">
                                               <Share2 className="h-2.5 w-2.5" />
                                             </span>
                                           )}
@@ -3279,27 +3331,27 @@ export default function App() {
                                     )}
                                   </div>
                                 </div>
-                                <div className="col-span-1 text-xs text-slate-600 font-mono">
+                                <div className="col-span-1 text-xs text-slate-600 dark:text-slate-400 font-mono">
                                   {item.duration || "--:--"}
                                 </div>
                                 <div className="col-span-2">
                                   {item.status === "completed" && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-bold border border-emerald-200 uppercase tracking-wide">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold border border-emerald-200 dark:border-emerald-800 uppercase tracking-wide">
                                       Ready
                                     </span>
                                   )}
                                   {item.status === "archived" && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-bold border border-slate-200 uppercase tracking-wide">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[9px] font-bold border border-slate-200 dark:border-slate-700 uppercase tracking-wide">
                                       Archived
                                     </span>
                                   )}
                                   {item.status === "failed" && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[9px] font-bold border border-red-200 uppercase tracking-wide">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[9px] font-bold border border-red-200 dark:border-red-800 uppercase tracking-wide">
                                       Failed
                                     </span>
                                   )}
                                   {(item.status === "uploading" || item.status === "processing_audio" || item.status === "transcribing") && (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-200 uppercase tracking-wide">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[9px] font-bold border border-amber-200 dark:border-amber-800 uppercase tracking-wide">
                                       <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> {item.status === "processing_audio" ? "encoding" : item.status}
                                     </span>
                                   )}
@@ -3313,7 +3365,7 @@ export default function App() {
                                           e.stopPropagation();
                                           confirmDeleteJob(item.id);
                                         }}
-                                        className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-[9px] font-bold rounded shadow-sm transition-colors cursor-pointer"
+                                        className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white text-[9px] font-bold rounded shadow-sm transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-red-500"
                                       >
                                         Yes
                                       </button>
@@ -3322,7 +3374,7 @@ export default function App() {
                                           e.stopPropagation();
                                           setDeletingJobId(null);
                                         }}
-                                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[9px] font-bold rounded border border-slate-200 shadow-sm transition-colors cursor-pointer"
+                                        className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[9px] font-bold rounded border border-slate-200 dark:border-slate-700 shadow-sm transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-slate-500"
                                       >
                                         No
                                       </button>
@@ -3336,16 +3388,16 @@ export default function App() {
                                               e.stopPropagation();
                                               handleSelectJob(item.id);
                                             }}
-                                            className="px-2.5 py-1 bg-white border border-slate-200 hover:border-slate-300 text-[10px] font-bold rounded shadow-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer"
+                                            className="px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-[10px] font-bold rounded shadow-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 cursor-pointer focus-visible:ring-1 focus-visible:ring-blue-500"
                                           >
                                             Review
                                           </button>
                                           <button 
                                             onClick={(e) => handleToggleArchive(item.id, e)}
-                                            className="px-2 py-1 bg-white border border-slate-200 hover:border-slate-300 text-[9px] font-bold rounded shadow-sm text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1 cursor-pointer"
+                                            className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-[9px] font-bold rounded shadow-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-1 cursor-pointer focus-visible:ring-1 focus-visible:ring-blue-500"
                                             title={item.status === "archived" ? "Unarchive" : "Archive"}
                                           >
-                                            <Archive className="h-3 w-3 text-slate-400" />
+                                            <Archive className="h-3 w-3 text-slate-400 dark:text-slate-500" />
                                             {item.status === "archived" ? "Restore" : "Archive"}
                                           </button>
                                         </>
@@ -3356,12 +3408,12 @@ export default function App() {
                                       )}
 
                                       {(item.status === "uploading" || item.status === "processing_audio" || item.status === "transcribing") && (
-                                        <div className="text-[10px] text-blue-600 font-mono font-bold animate-pulse">{item.progress}%</div>
+                                        <div className="text-[10px] text-blue-600 dark:text-blue-400 font-mono font-bold animate-pulse">{item.progress}%</div>
                                       )}
 
                                       <button 
                                         onClick={(e) => handleDeleteJob(item.id, e)}
-                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer ml-auto"
+                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors cursor-pointer ml-auto focus-visible:ring-1 focus-visible:ring-red-500"
                                         title="Delete Job"
                                       >
                                         <Trash2 className="h-3.5 w-3.5" />
@@ -3377,20 +3429,20 @@ export default function App() {
                                   <div className="flex items-center gap-2.5 min-w-0">
                                     <div className={`w-7 h-7 rounded flex items-center justify-center text-[9px] font-bold font-mono shrink-0 ${
                                       item.status === "completed" 
-                                        ? "bg-emerald-100 text-emerald-600" 
+                                        ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400" 
                                         : item.status === "failed" 
-                                          ? "bg-red-100 text-red-600"
-                                          : item.status === "archived"
-                                            ? "bg-slate-100 text-slate-400"
-                                            : "bg-blue-100 text-blue-600"
+                                          ? "bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400"
+                                          : item.status === "archived" 
+                                            ? "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500" 
+                                            : "bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400"
                                     }`}>
                                       {item.filename.split(".").pop()?.toUpperCase().slice(0, 4) || "AUD"}
                                     </div>
                                     <div className="min-w-0">
-                                      <div className="text-xs font-bold text-slate-800 truncate" title={item.filename}>
+                                      <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate" title={item.filename}>
                                         {item.filename}
                                       </div>
-                                      <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1 flex-wrap">
+                                      <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono flex items-center gap-1 flex-wrap">
                                         <span>{(item.fileSize / (1024 * 1024)).toFixed(1)}MB</span>
                                         <span>•</span>
                                         <span>{item.duration || "--:--"}</span>
@@ -3399,22 +3451,22 @@ export default function App() {
                                   </div>
                                   <div className="shrink-0">
                                     {item.status === "completed" && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-bold border border-emerald-200 uppercase tracking-wide">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold border border-emerald-200 dark:border-emerald-800 uppercase tracking-wide">
                                         Ready
                                       </span>
                                     )}
                                     {item.status === "archived" && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-bold border border-slate-200 uppercase tracking-wide">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[9px] font-bold border border-slate-200 dark:border-slate-700 uppercase tracking-wide">
                                         Archived
                                       </span>
                                     )}
                                     {item.status === "failed" && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[9px] font-bold border border-red-200 uppercase tracking-wide">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 text-[9px] font-bold border border-red-200 dark:border-red-800 uppercase tracking-wide">
                                         Failed
                                       </span>
                                     )}
                                     {(item.status === "uploading" || item.status === "processing_audio" || item.status === "transcribing") && (
-                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-200 uppercase tracking-wide">
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 text-[9px] font-bold border border-amber-200 dark:border-amber-800 uppercase tracking-wide">
                                         <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span> {item.progress}%
                                       </span>
                                     )}
@@ -3423,26 +3475,26 @@ export default function App() {
 
                                 {/* Available assets icons on mobile */}
                                 {(item.summary || item.key_takeaways || item.chapters || item.social_media) && (
-                                  <div className="flex items-center gap-1.5 select-none bg-slate-50 p-1.5 rounded border border-slate-100">
-                                    <span className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider">Assets:</span>
+                                  <div className="flex items-center gap-1.5 select-none bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded border border-slate-100 dark:border-slate-800">
+                                    <span className="text-[8px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Assets:</span>
                                     <div className="flex items-center gap-1">
                                       {item.summary && (
-                                        <span className="p-0.5 bg-blue-50 border border-blue-100 text-blue-600 rounded flex items-center" title="Summary Available">
+                                        <span className="p-0.5 bg-blue-50 dark:bg-blue-950/60 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400 rounded flex items-center" title="Summary Available">
                                           <FileText className="h-2.5 w-2.5" />
                                         </span>
                                       )}
                                       {item.key_takeaways && (
-                                        <span className="p-0.5 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded flex items-center" title="Takeaways Available">
+                                        <span className="p-0.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-100 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 rounded flex items-center" title="Takeaways Available">
                                           <CheckCircle2 className="h-2.5 w-2.5" />
                                         </span>
                                       )}
                                       {item.chapters && (
-                                        <span className="p-0.5 bg-amber-50 border border-amber-100 text-amber-600 rounded flex items-center" title="Chapters Available">
+                                        <span className="p-0.5 bg-amber-50 dark:bg-amber-950/60 border border-amber-100 dark:border-amber-800 text-amber-600 dark:text-amber-400 rounded flex items-center" title="Chapters Available">
                                           <Clock className="h-2.5 w-2.5" />
                                         </span>
                                       )}
                                       {item.social_media && (
-                                        <span className="p-0.5 bg-purple-50 border border-purple-100 text-purple-600 rounded flex items-center" title="Social Share Available">
+                                        <span className="p-0.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 text-purple-600 dark:text-purple-400 rounded flex items-center" title="Social Share Available">
                                           <Share2 className="h-2.5 w-2.5" />
                                         </span>
                                       )}
@@ -3451,8 +3503,8 @@ export default function App() {
                                 )}
 
                                 {/* Mobile card actions */}
-                                <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                                  <span className="text-[9px] text-slate-400 font-mono">
+                                <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+                                  <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">
                                     {new Date(item.createdAt).toLocaleDateString()}
                                   </span>
 
@@ -3465,7 +3517,7 @@ export default function App() {
                                             e.stopPropagation();
                                             confirmDeleteJob(item.id);
                                           }}
-                                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-[9px] font-bold rounded shadow-sm cursor-pointer"
+                                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-[9px] font-bold rounded shadow-sm cursor-pointer focus-visible:ring-1 focus-visible:ring-red-500"
                                         >
                                           Yes
                                         </button>
@@ -3474,7 +3526,7 @@ export default function App() {
                                             e.stopPropagation();
                                             setDeletingJobId(null);
                                           }}
-                                          className="px-2 py-1 bg-slate-100 text-slate-600 text-[9px] font-bold rounded border border-slate-200 cursor-pointer"
+                                          className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-bold rounded border border-slate-200 dark:border-slate-700 cursor-pointer focus-visible:ring-1 focus-visible:ring-slate-500"
                                         >
                                           No
                                         </button>
@@ -3488,13 +3540,13 @@ export default function App() {
                                                 e.stopPropagation();
                                                 handleSelectJob(item.id);
                                               }}
-                                              className="px-3 py-1 bg-blue-600 text-white text-[10px] font-bold rounded shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-1 cursor-pointer"
+                                              className="px-3 py-1 bg-blue-600 text-white text-[10px] font-bold rounded shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-1 cursor-pointer focus-visible:ring-1 focus-visible:ring-blue-500"
                                             >
                                               Review
                                             </button>
                                             <button 
                                               onClick={(e) => handleToggleArchive(item.id, e)}
-                                              className="p-1 text-slate-500 hover:text-slate-700 bg-slate-100 rounded border border-slate-200 transition-colors cursor-pointer"
+                                              className="p-1 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-blue-500"
                                               title={item.status === "archived" ? "Unarchive" : "Archive"}
                                             >
                                               <Archive className="h-3.5 w-3.5" />
@@ -3503,7 +3555,7 @@ export default function App() {
                                         )}
                                         <button 
                                           onClick={(e) => handleDeleteJob(item.id, e)}
-                                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-red-500"
                                           title="Delete Job"
                                         >
                                           <Trash2 className="h-3.5 w-3.5" />
@@ -3670,9 +3722,9 @@ export default function App() {
         </div>
 
         {/* Footer / Status Bar */}
-        <footer className="h-10 bg-white border-t border-slate-200 flex items-center justify-between px-3 sm:px-6 text-xs text-slate-500 shrink-0 select-none">
+        <footer className="h-10 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-6 text-xs text-slate-500 dark:text-slate-400 shrink-0 select-none transition-colors">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
+            <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300">
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
               <span className="hidden xs:inline">ScribeNode Active Engine</span>
               <span className="xs:hidden font-mono text-[10px]">Active</span>
@@ -3680,465 +3732,22 @@ export default function App() {
           </div>
           <button
             onClick={() => setShowAboutModal(true)}
-            className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-slate-100/80 hover:bg-blue-50/80 px-2.5 sm:px-3 py-1 rounded-md border border-slate-200/80 transition-all cursor-pointer shadow-2xs group"
+            className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100/80 dark:bg-slate-800/80 hover:bg-blue-50/80 dark:hover:bg-slate-800 px-2.5 sm:px-3 py-1 rounded-md border border-slate-200/80 dark:border-slate-700/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800">v1.5.5</span>
-            <span className="text-[10px] text-slate-400 font-normal border-l border-slate-200 pl-1.5 sm:pl-2 hidden xs:inline">About & Release Notes</span>
+            <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-100">v1.5.5</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal border-l border-slate-200 dark:border-slate-700 pl-1.5 sm:pl-2 hidden xs:inline">About & Release Notes</span>
           </button>
         </footer>
 
         {/* About, Setup Guide & Release Notes Modal */}
-        <AnimatePresence>
-          {showAboutModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-xl w-full overflow-hidden flex flex-col max-h-[90vh]"
-              >
-                {/* Modal Header */}
-                <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-900 text-white flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-3">
-                    <ScribeNodeLogo className="w-9 h-9" />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="font-bold text-base sm:text-lg text-white tracking-tight">Scribe<span className="text-blue-300">Node</span></h2>
-                        <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                          v1.5.5
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowAboutModal(false)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Modal Tab Switcher */}
-                <div className="flex border-b border-slate-200 bg-slate-50/80 px-4 pt-2 gap-1.5 shrink-0 overflow-x-auto">
-                  <button
-                    type="button"
-                    onClick={() => setAboutModalTab('overview')}
-                    className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-t border-x ${
-                      aboutModalTab === 'overview'
-                        ? "bg-white text-blue-600 border-slate-200 -mb-[1px] shadow-2xs"
-                        : "bg-transparent text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100"
-                    }`}
-                  >
-                    <Cpu className="w-3.5 h-3.5" />
-                    <span>Overview</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setAboutModalTab('api_setup')}
-                    className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-t border-x ${
-                      aboutModalTab === 'api_setup'
-                        ? "bg-white text-blue-600 border-slate-200 -mb-[1px] shadow-2xs"
-                        : "bg-transparent text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100"
-                    }`}
-                  >
-                    <Key className="w-3.5 h-3.5 text-blue-500" />
-                    <span>API & Cloud Setup</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setAboutModalTab('release_notes')}
-                    className={`px-3 py-2 text-xs font-bold rounded-t-lg transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-t border-x ${
-                      aboutModalTab === 'release_notes'
-                        ? "bg-white text-blue-600 border-slate-200 -mb-[1px] shadow-2xs"
-                        : "bg-transparent text-slate-500 hover:text-slate-800 border-transparent hover:bg-slate-100"
-                    }`}
-                  >
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
-                    <span>What's New v1.5.5</span>
-                  </button>
-                </div>
-
-                {/* Modal Scrollable Body */}
-                <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-slate-700 text-xs leading-relaxed">
-                  
-                  {/* TAB 1: SYSTEM OVERVIEW */}
-                  {aboutModalTab === 'overview' && (
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
-                          <Cpu className="w-4 h-4 text-blue-600" />
-                          Speech Intelligence Engine
-                        </h3>
-                        <p className="text-slate-600 mb-3">
-                          ScribeNode is an AI-powered speech intelligence engine built for processing podcasts, interviews, and audio recordings into publication-ready transcripts with speaker diarization, timestamps, and multi-format content pipelines.
-                        </p>
-                        <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 font-mono text-[11px]">
-                          <div>
-                            <span className="text-slate-400 block text-[10px]">CORE AI MODEL</span>
-                            <span className="text-slate-800 font-semibold">{formatModelDisplayName(modelStatus.activeModel)}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[10px]">SERVER FRAMEWORK</span>
-                            <span className="text-slate-800 font-semibold">Express 5.2 / Node 26</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[10px]">BUILD ENGINE</span>
-                            <span className="text-slate-800 font-semibold">Vite 8 / React 19</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block text-[10px]">TRANSCRIPTION STYLE</span>
-                            <span className="text-slate-800 font-semibold">Polished Clean Verbatim</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Quick API Callout Banner */}
-                      <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-start gap-3">
-                        <Key className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                          <span className="font-bold text-slate-900">Custom Google Cloud & Gemini API Key:</span>
-                          <p className="text-slate-600 text-[11px]">
-                            Using your own Gemini key? Make sure the <strong className="text-slate-900">Generative Language API</strong> is activated on your Google Cloud project.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => setAboutModalTab('api_setup')}
-                            className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-800 font-bold hover:underline mt-1"
-                          >
-                            View Google Cloud Setup Guide ➔
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Privacy & Storage */}
-                      <div>
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
-                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                          Privacy & Local Storage
-                        </h3>
-                        <p className="text-slate-600">
-                          Audio files are processed via secure server-side Gemini API proxy calls. Audio files are retained locally in persistent Docker storage for playback and scrubbing, while transcripts remain saved locally in volume persistence.
-                        </p>
-                      </div>
-
-                      {/* Homelab Backup Banner */}
-                      <div className="p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-start gap-3">
-                        <Archive className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                          <span className="font-bold text-slate-900">Homelab & Docker Backup / Restore:</span>
-                          <p className="text-slate-600 text-[11px]">
-                            Easily export your transcripts, notes, and audio into dated ZIP snapshots, or restore a previous installation with one click.
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowAboutModal(false);
-                              openBackupRestoreModal();
-                            }}
-                            className="inline-flex items-center gap-1 text-indigo-700 hover:text-indigo-800 font-bold hover:underline mt-1 cursor-pointer"
-                          >
-                            Open Backup & Restore Center ➔
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Open Source Repository */}
-                      <div className="pt-2 border-t border-slate-100">
-                        <a
-                          href="https://github.com/WillPresley/scribenode-podcast-transcription"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="group flex items-center justify-between p-3.5 bg-slate-50 hover:bg-blue-50/70 rounded-xl border border-slate-200/90 hover:border-blue-300 transition-all text-slate-800"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0 group-hover:bg-blue-600 transition-colors shadow-2xs">
-                              <GitBranch className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-slate-900 group-hover:text-blue-700 text-xs">WillPresley/scribenode-podcast-transcription</span>
-                                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-medium">GitHub</span>
-                              </div>
-                              <p className="text-[11px] text-slate-500 mt-0.5">Explore source code, self-hosted Docker instructions, and CI/CD pipelines</p>
-                            </div>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-600 shrink-0 ml-2 transition-colors" />
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* TAB 2: GOOGLE CLOUD & API SETUP */}
-                  {aboutModalTab === 'api_setup' && (
-                    <div className="space-y-6">
-                      
-                      {/* Critical Requirement Header */}
-                      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl space-y-2">
-                        <div className="flex items-center gap-2 text-blue-900 font-bold text-xs uppercase tracking-wide">
-                          <Key className="w-4 h-4 text-blue-600" />
-                          <span>Required Google Cloud API</span>
-                        </div>
-                        <p className="text-slate-700 text-[11px] leading-relaxed">
-                          ScribeNode uses Google's <strong className="text-slate-900">Generative Language API</strong> (<code className="bg-white/80 px-1.5 py-0.5 rounded font-mono text-[10px] text-blue-800 border border-blue-200">generativelanguage.googleapis.com</code>) to transcribe audio tracks and generate structured podcast insights.
-                        </p>
-                      </div>
-
-                      {/* Setup Pathways */}
-                      <div className="space-y-4">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                          How to Set Up Your API Key
-                        </h4>
-
-                        {/* Option A: Google AI Studio */}
-                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                              <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold">1</span>
-                              Option A: Google AI Studio (Recommended / Fastest)
-                            </span>
-                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded uppercase">
-                              Auto-Enables API
-                            </span>
-                          </div>
-                          
-                          <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-slate-600 pl-1">
-                            <li>Open <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-semibold inline-flex items-center gap-1">Google AI Studio API Keys <ExternalLink className="w-3 h-3" /></a></li>
-                            <li>Sign in with your Google Account and click <strong className="text-slate-800">"Create API key"</strong>.</li>
-                            <li>Select your Google Cloud project or allow AI Studio to provision a new project.</li>
-                            <li><strong className="text-slate-800">Done!</strong> Keys created via AI Studio automatically have the <em className="text-blue-700 not-italic font-semibold">Generative Language API</em> enabled.</li>
-                          </ol>
-
-                          <a
-                            href="https://aistudio.google.com/app/apikey"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs transition-colors cursor-pointer"
-                          >
-                            <span>Open Google AI Studio Keys</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-
-                        {/* Option B: Google Cloud Console */}
-                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                              <span className="w-5 h-5 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold">2</span>
-                              Option B: Google Cloud Console (Custom GCP Projects)
-                            </span>
-                          </div>
-
-                          <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-slate-600 pl-1">
-                            <li>Go to <a href="https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-semibold inline-flex items-center gap-1">Generative Language API in Google Cloud <ExternalLink className="w-3 h-3" /></a>.</li>
-                            <li>Select your target GCP project from the top dropdown.</li>
-                            <li>Click the blue <strong className="text-slate-800">"ENABLE"</strong> button.</li>
-                            <li>Navigate to <strong className="text-slate-800">APIs & Services &gt; Credentials</strong> $\rightarrow$ <strong className="text-slate-800">Create Credentials &gt; API Key</strong>.</li>
-                            <li><em className="text-slate-500">Optional security:</em> Under API restrictions, restrict the key to only the <strong>Generative Language API</strong>.</li>
-                          </ol>
-
-                          <a
-                            href="https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold text-xs transition-colors cursor-pointer"
-                          >
-                            <span>Enable API in Cloud Console</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-
-                      </div>
-
-                      {/* Environment Variable Setup Block */}
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                          Configuring ScribeNode (.env / Docker)
-                        </h4>
-                        <div className="bg-slate-900 text-slate-200 p-3 rounded-xl font-mono text-[11px] relative">
-                          <button
-                            onClick={() => copyToClipboardWithFeedback('GEMINI_API_KEY="your-api-key-here"', 'env-key')}
-                            className="absolute top-2.5 right-2.5 px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] flex items-center gap-1 cursor-pointer transition-colors"
-                          >
-                            {copiedSnippet === 'env-key' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                            <span>{copiedSnippet === 'env-key' ? 'Copied' : 'Copy'}</span>
-                          </button>
-                          <div className="text-slate-500 select-none"># .env or docker-compose.yml</div>
-                          <div className="text-emerald-400">GEMINI_API_KEY<span className="text-white">=</span><span className="text-amber-300">"AIzaSy..."</span></div>
-                        </div>
-                      </div>
-
-                      {/* Troubleshooting Common Errors */}
-                      <div className="space-y-2.5">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                          Common API Troubleshooting
-                        </h4>
-                        <div className="space-y-2">
-                          <div className="p-3 bg-red-50/70 border border-red-200/80 rounded-lg text-[11px]">
-                            <div className="font-bold text-red-900 mb-0.5">Error: "Generative Language API has not been used in project..." (PERMISSION_DENIED / 403)</div>
-                            <p className="text-slate-600">
-                              Your API key is valid, but the API is not enabled on that project. Click the <strong className="text-slate-800">"Enable API in Cloud Console"</strong> button above to activate it.
-                            </p>
-                          </div>
-                          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px]">
-                            <div className="font-bold text-slate-900 mb-0.5">Error: "API_KEY_INVALID" (400)</div>
-                            <p className="text-slate-600">
-                              Check for accidental spaces or quotes around the key in your <code className="bg-slate-200 px-1 py-0.2 rounded font-mono text-[10px]">.env</code> file, and restart the container.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  )}
-
-                  {/* TAB 3: RELEASE NOTES */}
-                  {aboutModalTab === 'release_notes' && (
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5 mb-2">
-                          <Zap className="w-4 h-4 text-amber-500" />
-                          What's New in v1.5.5
-                        </h3>
-                        <ul className="space-y-3 border-l-2 border-blue-200 pl-3.5">
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Progressive Web App (PWA) & Standalone Windowing:</span>
-                            <p className="text-slate-600 mt-0.5">Install ScribeNode as a native application across macOS, Windows, Linux, Android, and iOS. Enjoy frameless standalone desktop windows, customized dock/home icons, quick in-app install actions, and auto-updating service worker precaching.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Offline Resilience & Saved Transcript Access:</span>
-                            <p className="text-slate-600 mt-0.5">Instant offline status detection with non-intrusive banner alerts. Seamlessly inspect, filter, format, and export previously transcribed podcast episodes and meetings even when disconnected or traveling.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Dynamic PWA App Naming via Docker & Environment:</span>
-                            <p className="text-slate-600 mt-0.5">Customize your application and manifest branding dynamically using <code className="font-mono text-[10px]">APP_NAME</code>, <code className="font-mono text-[10px]">APP_SHORT_NAME</code>, or <code className="font-mono text-[10px]">APP_TITLE</code> in Docker Compose or <code className="font-mono text-[10px]">.env</code> with zero container rebuilds required.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Flagship Gemini 3.8 Flash & Full Fallback Cascade:</span>
-                            <p className="text-slate-600 mt-0.5">Primary multimodal reasoning and speech alignment engine powered by Google DeepMind's Gemini 3.8 Flash (304.6 tokens/sec, 1M context, 64k output), backed by a comprehensive 9-tier automated fallback cascade spanning Gemini 3.7 Flash down to Flash Lite models.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Podcast RSS Feed & Remote URL Ingestion:</span>
-                            <p className="text-slate-600 mt-0.5">Directly transcribe podcasts from public RSS feeds or direct audio URLs. Preview feed metadata, browse episodes, and stream audio directly to the transcription pipeline without manual file downloads.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">RSS Feed Episode Pagination & Navigation:</span>
-                            <p className="text-slate-600 mt-0.5">Browse extensive podcast feeds with 50 and 100 episodes-per-page pagination, smooth scrolling, direct page jumping, and real-time full-archive title, description, and date search filtering.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Audio Enclosure Byte Duration Estimation:</span>
-                            <p className="text-slate-600 mt-0.5">Resilient audio duration fallback estimation derived from enclosure file size lengths (~128 kbps standard) alongside XML tags (<code className="font-mono text-[10px]">&lt;itunes:duration&gt;</code>, <code className="font-mono text-[10px]">&lt;duration&gt;</code>, <code className="font-mono text-[10px]">&lt;media:duration&gt;</code>), ensuring episode durations are always clearly presented.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Custom Vocabulary & Technical Glossary:</span>
-                            <p className="text-slate-600 mt-0.5">Supply custom domain terms, acronyms, brand names, and niche jargon prior to transcription to dramatically improve speech recognition accuracy across specialized recordings.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Inline Quick Edit & Global Speaker Renaming:</span>
-                            <p className="text-slate-600 mt-0.5">Directly refine transcript text with the integrated markdown editor, or replace speaker labels across the entire transcript with one click using the Speaker Renaming dialog.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Unified Ingestion Card & Mode Switcher:</span>
-                            <p className="text-slate-600 mt-0.5">Sleek, tabbed ingestion interface for switching effortlessly between local file upload, RSS podcast feeds, and direct URL streaming with persistent transcription presets.</p>
-                          </li>
-                          <li className="relative">
-                            <span className="font-bold text-slate-900">Supply Chain Security & Maintenance:</span>
-                            <p className="text-slate-600 mt-0.5">Automated Dependabot security alerts for critical vulnerabilities alongside scheduled weekly grouped updates.</p>
-                          </li>
-                        </ul>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100">
-                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                          Previous Milestones
-                        </h4>
-                        <div className="space-y-2">
-                          <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
-                            <div className="font-bold text-slate-800">v1.5.1 — RSS Feed Pagination & Duration Fallbacks</div>
-                            <p className="text-[10px] text-slate-500">Enhanced RSS picker with 50/100 episode pagination, full-archive search filtering, enclosure byte duration estimation, and Dependabot supply chain setup.</p>
-                          </div>
-                          <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
-                            <div className="font-bold text-slate-800">v1.5.0 — Flagship Gemini 3.8 Flash, RSS Feeds & Custom Vocabulary</div>
-                            <p className="text-[10px] text-slate-500">Multimodal Gemini 3.8 Flash, full 9-tier model cascade, RSS feed ingestion, custom glossary injection, and in-place transcript editor.</p>
-                          </div>
-                          <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
-                            <div className="font-bold text-slate-800">v1.4.5 — Flagship Gemini 3.7 Flash & Markdown Standards</div>
-                            <p className="text-[10px] text-slate-500">Flagship multimodal transcription, publication-grade markdown layout, human-friendly error categorization, and granular model cascade failover diagnostics.</p>
-                          </div>
-                          <div className="bg-slate-50 rounded-lg p-3 text-[11px] text-slate-600 space-y-1 border border-slate-200/60">
-                            <div className="font-bold text-slate-800">v1.3.0 — Mobile-Responsive Overhaul & Upload Sizing</div>
-                            <p className="text-[10px] text-slate-500">Segmented mobile tabs, drawer navigation, configurable <code className="font-mono">MAX_UPLOAD_SIZE_MB</code>, and GHCR container deployment workflow hardening.</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Open Source Repository */}
-                      <div className="pt-2 border-t border-slate-100">
-                        <a
-                          href="https://github.com/WillPresley/scribenode-podcast-transcription"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="group flex items-center justify-between p-3.5 bg-slate-50 hover:bg-blue-50/70 rounded-xl border border-slate-200/90 hover:border-blue-300 transition-all text-slate-800"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0 group-hover:bg-blue-600 transition-colors shadow-2xs">
-                              <GitBranch className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-slate-900 group-hover:text-blue-700 text-xs">WillPresley/scribenode-podcast-transcription</span>
-                                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-medium">GitHub</span>
-                              </div>
-                              <p className="text-[11px] text-slate-500 mt-0.5">Explore source code, self-hosted Docker instructions, and CI/CD pipelines</p>
-                            </div>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-blue-600 shrink-0 ml-2 transition-colors" />
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Modal Footer */}
-                <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
-                  <a
-                    href="https://github.com/WillPresley/scribenode-podcast-transcription"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 hover:text-blue-600 transition-colors"
-                  >
-                    <GitBranch className="w-3.5 h-3.5" />
-                    <span>View on GitHub</span>
-                    <ExternalLink className="w-3 h-3 text-slate-400" />
-                  </a>
-                  <div className="flex items-center gap-2">
-                    {aboutModalTab !== 'api_setup' && (
-                      <button
-                        type="button"
-                        onClick={() => setAboutModalTab('api_setup')}
-                        className="px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
-                      >
-                        <Key className="w-3 h-3" />
-                        API Setup Guide
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setShowAboutModal(false)}
-                      className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+        <AboutReleaseNotesModal
+          isOpen={showAboutModal}
+          onClose={() => setShowAboutModal(false)}
+          initialTab={aboutModalTab}
+          modelStatus={modelStatus}
+          onOpenBackupRestoreModal={openBackupRestoreModal}
+        />
 
         {/* Speaker Rename Modal */}
         <SpeakerRenameModal
