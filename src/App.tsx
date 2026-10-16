@@ -78,7 +78,7 @@ import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { AboutReleaseNotesModal, AboutModalTab } from "./components/AboutReleaseNotesModal";
 import { ThemeToggle } from "./components/ThemeToggle";
 import {
-  ThemeMode,
+  type ThemeMode,
   getStoredTheme,
   setStoredTheme,
   applyTheme,

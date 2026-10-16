@@ -115,3 +115,5 @@ export interface RestoreResult {
   warnings: string[];
 }
 
+export type { ThemeMode } from './utils/theme';
+
