@@ -4,6 +4,8 @@ export type PromptStyle = 'clean' | 'timestamped' | 'verbatim' | 'custom' | 'com
 
 export type AnalysisMode = 'summary' | 'key_takeaways' | 'chapters' | 'social_media';
 
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 export interface TranscribeJob {
   id: string;
   filename: string;
@@ -114,6 +116,3 @@ export interface RestoreResult {
   mode: 'merge' | 'replace';
   warnings: string[];
 }
-
-export type { ThemeMode } from './utils/theme';
-

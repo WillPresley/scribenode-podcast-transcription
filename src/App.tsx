@@ -77,8 +77,8 @@ import { PwaBanner } from "./components/PwaBanner";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { AboutReleaseNotesModal, AboutModalTab } from "./components/AboutReleaseNotesModal";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { type ThemeMode } from "./types";
 import {
-  type ThemeMode,
   getStoredTheme,
   setStoredTheme,
   applyTheme,
