@@ -79,7 +79,7 @@ export const AboutReleaseNotesModal: React.FC<AboutReleaseNotesModalProps> = ({
                       Scribe<span className="text-blue-300">Node</span>
                     </h2>
                     <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                      v1.5.5
+                      v1.6.0
                     </span>
                   </div>
                   <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -133,7 +133,7 @@ export const AboutReleaseNotesModal: React.FC<AboutReleaseNotesModalProps> = ({
                 }`}
               >
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
-                <span>What's New v1.5.5</span>
+                <span>What's New v1.6.0</span>
               </button>
             </div>
 
@@ -381,55 +381,37 @@ export const AboutReleaseNotesModal: React.FC<AboutReleaseNotesModalProps> = ({
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5 mb-2">
                       <Zap className="w-4 h-4 text-amber-500" />
-                      What's New in v1.5.5
+                      What's New in v1.6.0
                     </h3>
                     <ul className="space-y-3 border-l-2 border-blue-200 dark:border-blue-800 pl-3.5">
                       <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Seamless Dark, Light & Auto-OS System Themes:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">Full Tri-Theme Architecture (Light, Dark & System OS Adaptive):</span>
                         <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Fully customizable appearance with three accessible modes: refined Light workspace, deep slate neutral Dark mode, and automatic OS synchronization via <code className="font-mono text-[10px]">prefers-color-scheme</code>. Dual control placement across the top header and mobile drawer.
+                          Deep slate dark theme, crisp clean light theme, and automatic system OS tracking via <code className="font-mono text-[10px]">prefers-color-scheme</code>. Includes dedicated <code className="font-mono text-[10px]">ThemeToggle</code> component with desktop segmented controls, mobile navigation drawer integration, responsive pointer feedback, and instant <code className="font-mono text-[10px]">&lt;meta name="theme-color"&gt;</code> DOM synchronization.
                         </p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Progressive Web App (PWA) & Standalone Windowing:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">Production Container & Self-Hosted Docker Hardening:</span>
                         <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Install ScribeNode as a native application across macOS, Windows, Linux, Android, and iOS. Enjoy frameless standalone desktop windows, customized dock/home icons, quick in-app install actions, and auto-updating service worker precaching.
+                          Implemented conditional dynamic importing for Vite middleware in <code className="font-mono text-[10px]">server.ts</code>. Decouples production runtime from development bundlers and completely eliminates missing module crashes on slim runner containers (<code className="font-mono text-[10px]">npm ci --only=production</code>).
                         </p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Offline Resilience & Saved Transcript Access:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">Atomic Disk Persistence & Path Traversal Immunity:</span>
                         <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Instant offline status detection with non-intrusive banner alerts. Seamlessly inspect, filter, format, and export previously transcribed podcast episodes and meetings even when disconnected or traveling.
+                          Hardened server storage engine with atomic <code className="font-mono text-[10px]">.tmp</code> serialization and atomic rename (<code className="font-mono text-[10px]">fs.renameSync</code>) preventing database corruption during abrupt process shutdown, debounced write I/O consolidation, and strict <code className="font-mono text-[10px]">isPathWithinUploads()</code> boundary validation across all audio streaming and deletion routes.
                         </p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Flagship Gemini 3.8 Flash & Full Fallback Cascade:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">Supply Chain Modernization & 100% CI Parity:</span>
                         <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Primary multimodal reasoning and speech alignment engine powered by Google DeepMind's Gemini 3.8 Flash, backed by an automated fallback cascade spanning Gemini 3.6 Flash, Flash Latest, and Flash Lite models.
+                          Upgraded Tailwind CSS 4.3.3, Google GenAI SDK 2.29.0, unified Node.js 24/26 execution compatibility, and standardized GitHub Actions runner pipelines backed by 14 test suites and 332 tests at 100% passing.
                         </p>
                       </li>
                       <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Podcast RSS Feed & Remote URL Ingestion:</span>
+                        <span className="font-bold text-slate-900 dark:text-white">Modularized Component Decomposition:</span>
                         <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Directly transcribe podcasts from public RSS feeds or direct audio URLs. Preview feed metadata, browse episodes, and stream audio directly to the transcription pipeline without manual file downloads.
-                        </p>
-                      </li>
-                      <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Audio Enclosure Byte Duration Estimation:</span>
-                        <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Resilient audio duration fallback estimation derived from enclosure file size lengths (~128 kbps standard) alongside standard XML tags.
-                        </p>
-                      </li>
-                      <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Custom Vocabulary & Technical Glossary:</span>
-                        <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Supply custom domain terms, acronyms, brand names, and niche jargon prior to transcription to dramatically improve speech recognition accuracy across specialized recordings.
-                        </p>
-                      </li>
-                      <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Inline Quick Edit & Global Speaker Renaming:</span>
-                        <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Directly refine transcript text with the integrated markdown editor, or replace speaker labels across the entire transcript with one click using the Speaker Renaming dialog.
+                          Extracted large inline dialogs into clean, decoupled components (<code className="font-mono text-[10px]">AboutReleaseNotesModal</code>, <code className="font-mono text-[10px]">ModelDiagnosticsPopover</code>, <code className="font-mono text-[10px]">SpeakerRenameModal</code>, <code className="font-mono text-[10px]">BackupRestoreModal</code>, <code className="font-mono text-[10px]">ThemeToggle</code>, <code className="font-mono text-[10px]">GlossaryInput</code>, <code className="font-mono text-[10px]">AudioPlayer</code>) for enhanced maintainability.
                         </p>
                       </li>
                     </ul>
@@ -441,16 +423,16 @@ export const AboutReleaseNotesModal: React.FC<AboutReleaseNotesModalProps> = ({
                     </h4>
                     <div className="space-y-2">
                       <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/60">
+                        <div className="font-bold text-slate-800 dark:text-slate-200">v1.5.5 &mdash; Progressive Web App (PWA) & Offline Resilience</div>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Installable PWA with standalone windowing, offline status alerts with cached transcript access, and verified 8-tier Gemini 3.8 Flash model cascade.</p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/60">
                         <div className="font-bold text-slate-800 dark:text-slate-200">v1.5.1 &mdash; RSS Feed Pagination & Duration Fallbacks</div>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400">Enhanced RSS picker with 50/100 episode pagination, full-archive search filtering, enclosure byte duration estimation, and Dependabot supply chain setup.</p>
                       </div>
                       <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/60">
                         <div className="font-bold text-slate-800 dark:text-slate-200">v1.5.0 &mdash; Flagship Gemini 3.8 Flash, RSS Feeds & Custom Vocabulary</div>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400">Multimodal Gemini 3.8 Flash, full 9-tier model cascade, RSS feed ingestion, custom glossary injection, and in-place transcript editor.</p>
-                      </div>
-                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/60">
-                        <div className="font-bold text-slate-800 dark:text-slate-200">v1.4.5 &mdash; Flagship Gemini 3.7 Flash & Markdown Standards</div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Flagship multimodal transcription, publication-grade markdown layout, human-friendly error categorization, and granular model cascade failover diagnostics.</p>
                       </div>
                     </div>
                   </div>
