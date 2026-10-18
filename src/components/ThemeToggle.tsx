@@ -90,7 +90,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
             aria-label={`${label} theme: ${description}`}
             title={`${label} theme (${description})`}
             onClick={() => onSelectMode(mode)}
-            className={`relative flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            className={`relative flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 ${
               isSelected
                 ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-semibold border border-slate-200/70 dark:border-slate-700'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/40'
