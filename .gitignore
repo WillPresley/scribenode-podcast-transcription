@@ -7,6 +7,10 @@ coverage/
 .env*
 !.env.example
 
+# AI Studio internal artifacts, planning workspaces & metadata
+.aistudio/
+.aistudio
+
 # Local uploaded media files & persistent user audio
 uploads/*.mp3
 uploads/*.wav

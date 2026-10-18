@@ -98,4 +98,16 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(indexHtml).toContain('name="theme-color"');
     expect(indexHtml).toContain('apple-touch-icon');
   });
+
+  it('validates .gitignore ignores temporary AI Studio artifacts and no .aistudio files exist', () => {
+    const gitignorePath = path.join(rootDir, '.gitignore');
+    expect(fs.existsSync(gitignorePath)).toBe(true);
+
+    const gitignore = fs.readFileSync(gitignorePath, 'utf-8');
+    expect(gitignore).toContain('.aistudio/');
+    expect(gitignore).toContain('.aistudio');
+
+    const aiStudioPath = path.join(rootDir, '.aistudio');
+    expect(fs.existsSync(aiStudioPath)).toBe(false);
+  });
 });
