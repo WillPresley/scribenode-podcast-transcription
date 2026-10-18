@@ -1626,7 +1626,14 @@ export default function App() {
               <Menu className="h-5 w-5" />
             </button>
 
-            <h2 className="font-semibold text-slate-800 dark:text-slate-100 truncate text-xs sm:text-base max-w-[140px] xs:max-w-[200px] sm:max-w-xs md:max-w-md">
+            {/* Mobile Brand Indicator */}
+            <div className="flex items-center gap-1.5 sm:hidden shrink-0">
+              <ScribeNodeLogo className="w-6 h-6 p-1 rounded-lg" />
+              <span className="font-bold text-slate-900 dark:text-white text-xs tracking-tight">ScribeNode</span>
+            </div>
+
+            {/* Desktop Page Title */}
+            <h2 className="hidden sm:block font-semibold text-slate-800 dark:text-slate-100 truncate text-sm sm:text-base max-w-xs md:max-w-md">
               {job?.status === "completed" ? `Review: ${job.filename}` : "Transcript Queue"}
             </h2>
           </div>
@@ -1859,18 +1866,18 @@ export default function App() {
                         </div>
 
                         {/* Right Column: Full Fallback Execution Sequence (md:col-span-7) */}
-                        <div className="md:col-span-7 md:border-l md:border-slate-100 md:pl-5 flex flex-col">
-                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+                        <div className="md:col-span-7 md:border-l md:border-slate-100 md:dark:border-slate-800 md:pl-5 flex flex-col">
+                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                                 Fallback Cascade Sequence
                               </span>
                               {(modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel) ? (
-                                <span className="text-[8px] bg-indigo-100 text-indigo-700 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wide">
+                                <span className="text-[8px] bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wide border border-indigo-200/60 dark:border-indigo-800">
                                   Custom Order
                                 </span>
                               ) : (
-                                <span className="text-[8px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">
+                                <span className="text-[8px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold px-1.5 py-0.5 rounded uppercase tracking-wide border border-slate-200/60 dark:border-slate-700">
                                   Default Order
                                 </span>
                               )}
@@ -1879,13 +1886,13 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={handleResetModelCascade}
-                                className="text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer hover:underline"
+                                className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer hover:underline"
                                 title="Reset cascade to standard Gemini 3.8 Flash hierarchy"
                               >
                                 <RotateCcw className="h-2.5 w-2.5" /> Reset Cascade
                               </button>
                             ) : (
-                              <span className="text-[10px] text-slate-400 font-normal">
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">
                                 auto failover
                               </span>
                             )}
@@ -1904,38 +1911,38 @@ export default function App() {
                                   title={isActive ? "Active primary model" : `Click to prioritize ${formatModelDisplayName(m)}`}
                                   className={`px-3 py-1.5 rounded-lg border text-[11px] transition-all cursor-pointer ${
                                     isActive
-                                      ? "bg-blue-50/90 border-blue-200 text-blue-900 font-bold shadow-2xs"
+                                      ? "bg-blue-50/90 dark:bg-blue-950/80 border-blue-200 dark:border-blue-800 text-blue-900 dark:text-blue-200 font-bold shadow-2xs"
                                       : modelError
-                                        ? "bg-amber-50/40 border-amber-200 text-slate-700 hover:bg-amber-50/70"
-                                        : "bg-slate-50/50 border-slate-200/70 text-slate-700 hover:bg-blue-50/50 hover:border-blue-200"
+                                        ? "bg-amber-50/40 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-slate-700 dark:text-slate-300 hover:bg-amber-50/70 dark:hover:bg-amber-900/40"
+                                        : "bg-slate-50/50 dark:bg-slate-800/50 border-slate-200/70 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-blue-50/50 dark:hover:bg-blue-950/40 hover:border-blue-200 dark:hover:border-blue-800"
                                   }`}
                                 >
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 truncate pr-2">
                                       <span className={`font-mono text-[10px] w-4 shrink-0 font-semibold ${
-                                        isActive ? "text-blue-600" : "text-slate-400"
+                                        isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"
                                       }`}>
                                         #{idx + 1}
                                       </span>
                                       <span className="truncate font-semibold">{formatModelDisplayName(m)}</span>
                                       {isPrimary && (
-                                        <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded shrink-0">
+                                        <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.2 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded shrink-0 border border-blue-200/60 dark:border-blue-800">
                                           Flagship
                                         </span>
                                       )}
                                     </div>
                                     <div className="flex items-center gap-1.5 shrink-0">
                                       {modelError && (
-                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tight bg-amber-100/90 text-amber-800 border border-amber-300/80">
+                                        <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-tight bg-amber-100/90 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300/80 dark:border-amber-800">
                                           {modelError.shortBadge}
                                         </span>
                                       )}
                                       {isActive ? (
-                                        <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-bold whitespace-nowrap">
-                                          <CheckCircle2 className="h-3 w-3 text-emerald-500" /> Active #1
+                                        <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
+                                          <CheckCircle2 className="h-3 w-3 text-emerald-500 dark:text-emerald-400" /> Active #1
                                         </span>
                                       ) : (
-                                        <span className="text-[10px] text-slate-400 font-medium hover:text-blue-600 transition-colors whitespace-nowrap">
+                                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap">
                                           Prioritize ↗
                                         </span>
                                       )}
@@ -1987,6 +1994,56 @@ export default function App() {
           </div>
         </header>
 
+        {/* Mobile Contextual Page Title Sub-header Bar */}
+        <div className="sm:hidden px-3.5 py-2 bg-slate-100/90 dark:bg-slate-900/95 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-xs shrink-0 transition-colors shadow-2xs">
+          <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+            {job?.status === "completed" ? (
+              <>
+                <span className="p-1 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 shrink-0">
+                  <FileText className="w-3.5 h-3.5" />
+                </span>
+                <div className="min-w-0 flex items-baseline gap-1.5 truncate">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600 dark:text-blue-400 shrink-0">
+                    Review:
+                  </span>
+                  <span className="font-bold text-slate-900 dark:text-slate-100 truncate text-xs" title={job.filename}>
+                    {job.filename}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="p-1 rounded-md bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 shrink-0">
+                  <Layers className="w-3.5 h-3.5" />
+                </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                    Transcript Queue
+                  </span>
+                  <span className="px-1.5 py-0.2 bg-slate-200/90 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-[10px] font-mono font-bold">
+                    {jobsList.length} {jobsList.length === 1 ? 'item' : 'items'}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {job?.status === "completed" ? (
+            <button
+              type="button"
+              onClick={handleReset}
+              className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 shrink-0 cursor-pointer bg-white dark:bg-slate-800 px-2 py-1 rounded-md border border-slate-200/80 dark:border-slate-700 shadow-2xs"
+            >
+              <span>Queue</span>
+              <ArrowRight className="w-2.5 h-2.5" />
+            </button>
+          ) : (
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium shrink-0">
+              {jobsList.filter(j => j.status === "completed").length} ready
+            </span>
+          )}
+        </div>
+
         {/* PWA Offline & Install Notification Banner */}
         <PwaBanner
           isInstallable={isInstallable}
@@ -2009,14 +2066,14 @@ export default function App() {
                 className="flex flex-col lg:grid lg:grid-cols-12 gap-3 sm:gap-6 h-full overflow-hidden"
               >
                 {/* Mobile Segmented Switcher for Transcript vs Insights Hub */}
-                <div className="lg:hidden flex rounded-xl bg-slate-200/80 p-1 shrink-0 shadow-inner">
+                <div className="lg:hidden flex rounded-xl bg-slate-200/80 dark:bg-slate-800 p-1 shrink-0 shadow-inner border border-transparent dark:border-slate-700/80">
                   <button
                     type="button"
                     onClick={() => setMobileWorkspaceTab("transcript")}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                       mobileWorkspaceTab === "transcript"
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                     }`}
                   >
                     <FileText className="h-3.5 w-3.5" />
@@ -2027,8 +2084,8 @@ export default function App() {
                     onClick={() => setMobileWorkspaceTab("insights")}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer relative ${
                       mobileWorkspaceTab === "insights"
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "text-slate-600 hover:text-slate-900"
+                        ? "bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 shadow-sm border border-slate-200/50 dark:border-slate-700"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100"
                     }`}
                   >
                     <Sparkles className="h-3.5 w-3.5 text-amber-500" />
@@ -2166,12 +2223,12 @@ export default function App() {
                           onClick={() => setShowAudioPlayer(prev => !prev)}
                           className={`px-3 py-1.5 text-xs font-bold rounded-lg shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer border ${
                             showAudioPlayer
-                              ? "bg-slate-900 text-white border-slate-900"
-                              : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300"
+                              ? "bg-slate-900 text-white border-slate-900 dark:bg-blue-600 dark:border-blue-600 dark:text-white"
+                              : "bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                           }`}
                           title="Toggle Synced Audio Player"
                         >
-                          <Headphones className={`h-3.5 w-3.5 ${showAudioPlayer ? "text-blue-400" : "text-blue-600"}`} />
+                          <Headphones className={`h-3.5 w-3.5 ${showAudioPlayer ? "text-blue-400 dark:text-blue-200" : "text-blue-600 dark:text-blue-400"}`} />
                           <span>{showAudioPlayer ? "Hide Audio" : "Audio Player"}</span>
                           {isAudioPlaying && (
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping ml-0.5" />
@@ -2181,15 +2238,15 @@ export default function App() {
 
                       {/* Right Side: Re-run Segmented Preset Controller */}
                       <div className="flex items-center gap-1.5 self-start lg:self-auto flex-wrap sm:flex-nowrap">
-                        <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1 shrink-0">
-                          <RotateCcw className="h-3 w-3 text-slate-400" />
+                        <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                          <RotateCcw className="h-3 w-3 text-slate-400 dark:text-slate-500" />
                           <span>Re-run:</span>
                         </span>
-                        <div className="inline-flex p-0.5 bg-slate-200/80 rounded-lg border border-slate-300/60 shadow-2xs">
+                        <div className="inline-flex p-0.5 bg-slate-200/80 dark:bg-slate-800 rounded-lg border border-slate-300/60 dark:border-slate-700/80 shadow-2xs">
                           <button
                             type="button"
                             onClick={() => handleRetranscribe(job.id, "clean")}
-                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all text-slate-700 hover:text-slate-900 hover:bg-white/70 cursor-pointer"
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-slate-700/70 cursor-pointer"
                             title="Re-run as Clean (No timestamps/speakers)"
                           >
                             Clean
@@ -2197,7 +2254,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleRetranscribe(job.id, "timestamped")}
-                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all text-slate-700 hover:text-slate-900 hover:bg-white/70 cursor-pointer"
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-slate-700/70 cursor-pointer"
                             title="Re-run with Timestamps"
                           >
                             Timestamps
@@ -2205,7 +2262,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleRetranscribe(job.id, "verbatim")}
-                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all text-slate-700 hover:text-slate-900 hover:bg-white/70 cursor-pointer"
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/70 dark:hover:bg-slate-700/70 cursor-pointer"
                             title="Re-run with Speakers"
                           >
                             Speakers
@@ -2213,7 +2270,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => handleRetranscribe(job.id, "combined")}
-                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all bg-white text-blue-700 shadow-2xs hover:bg-blue-50 cursor-pointer flex items-center gap-1 border border-slate-200/60"
+                            className="px-2.5 py-1 text-[11px] font-bold rounded-md transition-all bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-400 shadow-2xs hover:bg-blue-50 dark:hover:bg-slate-800 cursor-pointer flex items-center gap-1 border border-slate-200/60 dark:border-slate-700"
                             title="Re-run with Combined format (Timestamps + Speakers)"
                           >
                             <Sparkles className="h-2.5 w-2.5 text-amber-500" />

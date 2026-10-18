@@ -339,18 +339,18 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
               animate={{ opacity: 1, y: 0 }}
               className={`p-3 rounded-lg border flex items-start gap-2.5 ${
                 statusMessage.type === "success"
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                  ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300"
                   : statusMessage.type === "error"
-                  ? "bg-rose-50 border-rose-200 text-rose-800"
-                  : "bg-blue-50 border-blue-200 text-blue-800"
+                  ? "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300"
+                  : "bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300"
               }`}
             >
               {statusMessage.type === "success" ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
               ) : statusMessage.type === "error" ? (
-                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               ) : (
-                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
               )}
               <span className="font-medium">{statusMessage.text}</span>
             </motion.div>
@@ -359,33 +359,33 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
           {/* TAB 1: CREATE & EXPORT */}
           {activeTab === "export" && (
             <div className="space-y-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+              <div className="bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <FileArchive className="w-4 h-4 text-blue-600" />
-                  <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                  <FileArchive className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">
                     Full System Snapshot Package (.zip)
                   </h3>
                 </div>
-                <p className="text-slate-600">
+                <p className="text-slate-600 dark:text-slate-400">
                   Exports your transcripts, summaries, timestamps, speaker diarisations, chapter marks,
                   and metadata into a dated, compressed ZIP package. Ideal for regular homelab backups,
                   disaster recovery, or migrating to another ScribeNode Docker container.
                 </p>
 
                 {/* Audio inclusion toggle */}
-                <div className="pt-2 border-t border-slate-200/80">
+                <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800">
                   <label className="flex items-center gap-3 cursor-pointer group">
                     <input
                       type="checkbox"
                       checked={includeAudio}
                       onChange={(e) => setIncludeAudio(e.target.checked)}
-                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                      className="w-4 h-4 text-blue-600 rounded border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-blue-500 cursor-pointer"
                     />
                     <div>
-                      <span className="font-bold text-slate-800 text-xs group-hover:text-blue-600 transition-colors">
+                      <span className="font-bold text-slate-800 dark:text-slate-200 text-xs group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                         Include Audio Recordings in Backup
                       </span>
-                      <p className="text-[11px] text-slate-500">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
                         {includeAudio
                           ? "Includes raw audio recordings so the audio player and playback markers work immediately upon restore."
                           : "Lightweight Mode: Omits audio binary files. Resulting ZIP is ultra-compact (typically < 100 KB) and downloads in milliseconds."}
@@ -425,15 +425,15 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
           {/* TAB 2: UPLOAD & RESTORE */}
           {activeTab === "import" && (
             <div className="space-y-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+              <div className="bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Upload className="w-4 h-4 text-blue-600" />
-                  <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                  <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-xs uppercase tracking-wider">
                     Restore from Local Backup File
                   </h3>
                 </div>
-                <p className="text-slate-600">
-                  Select or drag a previously downloaded ScribeNode <code className="text-blue-700 bg-blue-50 px-1 py-0.5 rounded font-mono">.zip</code> archive.
+                <p className="text-slate-600 dark:text-slate-400">
+                  Select or drag a previously downloaded ScribeNode <code className="text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 px-1 py-0.5 rounded font-mono">.zip</code> archive.
                   The server validates the manifest, unpacks the database, links audio files, and updates the active queue.
                 </p>
 
@@ -442,8 +442,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   onClick={() => fileInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${
                     selectedFile
-                      ? "border-blue-400 bg-blue-50/50"
-                      : "border-slate-300 hover:border-blue-400 bg-white"
+                      ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/30"
+                      : "border-slate-300 dark:border-slate-700 hover:border-blue-400 bg-white dark:bg-slate-900"
                   }`}
                 >
                   <input
@@ -458,30 +458,30 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                     className="hidden"
                   />
                   <div className="flex flex-col items-center gap-2">
-                    <FileArchive className={`w-8 h-8 ${selectedFile ? "text-blue-600" : "text-slate-400"}`} />
+                    <FileArchive className={`w-8 h-8 ${selectedFile ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
                     {selectedFile ? (
                       <div>
-                        <p className="font-bold text-slate-800 text-xs">{selectedFile.name}</p>
-                        <p className="text-[11px] text-slate-500">{formatFileSize(selectedFile.size)}</p>
+                        <p className="font-bold text-slate-800 dark:text-slate-200 text-xs">{selectedFile.name}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{formatFileSize(selectedFile.size)}</p>
                       </div>
                     ) : (
                       <div>
-                        <p className="font-bold text-slate-700 text-xs">Click to browse or drop backup .zip here</p>
-                        <p className="text-[11px] text-slate-400">Accepts standard ScribeNode backup archives</p>
+                        <p className="font-bold text-slate-700 dark:text-slate-200 text-xs">Click to browse or drop backup .zip here</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">Accepts standard ScribeNode backup archives</p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Restore Mode selection */}
-                <div className="pt-2 border-t border-slate-200/80 space-y-2">
-                  <span className="font-bold text-slate-800 text-xs block">Select Restore Strategy:</span>
+                <div className="pt-2 border-t border-slate-200/80 dark:border-slate-800 space-y-2">
+                  <span className="font-bold text-slate-800 dark:text-slate-200 text-xs block">Select Restore Strategy:</span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label
                       className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
                         restoreMode === "merge"
-                          ? "bg-blue-50 border-blue-400 text-blue-900 ring-1 ring-blue-400"
-                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                          ? "bg-blue-50 dark:bg-blue-950/60 border-blue-400 dark:border-blue-600 text-blue-900 dark:text-blue-200 ring-1 ring-blue-400"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                       }`}
                     >
                       <input
@@ -493,10 +493,10 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                         className="sr-only"
                       />
                       <div className="font-bold text-xs flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-blue-600" />
+                        <Layers className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                         <span>Merge (Recommended)</span>
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-1">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                         Keeps existing jobs in place while adding or updating items from the archive.
                       </p>
                     </label>
@@ -504,8 +504,8 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                     <label
                       className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
                         restoreMode === "replace"
-                          ? "bg-amber-50 border-amber-400 text-amber-900 ring-1 ring-amber-400"
-                          : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                          ? "bg-amber-50 dark:bg-amber-950/60 border-amber-400 dark:border-amber-600 text-amber-900 dark:text-amber-200 ring-1 ring-amber-400"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
                       }`}
                     >
                       <input
@@ -601,16 +601,16 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   {backups.map((b) => (
                     <div
                       key={b.filename}
-                      className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3 hover:border-slate-300 transition-all shadow-2xs"
+                      className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-700 transition-all shadow-2xs"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <FileArchive className="w-4 h-4 text-blue-600 shrink-0" />
-                          <span className="font-mono text-xs font-bold text-slate-900 truncate">
+                          <FileArchive className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                          <span className="font-mono text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
                             {b.filename}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                        <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                           <span>{formatDate(b.createdAt)}</span>
                           <span>•</span>
                           <span className="font-mono">{formatFileSize(b.sizeBytes)}</span>
@@ -621,7 +621,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                             </>
                           )}
                           {b.includesAudio && (
-                            <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-medium text-[10px]">
+                            <span className="px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800 font-medium text-[10px]">
                               Audio Included
                             </span>
                           )}
@@ -633,7 +633,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                         <button
                           type="button"
                           onClick={() => triggerBrowserDownload(b.filename)}
-                          className="p-1.5 rounded-lg text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 transition-colors cursor-pointer"
                           title="Download archive to your computer"
                         >
                           <Download className="w-4 h-4" />
@@ -641,7 +641,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setConfirmDialog({ action: "restore", filename: b.filename })}
-                          className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer"
                           title="Restore from this backup"
                         >
                           <RotateCcw className="w-4 h-4" />
@@ -649,7 +649,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                         <button
                           type="button"
                           onClick={() => setConfirmDialog({ action: "delete", filename: b.filename })}
-                          className="p-1.5 rounded-lg text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer"
                           title="Delete backup from disk"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -664,30 +664,30 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
 
           {/* Confirmation Overlay Dialog */}
           {confirmDialog && (
-            <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-2xs">
+            <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-2xs">
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-xl shadow-xl border border-slate-200 p-5 max-w-sm w-full space-y-3"
+                className="bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 p-5 max-w-sm w-full space-y-3"
               >
-                <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
+                <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-bold text-sm">
                   {confirmDialog.action === "delete" ? (
                     <>
-                      <Trash2 className="w-4 h-4 text-rose-600" />
+                      <Trash2 className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                       <span>Delete Stored Backup?</span>
                     </>
                   ) : (
                     <>
-                      <RotateCcw className="w-4 h-4 text-emerald-600" />
+                      <RotateCcw className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       <span>Restore Stored Backup?</span>
                     </>
                   )}
                 </div>
-                <p className="text-xs text-slate-600">
+                <p className="text-xs text-slate-600 dark:text-slate-300">
                   {confirmDialog.action === "delete" ? (
                     <>
                       Are you sure you want to permanently delete{" "}
-                      <code className="font-mono text-slate-800 bg-slate-100 px-1 py-0.5 rounded">
+                      <code className="font-mono text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded border border-slate-200/60 dark:border-slate-700">
                         {confirmDialog.filename}
                       </code>
                       ? This cannot be undone.
@@ -695,7 +695,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                   ) : (
                     <>
                       Restore state from{" "}
-                      <code className="font-mono text-slate-800 bg-slate-100 px-1 py-0.5 rounded">
+                      <code className="font-mono text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded border border-slate-200/60 dark:border-slate-700">
                         {confirmDialog.filename}
                       </code>
                       ? In Merge mode, your current transcripts are preserved.
@@ -708,7 +708,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                     type="button"
                     onClick={() => setConfirmDialog(null)}
                     disabled={isProcessing}
-                    className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                    className="px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
                   >
                     Cancel
                   </button>
@@ -737,10 +737,10 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
           )}
 
           {/* Homelab Info Footer */}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex items-start gap-2.5 text-[11px] text-slate-500">
-            <Sparkles className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+          <div className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3 flex items-start gap-2.5 text-[11px] text-slate-500 dark:text-slate-400">
+            <Sparkles className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-slate-700">Homelab & Docker Portability:</span>
+              <span className="font-bold text-slate-700 dark:text-slate-300">Homelab & Docker Portability:</span>
               <p>
                 ScribeNode backups are standard ZIP bundles compatible across any container, VM, or local installation.
                 Backups preserve transcripts, audio chunks, custom prompts, and metadata for seamless zero-loss recovery.

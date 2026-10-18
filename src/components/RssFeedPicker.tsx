@@ -341,8 +341,8 @@ export function RssFeedPicker({ onSelectEpisode, isPending }: RssFeedPickerProps
           {/* Episodes Scrollable List */}
           <div ref={episodesContainerRef} className="space-y-2 max-h-80 overflow-y-auto pr-1">
             {displayedEpisodes.length === 0 ? (
-              <div className="text-center py-8 bg-white border border-dashed border-slate-200 rounded-lg">
-                <p className="text-xs text-slate-500 font-medium">No episodes matched your search.</p>
+              <div className="text-center py-8 bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">No episodes matched your search.</p>
                 {searchFilter && (
                   <button
                     type="button"
