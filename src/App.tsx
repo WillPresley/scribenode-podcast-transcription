@@ -84,18 +84,27 @@ import {
   applyTheme,
   watchSystemTheme
 } from "./utils/theme";
+import { HEADER_CONTROL_TOKENS } from "./utils/uiTokens";
 
-const ScribeNodeLogo = ({ className = "w-9 h-9" }: { className?: string }) => (
-  <div className={`flex items-center justify-center rounded-xl bg-blue-600 p-2 shrink-0 shadow-sm ${className}`}>
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+const ScribeNodeLogo = ({ 
+  className = "w-9 h-9", 
+  innerPadding = "p-1.5",
+  rounded = "rounded-xl"
+}: { 
+  className?: string;
+  innerPadding?: string;
+  rounded?: string;
+}) => (
+  <div className={`flex items-center justify-center ${rounded} bg-blue-600 shrink-0 shadow-xs ${innerPadding} ${className}`}>
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full overflow-visible">
       <path
-        d="M4 11V13M8 7V17M12 3V21M16 6V18M20 10V14"
+        d="M2.5 10.5V13.5M7.25 5.5V18.5M12 1.75V22.25M16.75 4.5V19.5M21.5 9.5V14.5"
         stroke="white"
         strokeWidth="2.5"
         strokeLinecap="round"
       />
-      <circle cx="12" cy="3" r="2" fill="white" />
-      <circle cx="16" cy="18" r="2" fill="white" />
+      <circle cx="12" cy="1.75" r="1.8" fill="white" />
+      <circle cx="16.75" cy="19.5" r="1.8" fill="white" />
     </svg>
   </div>
 );
@@ -1362,6 +1371,25 @@ export default function App() {
     );
   };
 
+  // Smooth scroll-to-top handler for mobile header brand mark
+  const handleScrollToTop = () => {
+    const dashboardEl = document.getElementById("dashboard-scroll-area");
+    if (dashboardEl) {
+      dashboardEl.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    const transcriptEl = document.getElementById("transcript-scroll-area");
+    if (transcriptEl) {
+      transcriptEl.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    const insightsEl = document.getElementById("insights-scroll-area");
+    if (insightsEl) {
+      insightsEl.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.documentElement.scrollTo({ top: 0, behavior: "smooth" });
+    document.body.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const readyInsightsCount = (["summary", "key_takeaways", "chapters", "social_media"] as AnalysisMode[]).filter(k => !!(job && (job[k] || analysisResults[k]))).length;
 
   return (
@@ -1620,16 +1648,22 @@ export default function App() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-1.5 sm:p-2 -ml-0.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              className={`lg:hidden ${HEADER_CONTROL_TOKENS.iconButtonSize} ${HEADER_CONTROL_TOKENS.radius} -ml-0.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center justify-center`}
               aria-label="Open Navigation Menu"
             >
               <Menu className="h-5 w-5" />
             </button>
 
-            {/* Mobile ScribeNode Mark (Clean icon badge with zero text overlap) */}
-            <div className="flex items-center sm:hidden shrink-0" title="ScribeNode">
-              <ScribeNodeLogo className="w-7 h-7 p-1 rounded-xl" />
-            </div>
+            {/* Mobile ScribeNode Mark (Tapping scrolls to top) */}
+            <button
+              type="button"
+              onClick={handleScrollToTop}
+              className={`flex items-center justify-center sm:hidden shrink-0 cursor-pointer active:scale-95 transition-transform ${HEADER_CONTROL_TOKENS.iconButtonSize} ${HEADER_CONTROL_TOKENS.radius} focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500`}
+              title="Scroll to top"
+              aria-label="Scroll to top of page"
+            >
+              <ScribeNodeLogo className="w-8 h-8" rounded={HEADER_CONTROL_TOKENS.radius} innerPadding="p-1" />
+            </button>
 
             {/* Desktop Page Title */}
             <h2 className="hidden sm:block font-semibold text-slate-800 dark:text-slate-100 truncate text-sm sm:text-base max-w-xs md:max-w-md">
@@ -1645,7 +1679,7 @@ export default function App() {
                 onClick={() => setShowModelPopover(!showModelPopover)}
                 aria-live="polite"
                 aria-atomic="true"
-                className="flex items-center gap-1 sm:gap-2 px-1.5 xs:px-2 sm:px-2.5 py-1.5 rounded-lg border border-slate-200/90 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-800/80 hover:bg-slate-100/90 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-xs hover:border-slate-300 dark:hover:border-slate-700 text-xs focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden"
+                className={`flex items-center gap-1 sm:gap-2 px-1.5 xs:px-2 sm:px-2.5 ${HEADER_CONTROL_TOKENS.height} ${HEADER_CONTROL_TOKENS.radius} border border-slate-200/90 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-800/80 hover:bg-slate-100/90 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 transition-all cursor-pointer ${HEADER_CONTROL_TOKENS.shadow} hover:border-slate-300 dark:hover:border-slate-700 text-xs focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-hidden`}
                 title="Click to view Gemini Model fallback chain & health status"
               >
                 <span className="relative flex h-2 w-2 shrink-0">
@@ -1676,19 +1710,19 @@ export default function App() {
                     <span className="hidden sm:inline">{formatModelDisplayName(modelStatus.activeModel)}</span>
                   </span>
                   {modelStatus.status === "fallback_active" ? (
-                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 rounded border border-amber-200 dark:border-amber-800">
+                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 rounded border border-amber-200 dark:border-amber-800 leading-none">
                       Fallback
                     </span>
                   ) : modelStatus.status === "degraded" ? (
-                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 rounded border border-red-200 dark:border-red-800">
+                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-300 rounded border border-red-200 dark:border-red-800 leading-none">
                       High Demand
                     </span>
                   ) : modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel ? (
-                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 rounded border border-indigo-200 dark:border-indigo-800">
+                    <span className="px-1.5 py-0.5 text-[8px] sm:text-[9px] font-extrabold uppercase tracking-wide bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 rounded border border-indigo-200 dark:border-indigo-800 leading-none">
                       Custom Priority
                     </span>
                   ) : (
-                    <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded border border-blue-200/60 dark:border-blue-800/80">
+                    <span className="hidden xl:inline px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded border border-blue-200/60 dark:border-blue-800/80 leading-none">
                       Next Task
                     </span>
                   )}
@@ -1975,8 +2009,9 @@ export default function App() {
 
             {job?.status === "completed" && (
               <button 
+                type="button"
                 onClick={handleReset}
-                className="px-2 xs:px-2.5 sm:px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+                className={`px-2 xs:px-2.5 sm:px-3 ${HEADER_CONTROL_TOKENS.height} bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 ${HEADER_CONTROL_TOKENS.radius} text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${HEADER_CONTROL_TOKENS.shadow} focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500`}
               >
                 <RotateCcw className="h-3 w-3 shrink-0" />
                 <span className="hidden sm:inline">Back to List</span>
@@ -1984,8 +2019,9 @@ export default function App() {
               </button>
             )}
             <button 
+              type="button"
               onClick={handleReset}
-              className="px-2 xs:px-2.5 sm:px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-xs hover:bg-blue-700 transition-colors flex items-center gap-1 cursor-pointer shrink-0"
+              className={`px-2 xs:px-2.5 sm:px-3 ${HEADER_CONTROL_TOKENS.height} bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 hover:border-blue-700 ${HEADER_CONTROL_TOKENS.radius} text-xs font-bold ${HEADER_CONTROL_TOKENS.shadow} transition-colors flex items-center gap-1 cursor-pointer shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500`}
             >
               <Plus className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden sm:inline">New Transcription</span>
@@ -2507,7 +2543,7 @@ export default function App() {
                   )}
 
                   {/* Insights scrolling output */}
-                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-white dark:bg-slate-900 relative">
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 bg-white dark:bg-slate-900 relative" id="insights-scroll-area">
                     <AnimatePresence mode="wait">
                       
                       {analysisResults[activeAnalysisTab] ? (
@@ -2666,6 +2702,7 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
                 className="flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-6 h-full overflow-y-auto"
+                id="dashboard-scroll-area"
               >
                 {/* Mobile Segmented Switcher for Dashboard Queue vs Preview */}
                 <div className="lg:hidden flex rounded-xl bg-slate-200/80 dark:bg-slate-800 p-1 shrink-0 shadow-inner">

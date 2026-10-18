@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { ThemeMode } from '../types';
+import { HEADER_CONTROL_TOKENS } from '../utils/uiTokens';
 
 export interface ThemeToggleProps {
   currentMode: ThemeMode;
@@ -72,12 +73,12 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
     );
   }
 
-  // Header variant (compact desktop segmented control)
+  // Header variant (compact desktop segmented control aligned to HEADER_CONTROL_TOKENS)
   return (
     <div
       role="radiogroup"
       aria-label="Theme selection"
-      className="inline-flex items-center p-0.5 bg-slate-100/90 dark:bg-slate-800/90 rounded-lg border border-slate-200/90 dark:border-slate-700/90 transition-colors shadow-2xs"
+      className={`inline-flex items-center p-0.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/90 transition-colors ${HEADER_CONTROL_TOKENS.height} ${HEADER_CONTROL_TOKENS.radius} ${HEADER_CONTROL_TOKENS.shadow}`}
     >
       {THEME_OPTIONS.map(({ mode, label, icon: Icon, description }) => {
         const isSelected = currentMode === mode;
@@ -90,14 +91,14 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
             aria-label={`${label} theme: ${description}`}
             title={`${label} theme (${description})`}
             onClick={() => onSelectMode(mode)}
-            className={`relative flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            className={`relative h-full flex items-center justify-center gap-1 px-1.5 sm:px-2 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 ${
               isSelected
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs font-semibold border border-slate-200/70 dark:border-slate-700'
+                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold border border-slate-200/70 dark:border-slate-700'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/40'
             }`}
           >
             <Icon
-              className={`w-3.5 h-3.5 transition-colors ${
+              className={`w-3.5 h-3.5 shrink-0 transition-colors ${
                 isSelected
                   ? mode === 'light'
                     ? 'text-amber-500'
@@ -107,7 +108,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
                   : 'text-slate-400 dark:text-slate-500'
               }`}
             />
-            <span className="hidden xl:inline text-[11px]">{label}</span>
+            <span className="hidden xl:inline text-[11px] leading-none">{label}</span>
           </button>
         );
       })}
