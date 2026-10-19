@@ -93,14 +93,18 @@ export const ModelDiagnosticsPopover: React.FC<ModelDiagnosticsPopoverProps> = (
                     <span
                       className={`px-2 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-wider border whitespace-nowrap ${
                         modelStatus.status === "optimal"
-                          ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                          ? modelStatus.isFrontierSelection
+                            ? "bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                            : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                           : modelStatus.status === "fallback_active"
                             ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
                             : "bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
                       }`}
                     >
                       {modelStatus.status === "optimal"
-                        ? "Optimal Tier"
+                        ? modelStatus.isFrontierSelection
+                          ? "Frontier Tier"
+                          : "Optimal Tier"
                         : modelStatus.status === "fallback_active"
                           ? "Failover Engaged"
                           : "High Demand"}
@@ -121,7 +125,7 @@ export const ModelDiagnosticsPopover: React.FC<ModelDiagnosticsPopoverProps> = (
                       <Sparkles className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                       Prioritize Model
                     </label>
-                    {(modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel) && (
+                    {(modelStatus.isCustomSelection || modelStatus.isFrontierSelection || modelStatus.activeModel !== modelStatus.primaryModel) && (
                       <button
                         type="button"
                         onClick={onResetCascade}
@@ -140,11 +144,15 @@ export const ModelDiagnosticsPopover: React.FC<ModelDiagnosticsPopoverProps> = (
                       onChange={(e) => onSelectModel(e.target.value)}
                       className="w-full pl-2.5 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none shadow-xs"
                     >
-                      {allModels.map((m) => (
-                        <option key={m} value={m} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                          {formatModelDisplayName(m)} {m === modelStatus.primaryModel ? "★ (Flagship Default)" : ""}
-                        </option>
-                      ))}
+                      {allModels.map((m) => {
+                        const isFrontier = m === "gemini-4-argon";
+                        const isPrimary = m === modelStatus.primaryModel;
+                        return (
+                          <option key={m} value={m} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                            {formatModelDisplayName(m)} {isPrimary ? "★ (Flagship Default)" : isFrontier ? "⚡ (Frontier Model - Paid Tier)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
                     <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
@@ -158,16 +166,18 @@ export const ModelDiagnosticsPopover: React.FC<ModelDiagnosticsPopoverProps> = (
                   <div className={`p-2.5 rounded-xl text-[11px] flex items-start gap-2 border ${
                     modelStatus.status === "degraded"
                       ? "bg-red-50/90 dark:bg-red-950/40 border-red-200 dark:border-red-900/60 text-red-900 dark:text-red-300"
-                      : modelStatus.isCustomSelection
-                        ? "bg-indigo-50/90 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-900/60 text-indigo-900 dark:text-indigo-300"
-                        : "bg-amber-50/90 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-300"
+                      : modelStatus.isFrontierSelection
+                        ? "bg-purple-50/90 dark:bg-purple-950/40 border-purple-200 dark:border-purple-900/60 text-purple-900 dark:text-purple-300"
+                        : modelStatus.isCustomSelection
+                          ? "bg-indigo-50/90 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-900/60 text-indigo-900 dark:text-indigo-300"
+                          : "bg-amber-50/90 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-300"
                   }`}>
                     <AlertCircle className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${
-                      modelStatus.status === "degraded" ? "text-red-600 dark:text-red-400" : modelStatus.isCustomSelection ? "text-indigo-600 dark:text-indigo-400" : "text-amber-600 dark:text-amber-400"
+                      modelStatus.status === "degraded" ? "text-red-600 dark:text-red-400" : modelStatus.isFrontierSelection ? "text-purple-600 dark:text-purple-400" : modelStatus.isCustomSelection ? "text-indigo-600 dark:text-indigo-400" : "text-amber-600 dark:text-amber-400"
                     }`} />
                     <div className="leading-snug min-w-0">
                       <div className="font-bold text-[11px]">
-                        {modelStatus.status === "degraded" ? "High Demand Notice" : modelStatus.isCustomSelection ? "Custom Priority Active" : "Failover Status"}
+                        {modelStatus.status === "degraded" ? "High Demand Notice" : modelStatus.isFrontierSelection ? "Frontier Priority Active" : modelStatus.isCustomSelection ? "Custom Priority Active" : "Failover Status"}
                       </div>
                       <div className="text-[10px] mt-0.5 text-slate-700 dark:text-slate-300">
                         {modelStatus.lastFallbackReason}
@@ -249,6 +259,11 @@ export const ModelDiagnosticsPopover: React.FC<ModelDiagnosticsPopoverProps> = (
                                   {isDefaultPrimary && (
                                     <span className="px-1 py-0.2 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[8px] font-bold uppercase rounded">
                                       Primary Default
+                                    </span>
+                                  )}
+                                  {m === "gemini-4-argon" && (
+                                    <span className="px-1 py-0.2 bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 text-[8px] font-bold uppercase rounded border border-purple-200/60 dark:border-purple-800">
+                                      Frontier
                                     </span>
                                   )}
                                 </div>

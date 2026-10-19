@@ -109,7 +109,7 @@ const ScribeNodeLogo = ({
   </div>
 );
 
-const ALL_TRANSCRIPTION_MODELS: string[] = [
+const DEFAULT_FLAGSHIP_MODELS: string[] = [
   "gemini-3.8-flash",
   "gemini-3.6-flash",
   "gemini-flash-latest",
@@ -118,6 +118,15 @@ const ALL_TRANSCRIPTION_MODELS: string[] = [
   "gemini-3.7-flash",
   "gemini-3.5-flash",
   "gemini-3.5-flash-lite"
+];
+
+const FRONTIER_MODELS: string[] = [
+  "gemini-4-argon"
+];
+
+const ALL_TRANSCRIPTION_MODELS: string[] = [
+  ...DEFAULT_FLAGSHIP_MODELS,
+  ...FRONTIER_MODELS
 ];
 
 const SAMPLE_JOBS: Record<string, TranscribeJob> = {
@@ -468,12 +477,14 @@ export default function App() {
     key_takeaways: false,
     chapters: false,
     social_media: false,
+    deep_synthesis: false
   });
   const [analysisErrors, setAnalysisErrors] = useState<Record<AnalysisMode, string | null>>({
     summary: null,
     key_takeaways: null,
     chapters: null,
     social_media: null,
+    deep_synthesis: null
   });
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<AnalysisMode>("summary");
 
@@ -506,20 +517,24 @@ export default function App() {
   };
 
   const handleSelectModel = async (modelId: string) => {
+    const isFrontier = FRONTIER_MODELS.includes(modelId);
+    const isCustom = modelId !== modelStatus.primaryModel;
     const reordered = [
       modelId,
-      ...ALL_TRANSCRIPTION_MODELS.filter((m) => m !== modelId)
+      ...DEFAULT_FLAGSHIP_MODELS.filter((m) => m !== modelId)
     ];
-    const isCustom = modelId !== modelStatus.primaryModel;
 
     setModelStatus((prev) => ({
       ...prev,
       activeModel: modelId,
       fallbackModels: reordered,
       isCustomSelection: isCustom,
+      isFrontierSelection: isFrontier,
       status: 'optimal',
       lastFallbackReason: isCustom
-        ? `Custom selection: ${formatModelDisplayName(modelId)} prioritized first with automatic fallback cascade.`
+        ? isFrontier
+          ? `Frontier model prioritized (${formatModelDisplayName(modelId)}). High-reasoning deep analysis enabled; automatic fallback to Gemini 3.8 Flash cascade if unavailable.`
+          : `Custom selection: ${formatModelDisplayName(modelId)} prioritized first with automatic fallback cascade.`
         : undefined
     }));
 
@@ -544,8 +559,9 @@ export default function App() {
     setModelStatus((prev) => ({
       ...prev,
       activeModel: prev.primaryModel,
-      fallbackModels: [...ALL_TRANSCRIPTION_MODELS],
+      fallbackModels: [...DEFAULT_FLAGSHIP_MODELS],
       isCustomSelection: false,
+      isFrontierSelection: false,
       status: 'optimal',
       lastFallbackReason: undefined
     }));
@@ -1003,7 +1019,11 @@ export default function App() {
       }
 
       setAnalysisResults(prev => ({ ...prev, [mode]: data.result }));
-      setJob(prev => prev ? { ...prev, [mode]: data.result } : null);
+      setJob(prev => prev ? { 
+        ...prev, 
+        [mode]: data.result,
+        ...(mode === 'deep_synthesis' && data.modelUsed ? { deep_synthesis_model: data.modelUsed } : {})
+      } : null);
       setAnalysisErrors(prev => ({ ...prev, [mode]: null }));
       fetchJobsList();
       fetchModelStatus();
@@ -1041,6 +1061,7 @@ export default function App() {
       key_takeaways: null,
       chapters: null,
       social_media: null,
+      deep_synthesis: null,
     });
     setErrorMessage("");
     setCustomPrompt("");
@@ -1149,12 +1170,14 @@ export default function App() {
           key_takeaways: selectedJob.key_takeaways,
           chapters: selectedJob.chapters,
           social_media: selectedJob.social_media,
+          deep_synthesis: selectedJob.deep_synthesis,
         });
         setAnalysisErrors({
           summary: null,
           key_takeaways: null,
           chapters: null,
           social_media: null,
+          deep_synthesis: null,
         });
         setErrorMessage("");
       } else {
@@ -1390,7 +1413,7 @@ export default function App() {
     document.body.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const readyInsightsCount = (["summary", "key_takeaways", "chapters", "social_media"] as AnalysisMode[]).filter(k => !!(job && (job[k] || analysisResults[k]))).length;
+  const readyInsightsCount = (["summary", "key_takeaways", "chapters", "social_media", "deep_synthesis"] as AnalysisMode[]).filter(k => !!(job && (job[k] || analysisResults[k]))).length;
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 overflow-hidden transition-colors" id="app-root">
@@ -1789,14 +1812,16 @@ export default function App() {
                               <span
                                 className={`px-2 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-wider border whitespace-nowrap ${
                                   modelStatus.status === "optimal"
-                                    ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                                    ? modelStatus.isFrontierSelection
+                                      ? "bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                                      : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
                                     : modelStatus.status === "fallback_active"
                                       ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800"
                                       : "bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800"
                                 }`}
                               >
                                 {modelStatus.status === "optimal" 
-                                  ? (modelStatus.isCustomSelection ? "Custom Active" : "Optimal Ready") 
+                                  ? (modelStatus.isFrontierSelection ? "Frontier Active" : modelStatus.isCustomSelection ? "Custom Active" : "Optimal Ready") 
                                   : modelStatus.status === "fallback_active" 
                                     ? "Failover Active" 
                                     : "All Models Busy"}
@@ -1807,6 +1832,11 @@ export default function App() {
                               {modelStatus.activeModel === modelStatus.primaryModel && (
                                 <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded border border-blue-200/60 dark:border-blue-800">
                                   Flagship
+                                </span>
+                              )}
+                              {modelStatus.isFrontierSelection && (
+                                <span className="text-[9px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 rounded border border-purple-200/60 dark:border-purple-800">
+                                  Frontier Tier
                                 </span>
                               )}
                             </div>
@@ -1822,7 +1852,7 @@ export default function App() {
                                 <Sparkles className="h-3 w-3 text-blue-600 dark:text-blue-400" />
                                 Prioritize Model
                               </label>
-                              {(modelStatus.isCustomSelection || modelStatus.activeModel !== modelStatus.primaryModel) && (
+                              {(modelStatus.isCustomSelection || modelStatus.isFrontierSelection || modelStatus.activeModel !== modelStatus.primaryModel) && (
                                 <button
                                   type="button"
                                   onClick={handleResetModelCascade}
@@ -1841,11 +1871,15 @@ export default function App() {
                                 onChange={(e) => handleSelectModel(e.target.value)}
                                 className="w-full pl-2.5 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer appearance-none shadow-xs"
                               >
-                                {ALL_TRANSCRIPTION_MODELS.map((m) => (
-                                  <option key={m} value={m} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-                                    {formatModelDisplayName(m)} {m === modelStatus.primaryModel ? "★ (Flagship Default)" : ""}
-                                  </option>
-                                ))}
+                                {ALL_TRANSCRIPTION_MODELS.map((m) => {
+                                  const isFrontier = FRONTIER_MODELS.includes(m);
+                                  const isPrimary = m === modelStatus.primaryModel;
+                                  return (
+                                    <option key={m} value={m} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
+                                      {formatModelDisplayName(m)} {isPrimary ? "★ (Flagship Default)" : isFrontier ? "⚡ (Frontier Model - Paid Tier)" : ""}
+                                    </option>
+                                  );
+                                })}
                               </select>
                               <ChevronDown className="h-3.5 w-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                             </div>
@@ -1858,24 +1892,27 @@ export default function App() {
                           {modelStatus.lastFallbackReason && (
                             <div className={`p-2.5 rounded-xl text-[11px] flex items-start gap-2 border ${
                               modelStatus.status === "degraded"
-                                ? "bg-red-50/90 border-red-200 text-red-900"
-                                : modelStatus.isCustomSelection
-                                  ? "bg-indigo-50/90 border-indigo-200 text-indigo-900"
-                                  : "bg-amber-50/90 border-amber-200 text-amber-900"
+                                ? "bg-red-50/90 dark:bg-red-950/40 border-red-200 dark:border-red-900/60 text-red-900 dark:text-red-300"
+                                : modelStatus.isFrontierSelection
+                                  ? "bg-purple-50/90 dark:bg-purple-950/40 border-purple-200 dark:border-purple-900/60 text-purple-900 dark:text-purple-300"
+                                  : modelStatus.isCustomSelection
+                                    ? "bg-indigo-50/90 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-900/60 text-indigo-900 dark:text-indigo-300"
+                                    : "bg-amber-50/90 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-300"
                             }`}>
                               <AlertCircle className={`h-3.5 w-3.5 shrink-0 mt-0.5 ${
-                                modelStatus.status === "degraded" ? "text-red-600" : modelStatus.isCustomSelection ? "text-indigo-600" : "text-amber-600"
+                                modelStatus.status === "degraded" ? "text-red-600 dark:text-red-400" : modelStatus.isFrontierSelection ? "text-purple-600 dark:text-purple-400" : modelStatus.isCustomSelection ? "text-indigo-600 dark:text-indigo-400" : "text-amber-600 dark:text-amber-400"
                               }`} />
                               <div className="leading-snug min-w-0">
                                 <div className="font-bold text-[11px]">
-                                  {modelStatus.status === "degraded" ? "High Demand Notice" : modelStatus.isCustomSelection ? "Custom Priority Active" : "Failover Status"}
+                                  {modelStatus.status === "degraded" ? "High Demand Notice" : modelStatus.isFrontierSelection ? "Frontier Priority Active" : modelStatus.isCustomSelection ? "Custom Priority Active" : "Failover Status"}
                                 </div>
-                                <div className="text-[10px] mt-0.5 text-slate-700">
+                                <div className="text-[10px] mt-0.5 text-slate-700 dark:text-slate-300">
                                   {modelStatus.lastFallbackReason}
                                 </div>
                               </div>
                             </div>
                           )}
+
 
                           {/* Footer Links in Left Column on Desktop */}
                           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
@@ -1962,6 +1999,11 @@ export default function App() {
                                       {isPrimary && (
                                         <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.2 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 rounded shrink-0 border border-blue-200/60 dark:border-blue-800">
                                           Flagship
+                                        </span>
+                                      )}
+                                      {m === "gemini-4-argon" && (
+                                        <span className="text-[8px] uppercase tracking-wider font-extrabold px-1.5 py-0.2 bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 rounded shrink-0 border border-purple-200/60 dark:border-purple-800">
+                                          Frontier
                                         </span>
                                       )}
                                     </div>
@@ -2469,20 +2511,22 @@ export default function App() {
                     </div>
                     {readyInsightsCount > 0 && (
                       <span className="px-2 py-0.5 text-[9px] font-bold rounded-full bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 font-mono">
-                        {readyInsightsCount}/4 Ready
+                        {readyInsightsCount}/5 Ready
                       </span>
                     )}
                   </div>
 
                   {/* Tab list */}
                   <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 overflow-x-auto">
-                    {(["summary", "key_takeaways", "chapters", "social_media"] as AnalysisMode[]).map((tab) => (
+                    {(["summary", "key_takeaways", "chapters", "social_media", "deep_synthesis"] as AnalysisMode[]).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setActiveAnalysisTab(tab)}
                         className={`flex-1 py-2.5 px-2 text-center text-[10px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1 relative cursor-pointer border-b-2 whitespace-nowrap shrink-0 ${
                           activeAnalysisTab === tab 
-                            ? "text-blue-700 dark:text-blue-400 font-extrabold border-blue-600 dark:border-blue-500 bg-blue-50/20 dark:bg-blue-950/20" 
+                            ? tab === "deep_synthesis"
+                              ? "text-purple-700 dark:text-purple-400 font-extrabold border-purple-600 dark:border-purple-500 bg-purple-50/20 dark:bg-purple-950/20"
+                              : "text-blue-700 dark:text-blue-400 font-extrabold border-blue-600 dark:border-blue-500 bg-blue-50/20 dark:bg-blue-950/20" 
                             : "text-slate-500 dark:text-slate-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 border-transparent"
                         }`}
                       >
@@ -2490,14 +2534,21 @@ export default function App() {
                         {tab === "key_takeaways" && <CheckCircle2 className="h-3 w-3" />}
                         {tab === "chapters" && <Clock className="h-3 w-3" />}
                         {tab === "social_media" && <Share2 className="h-3 w-3" />}
+                        {tab === "deep_synthesis" && <Sparkles className="h-3 w-3 text-purple-600 dark:text-purple-400" />}
                         <span>
                           {tab === "summary" && "Summary"}
                           {tab === "key_takeaways" && "Takeaways"}
                           {tab === "chapters" && "Chapters"}
                           {tab === "social_media" && "Social"}
+                          {tab === "deep_synthesis" && "Frontier"}
                         </span>
+                        {tab === "deep_synthesis" && (
+                          <span className="hidden sm:inline-block px-1 py-0.2 text-[7px] font-extrabold uppercase bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 rounded border border-purple-200/60 dark:border-purple-800">
+                            Argon
+                          </span>
+                        )}
                         {job && (job[tab] || analysisResults[tab]) ? (
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 ml-0.5" />
+                          <span className={`w-1.5 h-1.5 rounded-full ${tab === "deep_synthesis" ? "bg-purple-600" : "bg-blue-600"} ml-0.5`} />
                         ) : analysisErrors[tab] ? (
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ml-0.5" title="Generation notice" />
                         ) : null}
@@ -2585,8 +2636,23 @@ export default function App() {
                               })}
                             </div>
                           ) : (
-                            <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap select-text font-sans flex-1">
-                              {analysisResults[activeAnalysisTab]}
+                            <div className="flex-1 flex flex-col space-y-2">
+                              {activeAnalysisTab === "deep_synthesis" && (
+                                <div className="flex items-center justify-between gap-2 p-2 bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/80 rounded-lg text-purple-900 dark:text-purple-300 text-[11px] select-none">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <Sparkles className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                                    <span className="truncate">
+                                      Frontier Deep Synthesis · Model: <strong>{formatModelDisplayName(job?.deep_synthesis_model || "gemini-4-argon")}</strong>
+                                    </span>
+                                  </div>
+                                  <span className="px-1.5 py-0.5 text-[8px] font-bold uppercase rounded bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-200 shrink-0 border border-purple-200/60 dark:border-purple-800">
+                                    Frontier Tier
+                                  </span>
+                                </div>
+                              )}
+                              <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap select-text font-sans flex-1">
+                                {analysisResults[activeAnalysisTab]}
+                              </div>
                             </div>
                           )}
                         </motion.div>
@@ -2601,7 +2667,11 @@ export default function App() {
                           <Sparkles className="h-6 w-6 text-blue-500 animate-spin mb-3" />
                           <div className="text-center">
                             <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Generating Assets</p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Gemini is processing speech semantics...</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                              {activeAnalysisTab === "deep_synthesis" 
+                                ? "Gemini 4 Argon is synthesizing deep logic and thematic nuances..." 
+                                : "Gemini is processing speech semantics..."}
+                            </p>
                           </div>
                           
                           <div className="w-full space-y-2 mt-6">
@@ -2637,7 +2707,7 @@ export default function App() {
                               <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed font-sans">
                                 {analysisErrors[activeAnalysisTab]}
                               </p>
-                              <div className="pt-1 flex items-center gap-2">
+                              <div className="pt-1 flex flex-wrap items-center gap-2">
                                 <button
                                   type="button"
                                   onClick={() => generateAnalysis(activeAnalysisTab)}
@@ -2646,6 +2716,17 @@ export default function App() {
                                   <RefreshCw className="h-3 w-3" />
                                   Retry Generation
                                 </button>
+                                {activeAnalysisTab === "deep_synthesis" && (
+                                  <button
+                                    type="button"
+                                    onClick={handleResetModelCascade}
+                                    className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded shadow-sm border border-slate-300 dark:border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:ring-1 focus-visible:ring-blue-500"
+                                    title="Reset to flagship Gemini 3.8 Flash cascade"
+                                  >
+                                    <RotateCcw className="h-3 w-3 text-blue-500" />
+                                    Reset to Flagship
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => setAnalysisErrors(prev => ({ ...prev, [activeAnalysisTab]: null }))}
@@ -2657,7 +2738,7 @@ export default function App() {
                             </div>
                           ) : (
                             <>
-                              <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center">
+                              <div className={`w-10 h-10 ${activeAnalysisTab === "deep_synthesis" ? "bg-purple-50 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400" : "bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400"} rounded-full flex items-center justify-center`}>
                                 <Sparkles className="h-5 w-5 animate-pulse" />
                               </div>
                               <div className="space-y-1">
@@ -2666,21 +2747,32 @@ export default function App() {
                                   {activeAnalysisTab === "key_takeaways" && "Actionable Takeaways"}
                                   {activeAnalysisTab === "chapters" && "Episode Chapters"}
                                   {activeAnalysisTab === "social_media" && "Social Share Snippets"}
+                                  {activeAnalysisTab === "deep_synthesis" && "Frontier Deep Synthesis"}
                                 </p>
                                 <p className="text-[10px] text-slate-400 dark:text-slate-500 max-w-xs mx-auto leading-relaxed">
                                   {activeAnalysisTab === "summary" && "Extract a polished overview of the core discussion and themes discussed in this file."}
                                   {activeAnalysisTab === "key_takeaways" && "Extract top lessons, valuable definitions, and ideas from the episode."}
                                   {activeAnalysisTab === "chapters" && "Logically structure the episode into time-coded outlines."}
                                   {activeAnalysisTab === "social_media" && "Generate short, concise listener sharing drafts for Facebook, Threads, Mastodon, or Bluesky."}
+                                  {activeAnalysisTab === "deep_synthesis" && "Perform high-reasoning synthesis of core theses, counter-arguments, non-obvious intersections, and strategic implications."}
                                 </p>
+                                {activeAnalysisTab === "deep_synthesis" && (
+                                  <div className="text-[10px] text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 p-2 rounded-lg border border-purple-200/80 dark:border-purple-800/80 max-w-xs mx-auto leading-relaxed text-left">
+                                    ⚡ <strong>Frontier Mode:</strong> Prioritizes Gemini 4 Argon with automatic failover to Gemini 3.8 Flash if rate limits or billing constraints occur.
+                                  </div>
+                                )}
                               </div>
                               <button
                                 type="button"
                                 onClick={() => generateAnalysis(activeAnalysisTab)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] uppercase tracking-wider py-2 px-4 rounded shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500"
+                                className={`${
+                                  activeAnalysisTab === "deep_synthesis"
+                                    ? "bg-purple-600 hover:bg-purple-700"
+                                    : "bg-blue-600 hover:bg-blue-700"
+                                } text-white font-bold text-[10px] uppercase tracking-wider py-2 px-4 rounded shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500`}
                               >
                                 <Sparkles className="h-3.5 w-3.5" />
-                                Generate with Gemini
+                                {activeAnalysisTab === "deep_synthesis" ? "Generate with Gemini 4 Argon" : "Generate with Gemini"}
                               </button>
                             </>
                           )}
@@ -3396,7 +3488,7 @@ export default function App() {
                                     </div>
                                     
                                     {/* Available hub assets status indicators */}
-                                    {(item.summary || item.key_takeaways || item.chapters || item.social_media) && (
+                                    {(item.summary || item.key_takeaways || item.chapters || item.social_media || item.deep_synthesis) && (
                                       <div className="flex items-center gap-1.5 mt-1.5 select-none">
                                         <span className="text-[8px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Available Assets:</span>
                                         <div className="flex items-center gap-1">
@@ -3418,6 +3510,11 @@ export default function App() {
                                           {item.social_media && (
                                             <span className="p-0.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 text-purple-600 dark:text-purple-400 rounded flex items-center" title="Social Share Available">
                                               <Share2 className="h-2.5 w-2.5" />
+                                            </span>
+                                          )}
+                                          {item.deep_synthesis && (
+                                            <span className="p-0.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 text-purple-600 dark:text-purple-400 rounded flex items-center" title="Frontier Deep Synthesis Available">
+                                              <Sparkles className="h-2.5 w-2.5" />
                                             </span>
                                           )}
                                         </div>
@@ -3568,7 +3665,7 @@ export default function App() {
                                 </div>
 
                                 {/* Available assets icons on mobile */}
-                                {(item.summary || item.key_takeaways || item.chapters || item.social_media) && (
+                                {(item.summary || item.key_takeaways || item.chapters || item.social_media || item.deep_synthesis) && (
                                   <div className="flex items-center gap-1.5 select-none bg-slate-50 dark:bg-slate-800/60 p-1.5 rounded border border-slate-100 dark:border-slate-800">
                                     <span className="text-[8px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Assets:</span>
                                     <div className="flex items-center gap-1">
@@ -3590,6 +3687,11 @@ export default function App() {
                                       {item.social_media && (
                                         <span className="p-0.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 text-purple-600 dark:text-purple-400 rounded flex items-center" title="Social Share Available">
                                           <Share2 className="h-2.5 w-2.5" />
+                                        </span>
+                                      )}
+                                      {item.deep_synthesis && (
+                                        <span className="p-0.5 bg-purple-50 dark:bg-purple-950/60 border border-purple-100 dark:border-purple-800 text-purple-600 dark:text-purple-400 rounded flex items-center" title="Frontier Deep Synthesis Available">
+                                          <Sparkles className="h-2.5 w-2.5" />
                                         </span>
                                       )}
                                     </div>

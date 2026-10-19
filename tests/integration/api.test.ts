@@ -144,6 +144,27 @@ describe('API Integration & Route Endpoints', () => {
       expect(resetRes.body.modelStatus.lastFallbackReason).toBeUndefined();
     });
 
+    it('allows selecting frontier model gemini-4-argon with isFrontierSelection=true via POST /api/model-status', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      const selectRes = await request(app)
+        .post('/api/model-status')
+        .send({ model: 'gemini-4-argon' });
+      expect(selectRes.status).toBe(200);
+      expect(selectRes.body.success).toBe(true);
+      expect(selectRes.body.modelStatus.activeModel).toBe('gemini-4-argon');
+      expect(selectRes.body.modelStatus.isFrontierSelection).toBe(true);
+      expect(selectRes.body.modelStatus.lastFallbackReason).toContain('Frontier model prioritized');
+
+      // Reset back to default
+      const resetRes = await request(app)
+        .post('/api/model-status')
+        .send({ reset: true });
+      expect(resetRes.status).toBe(200);
+      expect(resetRes.body.modelStatus.activeModel).toBe('gemini-3.8-flash');
+      expect(resetRes.body.modelStatus.isFrontierSelection).toBe(false);
+    });
+
     it('rejects unknown model selection on POST /api/model-status with 400', async () => {
       const app = createApp({ storage, skipVite: true });
       const res = await request(app)
@@ -420,24 +441,31 @@ describe('API Integration & Route Endpoints', () => {
 
       const app = createApp({ storage, aiClient: mockAiClient, skipVite: true });
 
-      for (const mode of ['summary', 'key_takeaways', 'chapters', 'social_media'] as const) {
+      for (const mode of ['summary', 'key_takeaways', 'chapters', 'social_media', 'deep_synthesis'] as const) {
         const res = await request(app)
           .post('/api/jobs/sample-sarah/analyze')
           .send({ mode });
 
         expect(res.status).toBe(200);
         expect(res.body.result).toContain('Generated analysis');
-        expect(res.body.result).toContain('gemini-3.8-flash');
+        if (mode === 'deep_synthesis') {
+          expect(res.body.modelUsed).toBe('gemini-4-argon');
+        } else {
+          expect(res.body.modelUsed).toBe('gemini-3.8-flash');
+        }
       }
 
-      // Check that the first call used gemini-3.8-flash
+      // Check that standard analysis used gemini-3.8-flash and deep_synthesis used gemini-4-argon
       expect(mockGenerateContent.mock.calls[0][0].model).toBe('gemini-3.8-flash');
+      expect(mockGenerateContent.mock.calls[4][0].model).toBe('gemini-4-argon');
 
       const updatedJob = storage.get('sample-sarah');
       expect(updatedJob?.summary).toBeDefined();
       expect(updatedJob?.key_takeaways).toBeDefined();
       expect(updatedJob?.chapters).toBeDefined();
       expect(updatedJob?.social_media).toBeDefined();
+      expect(updatedJob?.deep_synthesis).toBeDefined();
+      expect(updatedJob?.deep_synthesis_model).toBe('gemini-4-argon');
     });
 
     it('rejects invalid analysis mode with 400', async () => {

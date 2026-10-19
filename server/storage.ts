@@ -22,6 +22,8 @@ export interface TranscribeJob {
   key_takeaways?: string;
   chapters?: string;
   social_media?: string;
+  deep_synthesis?: string;
+  deep_synthesis_model?: string;
   glossary?: string;
   customVocabulary?: string[];
   sourceType?: 'upload' | 'rss' | 'url';

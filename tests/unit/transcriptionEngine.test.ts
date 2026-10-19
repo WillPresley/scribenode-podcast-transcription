@@ -32,7 +32,10 @@ import {
   cleanFallbackTranscript,
   refineTranscriptWithLLM,
   queryAvailableGenAIModels,
-  sanitizeGenerationConfig
+  sanitizeGenerationConfig,
+  FRONTIER_MODELS,
+  ALLOWED_SELECTABLE_MODELS,
+  formatModelDisplayName
 } from '../../server/transcriptionEngine';
 
 describe('Transcription Engine & AI Fallback Mechanics', () => {
@@ -56,6 +59,13 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(DEFAULT_ANALYSIS_MODELS).not.toContain('gemini-3.5-transcribe');
       expect(DEFAULT_ANALYSIS_MODELS).not.toContain('gemini-2.5-flash-lite');
       expect(DEFAULT_ANALYSIS_MODELS).not.toContain('gemini-2.5-flash');
+    });
+
+    it('defines FRONTIER_MODELS with gemini-4-argon for deep synthesis and reasoning', () => {
+      expect(FRONTIER_MODELS).toContain('gemini-4-argon');
+      expect(ALLOWED_SELECTABLE_MODELS).toContain('gemini-4-argon');
+      expect(ALLOWED_SELECTABLE_MODELS).toContain('gemini-3.8-flash');
+      expect(formatModelDisplayName('gemini-4-argon')).toBe('Gemini 4 Argon');
     });
 
     it('sets MAX_TRANSCRIBE_MODEL_DURATION_SECONDS to 59 minutes (3540 seconds)', () => {
@@ -99,9 +109,10 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       };
 
       const result = await queryAvailableGenAIModels(mockAiClient);
-      expect(result.models.length).toBe(DEFAULT_TRANSCRIPTION_MODELS.length);
+      expect(result.models.length).toBe(ALLOWED_SELECTABLE_MODELS.length);
       expect(result.models[0].name).toBe('gemini-3.8-flash');
-      expect(result.models.every(m => m.isConfiguredInCascade)).toBe(true);
+      expect(result.models.some(m => m.isFrontier)).toBe(true);
+      expect(result.configuredCascade).toEqual(DEFAULT_TRANSCRIPTION_MODELS);
     });
   });
 

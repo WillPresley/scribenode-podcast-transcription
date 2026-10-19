@@ -28,6 +28,8 @@ import {
   renameSpeakerInTranscript,
   DEFAULT_TRANSCRIPTION_MODELS,
   DEFAULT_ANALYSIS_MODELS,
+  FRONTIER_MODELS,
+  ALLOWED_SELECTABLE_MODELS,
   getTranscriptionModelsForJob,
   queryAvailableGenAIModels,
   AvailableModelItem
@@ -346,12 +348,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
       const client = tryGetAIClient();
       if (!client) {
         return res.json({
-          models: DEFAULT_TRANSCRIPTION_MODELS.map(m => ({
+          models: ALLOWED_SELECTABLE_MODELS.map(m => ({
             name: m,
             rawName: `models/${m}`,
             displayName: formatModelDisplayName(m),
             supportedActions: ["generateContent"],
-            isConfiguredInCascade: true
+            isConfiguredInCascade: DEFAULT_TRANSCRIPTION_MODELS.includes(m),
+            isFrontier: FRONTIER_MODELS.includes(m)
           })),
           configuredCascade: [...DEFAULT_TRANSCRIPTION_MODELS],
           timestamp: Date.now(),
@@ -369,12 +372,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
     } catch (err: any) {
       console.warn("Error querying available GenAI models:", err);
       return res.json({
-        models: DEFAULT_TRANSCRIPTION_MODELS.map(m => ({
+        models: ALLOWED_SELECTABLE_MODELS.map(m => ({
           name: m,
           rawName: `models/${m}`,
           displayName: formatModelDisplayName(m),
           supportedActions: ["generateContent"],
-          isConfiguredInCascade: true
+          isConfiguredInCascade: DEFAULT_TRANSCRIPTION_MODELS.includes(m),
+          isFrontier: FRONTIER_MODELS.includes(m)
         })),
         configuredCascade: [...DEFAULT_TRANSCRIPTION_MODELS],
         timestamp: Date.now(),
@@ -409,17 +413,19 @@ export function createApp(options: CreateAppOptions = {}): Express {
       modelStatus.status = 'optimal';
       modelStatus.lastFallbackReason = undefined;
       modelStatus.isCustomSelection = false;
+      modelStatus.isFrontierSelection = false;
       return res.json({ success: true, modelStatus });
     }
 
     if (typeof model === "string" && model.trim()) {
       const targetModel = model.trim();
-      if (!DEFAULT_TRANSCRIPTION_MODELS.includes(targetModel)) {
+      if (!ALLOWED_SELECTABLE_MODELS.includes(targetModel)) {
         return res.status(400).json({
-          error: `Unknown model: "${targetModel}". Allowed models: ${DEFAULT_TRANSCRIPTION_MODELS.join(", ")}`
+          error: `Unknown model: "${targetModel}". Allowed models: ${ALLOWED_SELECTABLE_MODELS.join(", ")}`
         });
       }
 
+      const isFrontier = FRONTIER_MODELS.includes(targetModel);
       modelStatus.activeModel = targetModel;
       modelStatus.fallbackModels = [
         targetModel,
@@ -428,10 +434,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
 
       const isDefault = targetModel === DEFAULT_TRANSCRIPTION_MODELS[0];
       modelStatus.isCustomSelection = !isDefault;
+      modelStatus.isFrontierSelection = isFrontier;
       modelStatus.status = 'optimal';
       modelStatus.lastFallbackReason = isDefault
         ? undefined
-        : `Custom selection: ${formatModelDisplayName(targetModel)} prioritized first with automatic fallback cascade.`;
+        : isFrontier
+          ? `Frontier model prioritized (${formatModelDisplayName(targetModel)}). High-reasoning deep analysis enabled; automatic fallback to Gemini 3.8 Flash cascade if unavailable.`
+          : `Custom selection: ${formatModelDisplayName(targetModel)} prioritized first with automatic fallback cascade.`;
 
       return res.json({ success: true, modelStatus });
     }
@@ -1267,16 +1276,22 @@ export function createApp(options: CreateAppOptions = {}): Express {
         prompt = "Analyze the following transcript and break it down into logical sequential chapters/topics with timestamps (e.g., [12:34] Introduction, [15:45] Main Discussion Point, etc.) and a 1-sentence description for each chapter.";
       } else if (mode === 'social_media') {
         prompt = "Based on this podcast transcript, generate a set of short, highly concise, objective, and non-personal listener sharing drafts for Facebook, Threads, Mastodon, or Bluesky. Write them from the perspective of an appreciative listener sharing an interesting episode they enjoyed with their followers. Focus on summarizing the core topic or an interesting takeaway. Do not make it look like self-promotion or host-written copy. Keep it short, engaging, and readable.";
+      } else if (mode === 'deep_synthesis') {
+        prompt = "Conduct an exhaustive, high-level frontier synthesis of this podcast transcript. Identify core theses, subtle subtexts, underlying assumptions, counter-arguments, non-obvious intersections between topics, and practical strategic implications. Structure with analytical depth, rigorous synthesis, and clear thematic hierarchy.";
       } else {
         return res.status(400).json({ error: "Invalid analysis mode" });
       }
 
+      const modelsToTry = mode === 'deep_synthesis'
+        ? [...FRONTIER_MODELS, ...DEFAULT_ANALYSIS_MODELS]
+        : DEFAULT_ANALYSIS_MODELS;
+
       const { response, model, text: generatedAnalysis } = await generateContentWithFallback({
         aiClient: getAIClient(),
-        modelsToTry: DEFAULT_ANALYSIS_MODELS,
+        modelsToTry,
         maxRetries: 1,
         initialDelayMs: 300,
-        timeoutMs: 25000,
+        timeoutMs: 30000,
         contents: [
           { text: `Podcast Transcript:\n\n${job.transcript}` },
           { text: prompt }
@@ -1302,6 +1317,10 @@ export function createApp(options: CreateAppOptions = {}): Express {
       else if (mode === 'key_takeaways') job.key_takeaways = text;
       else if (mode === 'chapters') job.chapters = text;
       else if (mode === 'social_media') job.social_media = text;
+      else if (mode === 'deep_synthesis') {
+        job.deep_synthesis = text;
+        job.deep_synthesis_model = model;
+      }
       
       storage.set(job.id, job);
       storage.saveToDisk();

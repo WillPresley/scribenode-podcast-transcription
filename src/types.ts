@@ -2,7 +2,7 @@ export type JobStatus = 'uploading' | 'processing_audio' | 'transcribing' | 'com
 
 export type PromptStyle = 'clean' | 'timestamped' | 'verbatim' | 'custom' | 'combined';
 
-export type AnalysisMode = 'summary' | 'key_takeaways' | 'chapters' | 'social_media';
+export type AnalysisMode = 'summary' | 'key_takeaways' | 'chapters' | 'social_media' | 'deep_synthesis';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -21,6 +21,8 @@ export interface TranscribeJob {
   key_takeaways?: string;
   chapters?: string;
   social_media?: string;
+  deep_synthesis?: string;
+  deep_synthesis_model?: string;
   localFilePath?: string;
   mimeType?: string;
   hasAudioFile?: boolean;
@@ -56,6 +58,7 @@ export interface AnalysisResults {
   key_takeaways?: string;
   chapters?: string;
   social_media?: string;
+  deep_synthesis?: string;
 }
 
 export type ModelErrorCategory = 'high_demand' | 'rate_limit' | 'config_error' | 'auth_error' | 'timeout' | 'not_found' | 'duration_limit' | 'empty_response' | 'general';
@@ -86,6 +89,7 @@ export interface ModelStatusInfo {
   lastTestedTimestamp?: number;
   modelErrors?: Record<string, ModelErrorDetails>;
   isCustomSelection?: boolean;
+  isFrontierSelection?: boolean;
   availableLiveModels?: AvailableModelItem[];
   liveModelsVerifiedAt?: number;
 }

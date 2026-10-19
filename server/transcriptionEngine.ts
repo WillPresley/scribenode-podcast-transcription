@@ -406,12 +406,24 @@ export const DEFAULT_TRANSCRIPTION_MODELS = [
 
 export const DEFAULT_ANALYSIS_MODELS = [...DEFAULT_DOWNSTREAM_MODELS];
 
+/** Frontier-class reasoning models available for opt-in prioritization or deep synthesis (requires paid API key). */
+export const FRONTIER_MODELS = [
+  "gemini-4-argon"
+];
+
+/** All models that can be custom selected or prioritized by users in ScribeNode. */
+export const ALLOWED_SELECTABLE_MODELS = [
+  ...DEFAULT_TRANSCRIPTION_MODELS,
+  ...FRONTIER_MODELS
+];
+
 export interface AvailableModelItem {
   name: string;
   rawName: string;
   displayName: string;
   supportedActions: string[];
   isConfiguredInCascade: boolean;
+  isFrontier?: boolean;
 }
 
 /**
@@ -435,7 +447,8 @@ export async function queryAvailableGenAIModels(aiClient: GoogleGenAI): Promise<
           rawName: m.name || "",
           displayName: m.displayName || formatModelDisplayName(cleanName),
           supportedActions: actions,
-          isConfiguredInCascade: DEFAULT_TRANSCRIPTION_MODELS.includes(cleanName)
+          isConfiguredInCascade: DEFAULT_TRANSCRIPTION_MODELS.includes(cleanName),
+          isFrontier: FRONTIER_MODELS.includes(cleanName)
         });
       }
     }
@@ -458,12 +471,13 @@ export async function queryAvailableGenAIModels(aiClient: GoogleGenAI): Promise<
   } catch (err) {
     console.warn("[Gemini API] Failed to query live models via aiClient.models.list():", err);
     return {
-      models: DEFAULT_TRANSCRIPTION_MODELS.map(m => ({
+      models: ALLOWED_SELECTABLE_MODELS.map(m => ({
         name: m,
         rawName: `models/${m}`,
         displayName: formatModelDisplayName(m),
         supportedActions: ["generateContent"],
-        isConfiguredInCascade: true
+        isConfiguredInCascade: DEFAULT_TRANSCRIPTION_MODELS.includes(m),
+        isFrontier: FRONTIER_MODELS.includes(m)
       })),
       configuredCascade: [...DEFAULT_TRANSCRIPTION_MODELS],
       timestamp: Date.now()
