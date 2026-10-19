@@ -199,6 +199,7 @@ describe('Transcript Formatting & Parsing Engine', () => {
 
   describe('formatModelDisplayName', () => {
     it('formats recognized model IDs into clean human-readable titles', () => {
+      expect(formatModelDisplayName('gemini-4-argon')).toBe('Gemini 4 Argon');
       expect(formatModelDisplayName('gemini-3.8-flash')).toBe('Gemini 3.8 Flash');
       expect(formatModelDisplayName('gemini-3.7-flash')).toBe('Gemini 3.7 Flash');
       expect(formatModelDisplayName('gemini-3.5-transcribe')).toBe('Gemini 3.5 Transcribe');

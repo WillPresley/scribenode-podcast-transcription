@@ -362,6 +362,8 @@ export const convertTranscriptToSrt = (rawText: string): string => {
 export const formatModelDisplayName = (modelId?: string): string => {
   if (!modelId) return "Gemini 3.8 Flash";
   switch (modelId) {
+    case "gemini-4-argon":
+      return "Gemini 4 Argon";
     case "gemini-3.8-flash":
       return "Gemini 3.8 Flash";
     case "gemini-3.7-flash":

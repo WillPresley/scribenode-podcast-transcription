@@ -881,6 +881,11 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(extractResponseText({ candidates: [] })).toBe('');
       expect(extractResponseText({ candidates: [{ content: { parts: [{ text: '' }] } }] })).toBe('');
     });
+
+    it('extracts text from outputText or output_text properties in multi-turn responses', () => {
+      expect(extractResponseText({ outputText: 'Multi-turn combined output text' })).toBe('Multi-turn combined output text');
+      expect(extractResponseText({ output_text: 'Snake case output text response' })).toBe('Snake case output text response');
+    });
   });
 
   describe('Post-Processing Structuring & Refinement Utilities', () => {
@@ -1035,6 +1040,19 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
     it('handles null and undefined configurations gracefully', () => {
       expect(sanitizeGenerationConfig(undefined)).toBeUndefined();
       expect(sanitizeGenerationConfig(null)).toBeNull();
+    });
+
+    it('promotes minimal thinking level to low for gemini-4-argon', () => {
+      const input = {
+        thinkingConfig: { thinkingLevel: 'minimal' },
+        systemInstruction: 'Argon prompt'
+      };
+      const result = sanitizeGenerationConfig(input, 'gemini-4-argon');
+      expect(result.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+
+      // Non-argon models retain minimal
+      const resultFlash = sanitizeGenerationConfig({ thinkingConfig: { thinkingLevel: 'minimal' } }, 'gemini-3.1-flash-lite');
+      expect(resultFlash.thinkingConfig).toEqual({ thinkingLevel: 'minimal' });
     });
   });
 });

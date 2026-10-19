@@ -510,6 +510,8 @@ export function getTranscriptionModelsForJob(duration?: string | number | null):
 export function formatModelDisplayName(modelId?: string): string {
   if (!modelId) return "Gemini 3.8 Flash";
   switch (modelId) {
+    case "gemini-4-argon":
+      return "Gemini 4 Argon";
     case "gemini-3.8-flash":
       return "Gemini 3.8 Flash";
     case "gemini-3.7-flash":
@@ -1240,6 +1242,18 @@ export function extractResponseText(response: any, promptStyle?: string, title?:
     // Ignore getter errors
   }
 
+  // 5. Fallback: check outputText or output_text (SDK multi-step / multi-turn responses)
+  try {
+    if (typeof response.outputText === "string" && response.outputText.trim().length > 0) {
+      return response.outputText.trim();
+    }
+    if (typeof response.output_text === "string" && response.output_text.trim().length > 0) {
+      return response.output_text.trim();
+    }
+  } catch {
+    // Ignore getter errors
+  }
+
   return "";
 }
 
@@ -1249,6 +1263,7 @@ export function extractResponseText(response: any, promptStyle?: string, title?:
  *   to avoid 400 INVALID_ARGUMENT errors as Google enforces model defaults across Gemini 3+ and upcoming models.
  * - Migrates deprecated thinking_budget / thinkingBudget to thinkingConfig.thinkingLevel or removes it.
  * - Ensures thinkingLevel is placed properly in thinkingConfig.
+ * - Enforces model-specific thinking level constraints (e.g. gemini-4-argon requires low/medium/high, not minimal).
  */
 export function sanitizeGenerationConfig(config?: any, model?: string): any {
   if (!config || typeof config !== "object") return config;
@@ -1290,6 +1305,11 @@ export function sanitizeGenerationConfig(config?: any, model?: string): any {
     } else if (!sanitized.thinkingConfig.thinkingLevel) {
       sanitized.thinkingConfig.thinkingLevel = level;
     }
+  }
+
+  // Model-specific optimizations: gemini-4-argon does not support "minimal" thinking level
+  if (model === "gemini-4-argon" && sanitized.thinkingConfig?.thinkingLevel === "minimal") {
+    sanitized.thinkingConfig.thinkingLevel = "low";
   }
 
   return Object.keys(sanitized).length > 0 ? sanitized : undefined;
