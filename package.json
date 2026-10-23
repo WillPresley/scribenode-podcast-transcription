@@ -48,10 +48,16 @@
   },
   "overrides": {
     "@babel/plugin-transform-runtime": "^7.29.0",
+    "glob": "^13.0.6",
     "ip-address": "^10.7.4",
     "nanoid": "^3.3.17",
     "proxy-addr": "^2.0.8",
     "qs": "^6.16.0",
     "source-map-js": "^1.2.2"
+  },
+  "allowScripts": {
+    "@google/genai": true,
+    "esbuild": true,
+    "protobufjs": true
   }
 }

@@ -16,6 +16,9 @@ on:
 permissions:
   contents: read
 
+env:
+  NODE_OPTIONS: "--disable-warning=DEP0040"
+
 jobs:
   build-and-test:
     name: Validate Build & Types

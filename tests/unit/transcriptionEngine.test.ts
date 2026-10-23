@@ -108,7 +108,10 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
         }
       };
 
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const result = await queryAvailableGenAIModels(mockAiClient);
+      warnSpy.mockRestore();
+
       expect(result.models.length).toBe(ALLOWED_SELECTABLE_MODELS.length);
       expect(result.models[0].name).toBe('gemini-3.8-flash');
       expect(result.models.some(m => m.isFrontier)).toBe(true);

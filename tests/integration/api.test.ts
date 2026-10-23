@@ -714,20 +714,25 @@ describe('API Integration & Route Endpoints', () => {
 
     it('rejects SSRF attempts on /api/rss/preview', async () => {
       const app = createApp({ storage, skipVite: true });
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      // Localhost attempt
-      const resLocal = await request(app)
-        .post('/api/rss/preview')
-        .send({ feedUrl: 'http://localhost/secret' });
-      expect(resLocal.status).toBe(400);
-      expect(resLocal.body.error).toContain('blocked');
+      try {
+        // Localhost attempt
+        const resLocal = await request(app)
+          .post('/api/rss/preview')
+          .send({ feedUrl: 'http://localhost/secret' });
+        expect(resLocal.status).toBe(400);
+        expect(resLocal.body.error).toContain('blocked');
 
-      // Cloud metadata attempt
-      const resMeta = await request(app)
-        .post('/api/rss/preview')
-        .send({ feedUrl: 'http://169.254.169.254/latest/meta-data/' });
-      expect(resMeta.status).toBe(400);
-      expect(resMeta.body.error).toContain('blocked');
+        // Cloud metadata attempt
+        const resMeta = await request(app)
+          .post('/api/rss/preview')
+          .send({ feedUrl: 'http://169.254.169.254/latest/meta-data/' });
+        expect(resMeta.status).toBe(400);
+        expect(resMeta.body.error).toContain('blocked');
+      } finally {
+        errSpy.mockRestore();
+      }
     });
 
     it('rejects SSRF attempts on /api/transcribe-remote', async () => {
