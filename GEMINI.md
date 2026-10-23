@@ -4,6 +4,7 @@
 - **Always Keep `package-lock.json` in Sync**: Whenever `package.json` is modified (adding/updating dependencies, changing versions, or adding `overrides`/`resolutions`), immediately run `npm install --package-lock-only` (or `npm install`) and verify with `npm ci` before concluding the task.
 - **Never Leave Lockfile Stale**: CI/CD pipelines use `npm ci`, which will fail if `package-lock.json` does not strictly match `package.json`.
 - **Transitive Security Fixes**: Prefer `npm` `overrides` in `package.json` for nested/transitive package vulnerabilities, and immediately refresh `package-lock.json`.
+- **Strict Git Working Tree & Artifact Hygiene**: Ensure `.gitignore` strictly ignores temporary AI Studio chat uploads and attachments (`public/assets/`, `*.tempmediaStorage`), internal planning workspaces (`.aistudio/`), runtime persistent uploads and databases (`uploads/*`, preserving `!uploads/.gitkeep`), and foreign lockfiles (`bun.lock`, `bun.lockb`, `yarn.lock`, `pnpm-lock.yaml`). ScribeNode solely uses npm and `package-lock.json`. Never allow ephemeral chat attachments, runtime databases, or alternative lockfiles to pollute the git working tree.
 
 ## 2. Environment Variables & Type Safety
 - **Boolean Environment Variables**: Environment variables parsed from `.env` or process environment are ALWAYS strings. 

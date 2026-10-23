@@ -7,15 +7,19 @@ coverage/
 .env*
 !.env.example
 
-# AI Studio internal artifacts, planning workspaces & metadata
+# AI Studio internal artifacts, chat media attachments & planning metadata
 .aistudio/
 .aistudio
+*.tempmediaStorage
+public/assets/
+public/assets/*
 
-# Local uploaded media files & persistent user audio
-uploads/*.mp3
-uploads/*.wav
-uploads/*.m4a
-uploads/*.flac
-uploads/*.ogg
-uploads/*.webm
-uploads/*.aac
+# Alternative lockfiles (project strictly enforces npm & package-lock.json)
+bun.lock
+bun.lockb
+yarn.lock
+pnpm-lock.yaml
+
+# Local uploads directory runtime data (audio files, jobs database, backups, & temp chunks)
+uploads/*
+!uploads/.gitkeep

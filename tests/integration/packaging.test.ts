@@ -136,8 +136,13 @@ describe('Build, Packaging & Release Configuration Verification', () => {
 
     const gitignore = fs.readFileSync(gitignorePath, 'utf-8');
     expect(gitignore).toContain('.aistudio/');
+    expect(gitignore).toContain('public/assets/');
     expect(gitignore).toContain('.env*');
     expect(gitignore).toContain('node_modules/');
     expect(gitignore).toContain('dist/');
+    expect(gitignore).toContain('bun.lock');
+    expect(gitignore).toContain('uploads/*');
+    expect(gitignore).toContain('!uploads/.gitkeep');
+    expect(fs.existsSync(path.join(rootDir, 'uploads/.gitkeep'))).toBe(true);
   });
 });
