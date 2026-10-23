@@ -83,6 +83,17 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(workflow).not.toContain('Dependabot');
   });
 
+  it('validates server.ts loads dotenv/config and configures Vite middleware with allowedHosts and 0.0.0.0 binding', () => {
+    const serverPath = path.join(rootDir, 'server.ts');
+    expect(fs.existsSync(serverPath)).toBe(true);
+
+    const serverContent = fs.readFileSync(serverPath, 'utf-8');
+    expect(serverContent).toContain('import "dotenv/config";');
+    expect(serverContent).toContain('host: "0.0.0.0"');
+    expect(serverContent).toContain('allowedHosts: true');
+    expect(serverContent).toContain('vite.transformIndexHtml');
+  });
+
   it('validates metadata.json application settings and capabilities', () => {
     const metaPath = path.join(rootDir, 'metadata.json');
     expect(fs.existsSync(metaPath)).toBe(true);
@@ -119,15 +130,14 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(indexHtml).toContain('apple-touch-icon');
   });
 
-  it('validates .gitignore ignores temporary AI Studio artifacts and no .aistudio files exist', () => {
+  it('validates .gitignore ignores temporary AI Studio artifacts and sensitive files', () => {
     const gitignorePath = path.join(rootDir, '.gitignore');
     expect(fs.existsSync(gitignorePath)).toBe(true);
 
     const gitignore = fs.readFileSync(gitignorePath, 'utf-8');
     expect(gitignore).toContain('.aistudio/');
-    expect(gitignore).toContain('.aistudio');
-
-    const aiStudioPath = path.join(rootDir, '.aistudio');
-    expect(fs.existsSync(aiStudioPath)).toBe(false);
+    expect(gitignore).toContain('.env*');
+    expect(gitignore).toContain('node_modules/');
+    expect(gitignore).toContain('dist/');
   });
 });

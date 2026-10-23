@@ -1,3 +1,4 @@
+import "dotenv/config";
 import path from "path";
 import fs from "fs";
 import rateLimit from "express-rate-limit";
@@ -6,21 +7,57 @@ import { JobsStorage } from "./server/storage";
 import { printStartupBanner } from "./server/banner";
 import { getAppShortName } from "./server/config";
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const rawPort = process.env.PORT?.trim()?.replace(/^["']|["']$/g, "");
+const parsedPort = rawPort ? parseInt(rawPort, 10) : 3000;
+const PORT = !isNaN(parsedPort) && parsedPort > 0 ? parsedPort : 3000;
 const storage = new JobsStorage();
 
 async function startServer() {
   const app = createApp({ storage });
 
   // Vite Integration & Static File Serving
-  // In development, dynamically load Vite middleware. In production, serve precompiled static dist.
+  // In development, dynamically load Vite middleware with full LAN and allowedHosts support.
+  // In production, serve precompiled static dist.
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        host: "0.0.0.0",
+        allowedHosts: true,
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);
+
+    // Development fallback for index.html with Vite transformation and dynamic metadata (Express 5 compatible)
+    app.use(async (req, res, next) => {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        return next();
+      }
+      const url = req.originalUrl;
+      if (url.startsWith('/api') || url.startsWith('/health')) {
+        return next();
+      }
+      try {
+        const indexPath = path.join(process.cwd(), 'index.html');
+        if (fs.existsSync(indexPath)) {
+          let template = fs.readFileSync(indexPath, 'utf-8');
+          const appTitle = process.env.APP_TITLE || process.env.APP_NAME || "ScribeNode – Transcription Engine";
+          const appShortName = getAppShortName();
+          template = template.replace(/<title>.*?<\/title>/i, `<title>${appTitle}</title>`);
+          template = template.replace(/<meta name="apple-mobile-web-app-title" content=".*?" \/>/i, `<meta name="apple-mobile-web-app-title" content="${appShortName}" />`);
+          template = template.replace(/<meta name="application-name" content=".*?" \/>/i, `<meta name="application-name" content="${appShortName}" />`);
+          const html = await vite.transformIndexHtml(url, template);
+          res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+          return;
+        }
+        next();
+      } catch (e: any) {
+        vite.ssrFixStacktrace(e);
+        next(e);
+      }
+    });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(expressStaticMiddleware(distPath));
