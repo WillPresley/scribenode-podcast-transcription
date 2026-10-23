@@ -399,6 +399,15 @@ The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml
 
 ---
 
+## Gitea Actions CI/CD Pipeline (Self-Hosted / Mirrored)
+
+For mirrored repositories and private homelab Gitea instances, ScribeNode provides an isolated Gitea Actions workflow (`.gitea/workflows/ci.yml`):
+- Runs cleanly on Gitea `act_runner` instances without requiring GitHub-specific services, tokens, or GHCR container publishing.
+- Validates type safety (`tsc --noEmit`), lints the codebase, executes the complete Vitest test suite, and bundles production assets.
+- Automatically triggers on pushes and pull requests across both `main` and `master` branches, plus manual `workflow_dispatch`.
+
+---
+
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.

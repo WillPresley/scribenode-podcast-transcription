@@ -23,9 +23,11 @@
 - **Logical Update Grouping**: Group routine minor and patch updates together (`minor-and-patch-dependencies`), and isolate major version bumps (`major-dependencies`) using `applies-to: "version-updates"` so security PRs remain unbundled and instant.
 - **Ignores & Constraints**: Maintain strict major version ignores on core infrastructure tools (e.g., `typescript`) until explicitly requested for upgrade.
 
-## 5. GitHub Actions & Runner Compatibility
-- **Prefer Native Docker CLI in Workflows**: In GitHub Actions workflows running on `ubuntu-latest`, do NOT introduce third-party marketplace actions for basic Docker setup (e.g., avoid `docker/setup-buildx-action` which carries deprecated Node.js runtime warnings). Always use native runner CLI commands (e.g., `run: docker buildx create --use`).
-- **Core Action Pinning**: Ensure standard GitHub actions (`actions/checkout`, `actions/setup-node`) use modern, supported versions that run on active Node runtimes.
+## 5. CI/CD, GitHub Actions & Gitea Actions Compatibility
+- **GitHub & Gitea Actions Parity (CRITICAL)**: Maintain `.gitea/workflows/ci.yml` in strict parity with the non-GitHub-dependent stages of `.github/workflows/deploy.yml` (specifically: checkout, node setup, clean dependency install via `npm ci`, linting/type-check via `npm run lint`, full test suite execution via `npm test`, and production build bundling via `npm run build`). Whenever build, test, or linting pipeline steps are modified or added in `.github/workflows/deploy.yml`, immediately replicate those changes into `.gitea/workflows/ci.yml`.
+- **Gitea-Specific Isolation**: Exclude GitHub-exclusive services and publishing from Gitea workflows (e.g. Dependabot, CodeQL, GHCR token publishing). Gitea workflows focus strictly on self-contained validation (lint, test, build).
+- **Branch Portability**: Triggers on Gitea workflows must accommodate both `main` and `master` branches (`branches: [ main, master ]`) alongside `workflow_dispatch` to support mirrored private repositories seamlessly.
+- **Prefer Native Runner CLI & Standard Actions**: Standard runner actions (`actions/checkout`, `actions/setup-node`) should use supported versions (`@v4`) compatible with both GitHub-hosted runners and Gitea `act_runner` instances. In GitHub Actions workflows running on `ubuntu-latest`, do NOT introduce third-party marketplace actions for basic Docker setup (e.g., avoid `docker/setup-buildx-action` which carries deprecated Node.js runtime warnings). Always use native runner CLI commands (e.g., `run: docker buildx create --use`).
 
 ## 6. Test Suite & Coverage Maintenance (Vitest & Supertest)
 - **Continuous Test Coverage**: Any new helper utility, API endpoint, formatting rule, or backend storage logic MUST be accompanied by corresponding unit or integration tests in `tests/unit/` or `tests/integration/`.

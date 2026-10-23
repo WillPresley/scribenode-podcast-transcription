@@ -65,6 +65,24 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(workflow).toContain('docker buildx create --use');
   });
 
+  it('validates Gitea Actions workflow includes lint, test, and build stages without GitHub-specific dependencies', () => {
+    const giteaWorkflowPath = path.join(rootDir, '.gitea/workflows/ci.yml');
+    expect(fs.existsSync(giteaWorkflowPath)).toBe(true);
+
+    const workflow = fs.readFileSync(giteaWorkflowPath, 'utf-8');
+    expect(workflow).toContain('actions/checkout@v4');
+    expect(workflow).toContain('actions/setup-node@v4');
+    expect(workflow).toContain('npm ci');
+    expect(workflow).toContain('npm run lint');
+    expect(workflow).toContain('npm test');
+    expect(workflow).toContain('npm run build');
+    expect(workflow).toContain('workflow_dispatch:');
+    // Ensure no GitHub-exclusive steps are included
+    expect(workflow).not.toContain('ghcr.io');
+    expect(workflow).not.toContain('publish-container');
+    expect(workflow).not.toContain('Dependabot');
+  });
+
   it('validates metadata.json application settings and capabilities', () => {
     const metaPath = path.join(rootDir, 'metadata.json');
     expect(fs.existsSync(metaPath)).toBe(true);
