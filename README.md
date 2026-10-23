@@ -385,9 +385,17 @@ npm run start
 
 The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically:
 - Validates type safety (`tsc --noEmit`) and lints code with zero warnings.
+- Runs the comprehensive Vitest unit and integration test suite.
 - Builds the client bundle and bundles the server entry point via `esbuild`.
-- Compiles and publishes a multi-platform Docker container image to **GitHub Container Registry (GHCR)** on every push to `main` or `master`.
+- Compiles and publishes a multi-platform Docker container image to **GitHub Container Registry (GHCR)** on every push to `main` (or on-demand via **manual `workflow_dispatch`** with an optional container push toggle).
 - Embeds OpenContainer (OCI) metadata annotations linking the image directly back to the public repository.
+
+### Manual Workflow Dispatch & Dependabot Scans
+- **Manual CI/CD & Image Publish**: Navigate to **Actions** $\rightarrow$ **CI/CD Build and GHCR Container Publish** $\rightarrow$ **Run workflow** to manually trigger validation and container builds on `main`.
+- **On-Demand Dependabot Scan**: To trigger an immediate Dependabot update scan without waiting for the scheduled Monday run:
+  1. Go to **Insights** $\rightarrow$ **Dependency graph** $\rightarrow$ **Dependabot** (`/network/updates`).
+  2. Click **"Check for updates"** on any package ecosystem (`npm`, `docker`, `github-actions`).
+  3. Dependabot will instantly scan the `main` branch and open any grouped PRs immediately.
 
 ---
 

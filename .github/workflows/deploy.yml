@@ -5,6 +5,13 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      publish_container:
+        description: 'Build & push Docker container to GHCR'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -51,7 +58,7 @@ jobs:
   publish-container:
     name: Build & Publish Container Image (GHCR)
     needs: build-and-test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_dispatch' || inputs.publish_container)
     runs-on: ubuntu-latest
     permissions:
       contents: read
