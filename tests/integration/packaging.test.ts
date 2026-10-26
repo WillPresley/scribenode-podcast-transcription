@@ -22,6 +22,9 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(pkg.devDependencies['vite-plugin-pwa']).toBeDefined();
     expect(pkg.overrides?.qs).toBe('^6.16.0');
     expect(pkg.overrides?.nanoid).toBeDefined();
+    expect(pkg.overrides?.['body-parser']).toBe('^2.4.0');
+    expect(pkg.overrides?.['fast-uri']).toBe('^4.2.3');
+    expect(pkg.overrides?.['serialize-javascript']).toBe('^7.1.4');
   });
 
   it('validates Dockerfile configuration and port exposure', () => {
