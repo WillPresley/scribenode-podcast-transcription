@@ -521,6 +521,20 @@ export function getTranscriptionModelsForJob(duration?: string | number | null):
   return [...DEFAULT_TRANSCRIPTION_MODELS];
 }
 
+/**
+ * Normalizes model IDs and automatically migrates deprecated model strings.
+ * Gemini 2.5 Flash (gemini-2.5-flash) and Gemini 2.5 Flash Lite are deprecated
+ * by Google AI Studio and automatically upgraded to gemini-3.5-flash-lite.
+ */
+export function normalizeModelId(modelId?: string): string {
+  if (!modelId || typeof modelId !== "string") return PRIMARY_TRANSCRIPTION_MODEL;
+  const clean = modelId.trim().toLowerCase().replace(/^models\//, "");
+  if (clean === "gemini-2.5-flash" || clean === "gemini-2.5-flash-lite") {
+    return "gemini-3.5-flash-lite";
+  }
+  return clean;
+}
+
 export function formatModelDisplayName(modelId?: string): string {
   if (!modelId) return "Gemini 3.8 Flash";
   switch (modelId) {
@@ -1307,6 +1321,14 @@ export function sanitizeGenerationConfig(config?: any, model?: string): any {
   delete sanitized.top_p;
   delete sanitized.topK;
   delete sanitized.top_k;
+
+  // Strip candidateCount / candidate_count > 1 (Gemini 3.5 Flash-Lite and modern models return HTTP 400)
+  if (sanitized.candidate_count !== undefined && sanitized.candidate_count > 1) {
+    delete sanitized.candidate_count;
+  }
+  if (sanitized.candidateCount !== undefined && sanitized.candidateCount > 1) {
+    delete sanitized.candidateCount;
+  }
 
   // Remap or remove deprecated thinking_budget / thinkingBudget
   if (sanitized.thinking_budget !== undefined || sanitized.thinkingBudget !== undefined) {

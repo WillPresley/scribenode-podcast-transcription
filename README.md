@@ -57,6 +57,7 @@
 2. **Multimodal Audio Comprehension**: The engine routes directly to **`gemini-3.8-flash`**, combining acoustic processing with contextual reasoning to recognize domain vocabulary, infer human speaker names, and generate structured clean-verbatim transcripts in a single pass.
 3. **Resilient Multi-Tier Fallback Cascade**: If the primary model encounters temporary capacity constraints (503), quota limits (429), or parameter incompatibilities, the engine automatically fails over through:
    `gemini-3.8-flash` ➡️ `gemini-3.6-flash` ➡️ `gemini-flash-latest` ➡️ `gemini-flash-lite-latest` ➡️ `gemini-3.1-flash-lite` ➡️ `gemini-3.7-flash` ➡️ `gemini-3.5-flash` ➡️ `gemini-3.5-flash-lite`
+   *(Note: Following Google AI Studio's deprecation of `gemini-2.5-flash`, ScribeNode routes modern lightweight tasks to `gemini-3.5-flash-lite` and automatically normalizes any legacy model identifiers).*
 4. **Interactive Model Selection & Instant Reset**: Users can specifically choose any model from the dropdown to prioritize it first, automatically re-ordering the fallback cascade with instant one-click reset to the standard built-in order.
 5. **Console & Container Startup Visibility**: ScribeNode displays the active primary model, port binding, and the complete fallback chain in the pretty console and Docker startup banner upon boot.
 6. **Developer System Instructions**: Full system instructions (`BASE_TRANSCRIPTION_STANDARDS` / `getSystemInstruction()`) guide model outputs to strict, publication-ready Markdown.

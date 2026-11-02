@@ -165,6 +165,19 @@ describe('API Integration & Route Endpoints', () => {
       expect(resetRes.body.modelStatus.isFrontierSelection).toBe(false);
     });
 
+    it('automatically migrates deprecated gemini-2.5-flash to gemini-3.5-flash-lite on POST /api/model-status', async () => {
+      const app = createApp({ storage, skipVite: true });
+
+      const selectRes = await request(app)
+        .post('/api/model-status')
+        .send({ model: 'gemini-2.5-flash' });
+      expect(selectRes.status).toBe(200);
+      expect(selectRes.body.success).toBe(true);
+      expect(selectRes.body.modelStatus.activeModel).toBe('gemini-3.5-flash-lite');
+      expect(selectRes.body.modelStatus.fallbackModels[0]).toBe('gemini-3.5-flash-lite');
+      expect(selectRes.body.modelStatus.isCustomSelection).toBe(true);
+    });
+
     it('rejects unknown model selection on POST /api/model-status with 400', async () => {
       const app = createApp({ storage, skipVite: true });
       const res = await request(app)

@@ -31,6 +31,7 @@ import {
   DEFAULT_ANALYSIS_MODELS,
   FRONTIER_MODELS,
   ALLOWED_SELECTABLE_MODELS,
+  normalizeModelId,
   getTranscriptionModelsForJob,
   queryAvailableGenAIModels,
   AvailableModelItem
@@ -419,7 +420,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }
 
     if (typeof model === "string" && model.trim()) {
-      const targetModel = model.trim();
+      const targetModel = normalizeModelId(model.trim());
       if (!ALLOWED_SELECTABLE_MODELS.includes(targetModel)) {
         return res.status(400).json({
           error: `Unknown model: "${targetModel}". Allowed models: ${ALLOWED_SELECTABLE_MODELS.join(", ")}`

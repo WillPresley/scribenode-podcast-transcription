@@ -35,6 +35,7 @@ import {
   sanitizeGenerationConfig,
   FRONTIER_MODELS,
   ALLOWED_SELECTABLE_MODELS,
+  normalizeModelId,
   formatModelDisplayName
 } from '../../server/transcriptionEngine';
 
@@ -1077,6 +1078,43 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       // Non-argon models retain minimal
       const resultFlash = sanitizeGenerationConfig({ thinkingConfig: { thinkingLevel: 'minimal' } }, 'gemini-3.1-flash-lite');
       expect(resultFlash.thinkingConfig).toEqual({ thinkingLevel: 'minimal' });
+    });
+
+    it('strips unsupported candidateCount > 1 to prevent HTTP 400 on Gemini 3.5 Flash-Lite and modern models', () => {
+      const input = {
+        candidateCount: 2,
+        candidate_count: 3,
+        systemInstruction: 'Clean formatting'
+      };
+      const result = sanitizeGenerationConfig(input, 'gemini-3.5-flash-lite');
+      expect(result.candidateCount).toBeUndefined();
+      expect(result.candidate_count).toBeUndefined();
+      expect(result.systemInstruction).toBe('Clean formatting');
+    });
+  });
+
+  describe('normalizeModelId (Google AI Studio Deprecation Migration)', () => {
+    it('migrates deprecated gemini-2.5-flash to gemini-3.5-flash-lite', () => {
+      expect(normalizeModelId('gemini-2.5-flash')).toBe('gemini-3.5-flash-lite');
+      expect(normalizeModelId('models/gemini-2.5-flash')).toBe('gemini-3.5-flash-lite');
+      expect(normalizeModelId('GEMINI-2.5-FLASH')).toBe('gemini-3.5-flash-lite');
+    });
+
+    it('migrates deprecated gemini-2.5-flash-lite to gemini-3.5-flash-lite', () => {
+      expect(normalizeModelId('gemini-2.5-flash-lite')).toBe('gemini-3.5-flash-lite');
+      expect(normalizeModelId('models/gemini-2.5-flash-lite')).toBe('gemini-3.5-flash-lite');
+    });
+
+    it('preserves valid active model IDs unchanged', () => {
+      expect(normalizeModelId('gemini-3.8-flash')).toBe('gemini-3.8-flash');
+      expect(normalizeModelId('gemini-3.6-flash')).toBe('gemini-3.6-flash');
+      expect(normalizeModelId('gemini-3.5-flash-lite')).toBe('gemini-3.5-flash-lite');
+      expect(normalizeModelId('gemini-4-argon')).toBe('gemini-4-argon');
+    });
+
+    it('defaults to primary model for undefined or null inputs', () => {
+      expect(normalizeModelId(undefined)).toBe('gemini-3.8-flash');
+      expect(normalizeModelId('')).toBe('gemini-3.8-flash');
     });
   });
 });
