@@ -655,6 +655,13 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(result.shortBadge).toBe('Empty response');
     });
 
+    it('categorizes continuation and decode token limit errors (@google/genai v2.32.0+)', () => {
+      const result = categorizeModelError('Interaction status requires_continuation with continuation_token');
+      expect(result.category).toBe('continuation');
+      expect(result.friendlyMessage).toBe('Output exceeded single-request decode limit, automated continuation active');
+      expect(result.shortBadge).toBe('Continuation required');
+    });
+
     it('formats clean fallback reasons based on model error category', () => {
       const highDemandReason = formatFallbackReason('gemini-3.5-transcribe', 'gemini-3.7-flash', '503 Service Unavailable');
       expect(highDemandReason).toContain('Model demand too high on Gemini 3.5 Transcribe');
@@ -665,6 +672,9 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
 
       const emptyReason = formatFallbackReason('gemini-3.5-transcribe', 'gemini-3.7-flash', 'Model returned empty response');
       expect(emptyReason).toBe('Empty response from Gemini 3.5 Transcribe – automated failover to Gemini 3.7 Flash active.');
+
+      const continuationReason = formatFallbackReason('gemini-3.8-flash', 'gemini-3.6-flash', 'finishReason: CONTINUATION');
+      expect(continuationReason).toBe('Output decode limit reached on Gemini 3.8 Flash – continuing generation on Gemini 3.6 Flash.');
     });
 
     it('formats clean summary when all models fail', () => {

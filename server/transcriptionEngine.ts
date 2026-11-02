@@ -600,7 +600,7 @@ export function containsGenerativeLanguageEndpoint(text: string): boolean {
 export function categorizeModelError(err: any): {
   friendlyMessage: string;
   shortBadge: string;
-  category: 'high_demand' | 'rate_limit' | 'config_error' | 'auth_error' | 'timeout' | 'not_found' | 'duration_limit' | 'empty_response' | 'general';
+  category: 'high_demand' | 'rate_limit' | 'config_error' | 'auth_error' | 'timeout' | 'not_found' | 'duration_limit' | 'empty_response' | 'continuation' | 'general';
 } {
   const msg = typeof err === "string" ? err : err?.message || String(err || "");
   const lower = msg.toLowerCase();
@@ -726,6 +726,21 @@ export function categorizeModelError(err: any): {
     };
   }
 
+  // 9. Continuation required / Single-request decode limit reached (@google/genai v2.32.0+)
+  if (
+    lower.includes("requires_continuation") ||
+    lower.includes("requires continuation") ||
+    lower.includes("continuation_token") ||
+    lower.includes("continuation token") ||
+    lower.includes("finishreason: continuation")
+  ) {
+    return {
+      friendlyMessage: "Output exceeded single-request decode limit, automated continuation active",
+      shortBadge: "Continuation required",
+      category: "continuation"
+    };
+  }
+
   // Default / General
   return {
     friendlyMessage: "Model temporarily unavailable, try again later",
@@ -754,6 +769,8 @@ export function formatFallbackReason(fromModel: string, toModel: string, rawErro
       return `Audio duration exceeds limit on ${fromName} (>59m) – routed to ${toName}.`;
     case "empty_response":
       return `Empty response from ${fromName} – automated failover to ${toName} active.`;
+    case "continuation":
+      return `Output decode limit reached on ${fromName} – continuing generation on ${toName}.`;
     default:
       return `${errCategory.friendlyMessage} on ${fromName} – failover to ${toName} active.`;
   }
