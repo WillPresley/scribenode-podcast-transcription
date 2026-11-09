@@ -144,6 +144,12 @@ export const formatDockerTag = (
 export const DEFAULT_APP_NAME = "ScribeNode — AI Speech & Transcript Engine";
 export const DEFAULT_APP_SHORT_NAME = "ScribeNode";
 export const DEFAULT_GEMINI_USER_AGENT = "aistudio-build";
+export const DEFAULT_GOOGLE_GENAI_API_VERSION = "v1beta";
+
+export const getGoogleGenAIApiVersion = (env = process.env): string => {
+  const custom = cleanEnvString(env.GOOGLE_GENAI_API_VERSION);
+  return custom || DEFAULT_GOOGLE_GENAI_API_VERSION;
+};
 
 export const getGeminiUserAgent = (env = process.env): string => {
   const custom = cleanEnvString(env.GEMINI_USER_AGENT || env.USER_AGENT);

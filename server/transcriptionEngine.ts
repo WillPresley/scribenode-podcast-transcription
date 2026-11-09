@@ -725,17 +725,19 @@ export function categorizeModelError(err: any): {
     };
   }
 
-  // 8. Empty or Blank Response
+  // 8. Empty or Blank Response / Malformed Response (@google/genai v3.0.0+)
   if (
     lower.includes("empty response") ||
     lower.includes("blank text") ||
     lower.includes("no content") ||
     lower.includes("empty or blank") ||
-    lower.includes("returned empty")
+    lower.includes("returned empty") ||
+    lower.includes("malformed_response") ||
+    lower.includes("malformed response")
   ) {
     return {
-      friendlyMessage: "Model returned empty response, automated failover active",
-      shortBadge: "Empty response",
+      friendlyMessage: "Model returned empty or malformed response, automated failover active",
+      shortBadge: "Empty/malformed",
       category: "empty_response"
     };
   }

@@ -649,11 +649,15 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(result.shortBadge).toBe('API key / 403 issue');
     });
 
-    it('categorizes empty or blank response errors', () => {
+    it('categorizes empty, blank, or malformed response errors (@google/genai v3.0.0+)', () => {
       const result = categorizeModelError('Model gemini-3.5-transcribe returned empty or blank text response');
       expect(result.category).toBe('empty_response');
-      expect(result.friendlyMessage).toBe('Model returned empty response, automated failover active');
-      expect(result.shortBadge).toBe('Empty response');
+      expect(result.friendlyMessage).toBe('Model returned empty or malformed response, automated failover active');
+      expect(result.shortBadge).toBe('Empty/malformed');
+
+      const malformedResult = categorizeModelError('Model gemini-3.8-flash returned empty response (finishReason: MALFORMED_RESPONSE)');
+      expect(malformedResult.category).toBe('empty_response');
+      expect(malformedResult.shortBadge).toBe('Empty/malformed');
     });
 
     it('categorizes continuation and decode token limit errors (@google/genai v2.32.0+)', () => {

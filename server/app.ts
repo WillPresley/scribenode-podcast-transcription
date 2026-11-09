@@ -14,7 +14,8 @@ import {
   getMaxUploadSizeBytes,
   getAppName,
   getAppShortName,
-  getGeminiUserAgent
+  getGeminiUserAgent,
+  getGoogleGenAIApiVersion
 } from "./config";
 import { JobsStorage, TranscribeJob, sampleJobsList } from "./storage";
 import {
@@ -212,6 +213,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       }
       aiInstance = new GoogleGenAI({
         apiKey: apiKey,
+        apiVersion: getGoogleGenAIApiVersion(env),
         httpOptions: {
           headers: {
             'User-Agent': getGeminiUserAgent(env),

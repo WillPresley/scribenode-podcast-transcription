@@ -14,7 +14,9 @@ import {
   DEFAULT_APP_NAME,
   DEFAULT_APP_SHORT_NAME,
   getGeminiUserAgent,
-  DEFAULT_GEMINI_USER_AGENT
+  DEFAULT_GEMINI_USER_AGENT,
+  getGoogleGenAIApiVersion,
+  DEFAULT_GOOGLE_GENAI_API_VERSION
 } from '../../server/config';
 
 describe('Server Configuration & Security Guard Engine', () => {
@@ -239,6 +241,20 @@ describe('Server Configuration & Security Guard Engine', () => {
 
     it('falls back to USER_AGENT if GEMINI_USER_AGENT is not provided', () => {
       expect(getGeminiUserAgent({ USER_AGENT: 'my-bot/1.0' })).toBe('my-bot/1.0');
+    });
+  });
+
+  describe('Google GenAI API Version Configuration (getGoogleGenAIApiVersion)', () => {
+    it('defaults to "v1beta" to preserve active model aliases alongside foundation models', () => {
+      expect(DEFAULT_GOOGLE_GENAI_API_VERSION).toBe('v1beta');
+      expect(getGoogleGenAIApiVersion({})).toBe('v1beta');
+      expect(getGoogleGenAIApiVersion({ GOOGLE_GENAI_API_VERSION: '' })).toBe('v1beta');
+    });
+
+    it('honors GOOGLE_GENAI_API_VERSION when explicitly configured', () => {
+      expect(getGoogleGenAIApiVersion({ GOOGLE_GENAI_API_VERSION: 'v1' })).toBe('v1');
+      expect(getGoogleGenAIApiVersion({ GOOGLE_GENAI_API_VERSION: '"v1"' })).toBe('v1');
+      expect(getGoogleGenAIApiVersion({ GOOGLE_GENAI_API_VERSION: 'v1alpha' })).toBe('v1alpha');
     });
   });
 });
