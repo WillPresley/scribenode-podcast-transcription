@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    pool: 'forks',
     isolate: false,
     include: ['tests/**/*.{test,spec}.{ts,tsx}'],
     onConsoleLog(log, type) {
