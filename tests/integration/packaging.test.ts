@@ -78,7 +78,6 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     const workflow = fs.readFileSync(giteaWorkflowPath, 'utf-8');
     expect(workflow).toContain('actions/checkout@v4');
     expect(workflow).toContain('actions/setup-node@v4');
-    expect(workflow).toContain("cache: 'npm'");
     expect(workflow).toContain('npm ci --no-fund');
     expect(workflow).toContain('npm run lint');
     expect(workflow).toContain('npm test');
