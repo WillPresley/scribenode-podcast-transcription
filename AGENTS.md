@@ -19,10 +19,15 @@
 - **Preserve Persistent Volume Directories**: Ensure server storage routines check for existing persisted jobs/uploads in volume mounts (`/app/uploads/jobs.json`) before seeding default/sample data.
 - **Stateless Port Binding**: Server entry points must bind to `0.0.0.0` and respect `process.env.PORT` (default `3000`/`4200` per compose setup).
 
-## 4. Dependabot & Supply Chain Maintenance
+## 4. Dependabot, Hardware Architecture & Supply Chain Maintenance
 - **Dependabot Cadence & Immediate Security Alerts**: Configure Dependabot security updates to trigger immediately for high/critical security advisories without delay. Keep routine non-security dependencies scheduled weekly on Mondays (`interval: "weekly"`, `day: "monday"`, `timezone: "America/New_York"`).
 - **Logical Update Grouping**: Group routine minor and patch updates together (`minor-and-patch-dependencies`), and isolate major version bumps (`major-dependencies`) using `applies-to: "version-updates"` so security PRs remain unbundled and instant.
 - **Ignores & Constraints**: Maintain strict major version ignores on core infrastructure tools (e.g., `typescript`) until explicitly requested for upgrade.
+- **Cross-Architecture & Homelab CPU Compatibility Vetting (CRITICAL)**:
+  - ScribeNode is designed for self-hosted homelab deployments and CI runners operating across bare-metal Debian/Alpine LXC containers, Proxmox nodes, and enterprise server hardware (such as dual Intel Xeon E5-2660 v2 / Ivy Bridge-EP systems).
+  - **Pre-Update Architecture Vetting**: Before updating dependencies (especially bundlers, test runners, and native compiler tooling like `vite`, `rolldown`, `vitest`, `esbuild`, `@tailwindcss/vite`, `@tailwindcss/oxide`), always inspect release notes, changelogs, and native compilation flags for introduced CPU instruction requirements (`AVX2`, `BMI2`, `x86-64-v3`, or aggressive `mimalloc` target optimizations) that would cause hardware faults (`SIGILL` / Illegal instruction exitcode 132) on `x86-64-v2` processors or baseline Debian/Alpine environments.
+  - **Controlled Compatibility Holds**: If an upstream package introduces an instruction set incompatibility or breaking native flag, hold the dependency at the known-stable compatible release in `package-lock.json` and configure temporary Dependabot ignore rules in `.github/dependabot.yml` to prevent automated CI failures.
+  - **Prompt Upstream Re-Adoption & Verification**: Do NOT permanently freeze dependencies or leave them indefinitely obsolete. As soon as upstream packages address, patch, or release fixes for architectural flags (e.g., configuring `no_opt_arch` in `mimalloc`, restoring `x86-64-v2` baselines, or providing WASM fallbacks), immediately test and update the dependencies in Google AI Studio, verify full test suite execution, and remove the temporary Dependabot constraints.
 
 ## 5. CI/CD, GitHub Actions & Gitea Actions Compatibility
 - **GitHub & Gitea Actions Parity (CRITICAL)**: Maintain `.gitea/workflows/ci.yml` in strict parity with the non-GitHub-dependent stages of `.github/workflows/deploy.yml` (specifically: checkout, node setup, clean dependency install via `npm ci`, linting/type-check via `npm run lint`, full test suite execution via `npm test`, and production build bundling via `npm run build`). Whenever build, test, or linting pipeline steps are modified or added in `.github/workflows/deploy.yml`, immediately replicate those changes into `.gitea/workflows/ci.yml`.
@@ -42,6 +47,7 @@ Before declaring any coding task complete, execute the following verification lo
 3. `npm install --package-lock-only` (if `package.json` was touched)
 4. `npm ci` (verify clean install compatibility)
 5. `compile_applet` / `npm run build` (verify production build bundling)
+6. Verify dependency architecture and CPU instruction compatibility across baseline Debian/Alpine and homelab runner targets (`x86-64-v2` / no mandatory AVX2).
 
 ## 8. Release Management & Version Snapshotting
 - **Comprehensive Change Review**: Whenever a new numbered or named release is requested (e.g., `v1.2.0`), perform a thorough check of all changes, improvements, refactors, and bug fixes introduced since the previous release.
