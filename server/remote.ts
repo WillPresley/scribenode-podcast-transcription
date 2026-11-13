@@ -9,6 +9,7 @@ import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { probeAudioDuration, formatDurationSeconds } from "./audioDuration";
 import { safeFetch, validateUrlForSsrf } from "./ssrf";
+import { getAppVersion } from "./config";
 
 export interface DownloadAudioResult {
   filePath: string;
@@ -40,7 +41,7 @@ export async function downloadRemoteAudio(params: {
       signal: controller.signal,
       timeoutMs,
       headers: {
-        "User-Agent": "ScribeNode/1.5.1 (+https://github.com/WillPresley/scribenode-podcast-transcription)",
+        "User-Agent": `ScribeNode/${getAppVersion()} (+https://github.com/WillPresley/scribenode-podcast-transcription)`,
         "Accept": "audio/*, */*"
       }
     });

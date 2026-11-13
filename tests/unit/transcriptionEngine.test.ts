@@ -41,31 +41,36 @@ import {
 
 describe('Transcription Engine & AI Fallback Mechanics', () => {
   describe('Model Definitions & Duration Thresholds', () => {
-    it('defines primary transcription model as gemini-3.8-flash', () => {
-      expect(PRIMARY_TRANSCRIPTION_MODEL).toBe('gemini-3.8-flash');
-      expect(DEFAULT_TRANSCRIPTION_MODELS[0]).toBe('gemini-3.8-flash');
-      expect(DEFAULT_TRANSCRIPTION_MODELS[1]).toBe('gemini-3.6-flash');
-      expect(DEFAULT_TRANSCRIPTION_MODELS[2]).toBe('gemini-flash-latest');
-      expect(DEFAULT_TRANSCRIPTION_MODELS[3]).toBe('gemini-flash-lite-latest');
+    it('defines primary transcription model as gemini-4-hydrogen with gemini-3.8-flash at #2', () => {
+      expect(PRIMARY_TRANSCRIPTION_MODEL).toBe('gemini-4-hydrogen');
+      expect(DEFAULT_TRANSCRIPTION_MODELS.length).toBe(9);
+      expect(DEFAULT_TRANSCRIPTION_MODELS[0]).toBe('gemini-4-hydrogen');
+      expect(DEFAULT_TRANSCRIPTION_MODELS[1]).toBe('gemini-3.8-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS[2]).toBe('gemini-3.6-flash');
+      expect(DEFAULT_TRANSCRIPTION_MODELS[3]).toBe('gemini-flash-latest');
+      expect(DEFAULT_TRANSCRIPTION_MODELS[4]).toBe('gemini-flash-lite-latest');
       expect(DEFAULT_TRANSCRIPTION_MODELS).not.toContain('gemini-2.5-flash-lite');
       expect(DEFAULT_TRANSCRIPTION_MODELS).not.toContain('gemini-2.5-flash');
       expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-flash-lite-latest');
       expect(DEFAULT_TRANSCRIPTION_MODELS).toContain('gemini-flash-latest');
     });
 
-    it('defines primary downstream analysis model as gemini-3.8-flash', () => {
-      expect(PRIMARY_DOWNSTREAM_MODEL).toBe('gemini-3.8-flash');
-      expect(DEFAULT_ANALYSIS_MODELS[0]).toBe('gemini-3.8-flash');
-      expect(DEFAULT_ANALYSIS_MODELS[1]).toBe('gemini-3.6-flash');
+    it('defines primary downstream analysis model as gemini-4-hydrogen', () => {
+      expect(PRIMARY_DOWNSTREAM_MODEL).toBe('gemini-4-hydrogen');
+      expect(DEFAULT_ANALYSIS_MODELS[0]).toBe('gemini-4-hydrogen');
+      expect(DEFAULT_ANALYSIS_MODELS[1]).toBe('gemini-3.8-flash');
+      expect(DEFAULT_ANALYSIS_MODELS[2]).toBe('gemini-3.6-flash');
       expect(DEFAULT_ANALYSIS_MODELS).not.toContain('gemini-3.5-transcribe');
       expect(DEFAULT_ANALYSIS_MODELS).not.toContain('gemini-2.5-flash-lite');
       expect(DEFAULT_ANALYSIS_MODELS).not.toContain('gemini-2.5-flash');
     });
 
-    it('defines FRONTIER_MODELS with gemini-4-argon for deep synthesis and reasoning', () => {
+    it('defines FRONTIER_MODELS with gemini-4-argon and includes gemini-4-hydrogen in selectable models', () => {
       expect(FRONTIER_MODELS).toContain('gemini-4-argon');
       expect(ALLOWED_SELECTABLE_MODELS).toContain('gemini-4-argon');
+      expect(ALLOWED_SELECTABLE_MODELS).toContain('gemini-4-hydrogen');
       expect(ALLOWED_SELECTABLE_MODELS).toContain('gemini-3.8-flash');
+      expect(formatModelDisplayName('gemini-4-hydrogen')).toBe('Gemini 4 Hydrogen');
       expect(formatModelDisplayName('gemini-4-argon')).toBe('Gemini 4 Argon');
     });
 
@@ -78,6 +83,7 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
     it('queries available models cleanly and sorts configured models first', async () => {
       const mockList = [
         { name: 'models/gemini-3.8-flash', displayName: 'Gemini 3.8 Flash', supportedActions: ['generateContent'] },
+        { name: 'models/gemini-4-hydrogen', displayName: 'Gemini 4 Hydrogen', supportedActions: ['generateContent'] },
         { name: 'models/gemini-embedding-001', displayName: 'Gemini Embedding', supportedActions: ['embedContent'] },
         { name: 'models/gemini-3.6-flash', displayName: 'Gemini 3.6 Flash', supportedActions: ['generateContent'] },
         { name: 'models/gemini-custom-future', displayName: 'Gemini Custom Future', supportedActions: ['generateContent'] }
@@ -90,13 +96,15 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       };
 
       const result = await queryAvailableGenAIModels(mockAiClient);
-      expect(result.models.length).toBe(3); // excludes embedContent
-      expect(result.models[0].name).toBe('gemini-3.8-flash');
+      expect(result.models.length).toBe(4); // excludes embedContent
+      expect(result.models[0].name).toBe('gemini-4-hydrogen');
       expect(result.models[0].isConfiguredInCascade).toBe(true);
-      expect(result.models[1].name).toBe('gemini-3.6-flash');
+      expect(result.models[1].name).toBe('gemini-3.8-flash');
       expect(result.models[1].isConfiguredInCascade).toBe(true);
-      expect(result.models[2].name).toBe('gemini-custom-future');
-      expect(result.models[2].isConfiguredInCascade).toBe(false);
+      expect(result.models[2].name).toBe('gemini-3.6-flash');
+      expect(result.models[2].isConfiguredInCascade).toBe(true);
+      expect(result.models[3].name).toBe('gemini-custom-future');
+      expect(result.models[3].isConfiguredInCascade).toBe(false);
       expect(result.configuredCascade).toEqual(DEFAULT_TRANSCRIPTION_MODELS);
     });
 
@@ -114,7 +122,7 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       warnSpy.mockRestore();
 
       expect(result.models.length).toBe(ALLOWED_SELECTABLE_MODELS.length);
-      expect(result.models[0].name).toBe('gemini-3.8-flash');
+      expect(result.models[0].name).toBe('gemini-4-hydrogen');
       expect(result.models.some(m => m.isFrontier)).toBe(true);
       expect(result.configuredCascade).toEqual(DEFAULT_TRANSCRIPTION_MODELS);
     });
@@ -148,34 +156,35 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
   });
 
   describe('getTranscriptionModelsForJob', () => {
-    it('returns gemini-3.8-flash as primary across transcription workloads', () => {
+    it('returns gemini-4-hydrogen as primary across transcription workloads', () => {
       const models59m = getTranscriptionModelsForJob('59:00');
-      expect(models59m[0]).toBe('gemini-3.8-flash');
-      expect(models59m[1]).toBe('gemini-3.6-flash');
-      expect(models59m[2]).toBe('gemini-flash-latest');
-      expect(models59m[3]).toBe('gemini-flash-lite-latest');
+      expect(models59m[0]).toBe('gemini-4-hydrogen');
+      expect(models59m[1]).toBe('gemini-3.8-flash');
+      expect(models59m[2]).toBe('gemini-3.6-flash');
+      expect(models59m[3]).toBe('gemini-flash-latest');
+      expect(models59m[4]).toBe('gemini-flash-lite-latest');
 
       const models30m = getTranscriptionModelsForJob('30:00');
-      expect(models30m[0]).toBe('gemini-3.8-flash');
+      expect(models30m[0]).toBe('gemini-4-hydrogen');
     });
 
-    it('returns gemini-3.8-flash as primary when audio duration is unknown or undefined', () => {
+    it('returns gemini-4-hydrogen as primary when audio duration is unknown or undefined', () => {
       const modelsUndefined = getTranscriptionModelsForJob(undefined);
-      expect(modelsUndefined[0]).toBe('gemini-3.8-flash');
+      expect(modelsUndefined[0]).toBe('gemini-4-hydrogen');
 
       const modelsPlaceholder = getTranscriptionModelsForJob('--:--');
-      expect(modelsPlaceholder[0]).toBe('gemini-3.8-flash');
+      expect(modelsPlaceholder[0]).toBe('gemini-4-hydrogen');
     });
 
     it('maintains robust cascade across all audio durations', () => {
       const models59m1s = getTranscriptionModelsForJob('59:01');
-      expect(models59m1s[0]).toBe('gemini-3.8-flash');
+      expect(models59m1s[0]).toBe('gemini-4-hydrogen');
 
       const models1h = getTranscriptionModelsForJob('01:00:00');
-      expect(models1h[0]).toBe('gemini-3.8-flash');
+      expect(models1h[0]).toBe('gemini-4-hydrogen');
 
       const modelsNumeric = getTranscriptionModelsForJob(3600);
-      expect(modelsNumeric[0]).toBe('gemini-3.8-flash');
+      expect(modelsNumeric[0]).toBe('gemini-4-hydrogen');
     });
   });
 
@@ -1071,7 +1080,7 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(sanitizeGenerationConfig(null)).toBeNull();
     });
 
-    it('promotes minimal thinking level to low for gemini-4-argon', () => {
+    it('promotes minimal thinking level to low for gemini-4-argon and gemini-4-hydrogen', () => {
       const input = {
         thinkingConfig: { thinkingLevel: 'minimal' },
         systemInstruction: 'Argon prompt'
@@ -1079,9 +1088,28 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       const result = sanitizeGenerationConfig(input, 'gemini-4-argon');
       expect(result.thinkingConfig).toEqual({ thinkingLevel: 'low' });
 
-      // Non-argon models retain minimal
+      const resultHydrogen = sanitizeGenerationConfig({
+        thinkingConfig: { thinkingLevel: 'minimal' },
+        systemInstruction: 'Hydrogen prompt'
+      }, 'gemini-4-hydrogen');
+      expect(resultHydrogen.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+
+      const resultHydrogenUpper = sanitizeGenerationConfig({
+        thinkingConfig: { thinkingLevel: 'MINIMAL' }
+      }, 'gemini-4-hydrogen');
+      expect(resultHydrogenUpper.thinkingConfig).toEqual({ thinkingLevel: 'LOW' });
+
+      // Non-Gemini-4 models retain minimal
       const resultFlash = sanitizeGenerationConfig({ thinkingConfig: { thinkingLevel: 'minimal' } }, 'gemini-3.1-flash-lite');
       expect(resultFlash.thinkingConfig).toEqual({ thinkingLevel: 'minimal' });
+    });
+
+    it('preserves xhigh thinking level on gemini-4-hydrogen', () => {
+      const result = sanitizeGenerationConfig({
+        thinkingConfig: { thinkingLevel: 'XHIGH' },
+        systemInstruction: 'Deep audio reasoning'
+      }, 'gemini-4-hydrogen');
+      expect(result.thinkingConfig).toEqual({ thinkingLevel: 'XHIGH' });
     });
 
     it('strips unsupported candidateCount > 1 to prevent HTTP 400 on Gemini 3.5 Flash-Lite and modern models', () => {
@@ -1110,6 +1138,7 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
     });
 
     it('preserves valid active model IDs unchanged', () => {
+      expect(normalizeModelId('gemini-4-hydrogen')).toBe('gemini-4-hydrogen');
       expect(normalizeModelId('gemini-3.8-flash')).toBe('gemini-3.8-flash');
       expect(normalizeModelId('gemini-3.6-flash')).toBe('gemini-3.6-flash');
       expect(normalizeModelId('gemini-3.5-flash-lite')).toBe('gemini-3.5-flash-lite');
@@ -1117,8 +1146,8 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
     });
 
     it('defaults to primary model for undefined or null inputs', () => {
-      expect(normalizeModelId(undefined)).toBe('gemini-3.8-flash');
-      expect(normalizeModelId('')).toBe('gemini-3.8-flash');
+      expect(normalizeModelId(undefined)).toBe('gemini-4-hydrogen');
+      expect(normalizeModelId('')).toBe('gemini-4-hydrogen');
     });
   });
 });

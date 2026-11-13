@@ -379,10 +379,11 @@ export function extractSpeakersFromTranscript(transcript: string): string[] {
   return Array.from(speakersSet);
 }
 
-export const PRIMARY_TRANSCRIPTION_MODEL = "gemini-3.8-flash";
-export const PRIMARY_DOWNSTREAM_MODEL = "gemini-3.8-flash";
+export const PRIMARY_TRANSCRIPTION_MODEL = "gemini-4-hydrogen";
+export const PRIMARY_DOWNSTREAM_MODEL = "gemini-4-hydrogen";
 
 export const DEFAULT_DOWNSTREAM_MODELS = [
+  "gemini-4-hydrogen",
   "gemini-3.8-flash",
   "gemini-3.6-flash",
   "gemini-flash-latest",
@@ -394,6 +395,7 @@ export const DEFAULT_DOWNSTREAM_MODELS = [
 ];
 
 export const DEFAULT_TRANSCRIPTION_MODELS = [
+  "gemini-4-hydrogen",
   "gemini-3.8-flash",
   "gemini-3.6-flash",
   "gemini-flash-latest",
@@ -536,8 +538,10 @@ export function normalizeModelId(modelId?: string): string {
 }
 
 export function formatModelDisplayName(modelId?: string): string {
-  if (!modelId) return "Gemini 3.8 Flash";
+  if (!modelId) return "Gemini 4 Hydrogen";
   switch (modelId) {
+    case "gemini-4-hydrogen":
+      return "Gemini 4 Hydrogen";
     case "gemini-4-argon":
       return "Gemini 4 Argon";
     case "gemini-3.8-flash":
@@ -1085,7 +1089,7 @@ export function cleanFallbackTranscript(
 }
 
 /**
- * Post-processes raw ASR transcript with gemini-3.8-flash (and downstream fallback models)
+ * Post-processes raw ASR transcript with gemini-4-hydrogen (and downstream fallback models)
  * to format into publication-quality, diarized Markdown with true speaker attribution.
  */
 export async function refineTranscriptWithLLM(params: {
@@ -1310,7 +1314,7 @@ export function extractResponseText(response: any, promptStyle?: string, title?:
  *   to avoid 400 INVALID_ARGUMENT errors as Google enforces model defaults across Gemini 3+ and upcoming models.
  * - Migrates deprecated thinking_budget / thinkingBudget to thinkingConfig.thinkingLevel or removes it.
  * - Ensures thinkingLevel is placed properly in thinkingConfig.
- * - Enforces model-specific thinking level constraints (e.g. gemini-4-argon requires low/medium/high, not minimal).
+ * - Enforces model-specific thinking level constraints (e.g. gemini-4-hydrogen and gemini-4-argon do not support minimal).
  */
 export function sanitizeGenerationConfig(config?: any, model?: string): any {
   if (!config || typeof config !== "object") return config;
@@ -1362,9 +1366,16 @@ export function sanitizeGenerationConfig(config?: any, model?: string): any {
     }
   }
 
-  // Model-specific optimizations: gemini-4-argon does not support "minimal" thinking level
-  if (model === "gemini-4-argon" && sanitized.thinkingConfig?.thinkingLevel === "minimal") {
-    sanitized.thinkingConfig.thinkingLevel = "low";
+  // Model-specific optimizations: gemini-4-hydrogen and gemini-4-argon do not support "minimal" thinking level
+  if (
+    (model === "gemini-4-argon" || model === "gemini-4-hydrogen") &&
+    typeof sanitized.thinkingConfig?.thinkingLevel === "string" &&
+    sanitized.thinkingConfig.thinkingLevel.toLowerCase() === "minimal"
+  ) {
+    sanitized.thinkingConfig = {
+      ...sanitized.thinkingConfig,
+      thinkingLevel: sanitized.thinkingConfig.thinkingLevel === "MINIMAL" ? "LOW" : "low"
+    };
   }
 
   return Object.keys(sanitized).length > 0 ? sanitized : undefined;
@@ -1457,7 +1468,7 @@ export async function generateContentWithFallback(params: {
               }
             ];
           } else {
-            // Non-transcribe models (gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, etc.):
+            // Non-transcribe models (gemini-4-hydrogen, gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, etc.):
             // 1. Strictly remove transcribe-only configurations (audioTranscriptionConfig, audioTimestamp)
             delete modelConfig.audioTranscriptionConfig;
             delete modelConfig.audioTimestamp;
@@ -1556,7 +1567,7 @@ export async function generateContentWithFallback(params: {
           throw new Error(`Model ${model} returned empty or blank text response${reasonInfo}.`);
         }
 
-        // When transcribe model was used, run refinement pass with gemini-3.8-flash to produce publication-grade markdown with real speaker names
+        // When transcribe model was used, run refinement pass with gemini-4-hydrogen to produce publication-grade markdown with real speaker names
         let finalTranscript = extractedText;
         if (params.fileUri && params.promptStyle && isTranscribeModel) {
           try {

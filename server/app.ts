@@ -443,7 +443,7 @@ export function createApp(options: CreateAppOptions = {}): Express {
       modelStatus.lastFallbackReason = isDefault
         ? undefined
         : isFrontier
-          ? `Frontier model prioritized (${formatModelDisplayName(targetModel)}). High-reasoning deep analysis enabled; automatic fallback to Gemini 3.8 Flash cascade if unavailable.`
+          ? `Frontier model prioritized (${formatModelDisplayName(targetModel)}). High-reasoning deep analysis enabled; automatic fallback to Gemini 4 Hydrogen cascade if unavailable.`
           : `Custom selection: ${formatModelDisplayName(targetModel)} prioritized first with automatic fallback cascade.`;
 
       return res.json({ success: true, modelStatus });

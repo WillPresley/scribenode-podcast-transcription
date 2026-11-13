@@ -23,7 +23,7 @@ describe('Server Configuration & Security Guard Engine', () => {
   describe('getAppVersion', () => {
     it('returns the current version matching package.json', () => {
       const version = getAppVersion();
-      expect(version).toBe('1.6.0');
+      expect(version).toBe('1.7.0');
     });
   });
 
@@ -235,7 +235,7 @@ describe('Server Configuration & Security Guard Engine', () => {
     });
 
     it('honors custom GEMINI_USER_AGENT environment variable for self-hosted instances', () => {
-      expect(getGeminiUserAgent({ GEMINI_USER_AGENT: 'scribenode-homelab/1.6.0' })).toBe('scribenode-homelab/1.6.0');
+      expect(getGeminiUserAgent({ GEMINI_USER_AGENT: 'scribenode-homelab/1.7.0' })).toBe('scribenode-homelab/1.7.0');
       expect(getGeminiUserAgent({ GEMINI_USER_AGENT: '"custom-agent"' })).toBe('custom-agent');
     });
 

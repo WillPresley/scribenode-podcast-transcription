@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
@@ -10,10 +10,15 @@ import {
   GitBranch,
   ExternalLink,
   Copy,
-  Check
+  Check,
+  ChevronDown,
+  ChevronUp,
+  History
 } from 'lucide-react';
 import { ModelStatusInfo } from '../types';
 import { formatModelDisplayName } from '../utils/transcript';
+import { parseChangelog } from '../utils/changelog';
+import changelogMarkdown from '../../CHANGELOG.md?raw';
 
 export type AboutModalTab = 'overview' | 'api_setup' | 'release_notes';
 
@@ -34,10 +39,17 @@ export const AboutReleaseNotesModal: React.FC<AboutReleaseNotesModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<AboutModalTab>(initialTab);
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
+  const [showFullChangelog, setShowFullChangelog] = useState(false);
+
+  const releases = useMemo(() => parseChangelog(changelogMarkdown), []);
+  const latestRelease = releases[0];
+  const recentReleases = releases.slice(1, 4);
+  const olderReleases = releases.slice(4);
 
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab);
+      setShowFullChangelog(false);
     }
   }, [isOpen, initialTab]);
 
@@ -79,7 +91,7 @@ export const AboutReleaseNotesModal: React.FC<AboutReleaseNotesModalProps> = ({
                       Scribe<span className="text-blue-300">Node</span>
                     </h2>
                     <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                      v1.6.0
+                      v{latestRelease?.version || '1.7.0'}
                     </span>
                   </div>
                   <p className="text-xs text-slate-400">AI Speech & Transcript Engine</p>
@@ -133,7 +145,7 @@ export const AboutReleaseNotesModal: React.FC<AboutReleaseNotesModalProps> = ({
                 }`}
               >
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
-                <span>What's New v1.6.0</span>
+                <span>What's New v{latestRelease?.version || '1.7.0'}</span>
               </button>
             </div>
 
@@ -379,62 +391,117 @@ export const AboutReleaseNotesModal: React.FC<AboutReleaseNotesModalProps> = ({
               {activeTab === 'release_notes' && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5 mb-2">
-                      <Zap className="w-4 h-4 text-amber-500" />
-                      What's New in v1.6.0
-                    </h3>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 text-amber-500" />
+                        What's New in v{latestRelease?.version || '1.7.0'}
+                      </h3>
+                      {latestRelease?.date && (
+                        <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                          {latestRelease.date}
+                        </span>
+                      )}
+                    </div>
                     <ul className="space-y-3 border-l-2 border-blue-200 dark:border-blue-800 pl-3.5">
-                      <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Full Tri-Theme Architecture (Light, Dark & System OS Adaptive):</span>
-                        <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Deep slate dark theme, crisp clean light theme, and automatic system OS tracking via <code className="font-mono text-[10px]">prefers-color-scheme</code>. Includes dedicated <code className="font-mono text-[10px]">ThemeToggle</code> component with desktop segmented controls, mobile navigation drawer integration, responsive pointer feedback, and instant <code className="font-mono text-[10px]">&lt;meta name="theme-color"&gt;</code> DOM synchronization.
-                        </p>
-                      </li>
-                      <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Production Container & Self-Hosted Docker Hardening:</span>
-                        <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Implemented conditional dynamic importing for Vite middleware in <code className="font-mono text-[10px]">server.ts</code>. Decouples production runtime from development bundlers and completely eliminates missing module crashes on slim runner containers (<code className="font-mono text-[10px]">npm ci --only=production</code>).
-                        </p>
-                      </li>
-                      <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Atomic Disk Persistence & Path Traversal Immunity:</span>
-                        <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Hardened server storage engine with atomic <code className="font-mono text-[10px]">.tmp</code> serialization and atomic rename (<code className="font-mono text-[10px]">fs.renameSync</code>) preventing database corruption during abrupt process shutdown, debounced write I/O consolidation, and strict <code className="font-mono text-[10px]">isPathWithinUploads()</code> boundary validation across all audio streaming and deletion routes.
-                        </p>
-                      </li>
-                      <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Supply Chain Modernization & 100% CI Parity:</span>
-                        <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Upgraded Tailwind CSS 4.3.3, Google GenAI SDK 2.29.0, unified Node.js 24/26 execution compatibility, and standardized GitHub Actions runner pipelines backed by 14 test suites and 332 tests at 100% passing.
-                        </p>
-                      </li>
-                      <li className="relative">
-                        <span className="font-bold text-slate-900 dark:text-white">Modularized Component Decomposition:</span>
-                        <p className="text-slate-600 dark:text-slate-400 mt-0.5">
-                          Extracted large inline dialogs into clean, decoupled components (<code className="font-mono text-[10px]">AboutReleaseNotesModal</code>, <code className="font-mono text-[10px]">ModelDiagnosticsPopover</code>, <code className="font-mono text-[10px]">SpeakerRenameModal</code>, <code className="font-mono text-[10px]">BackupRestoreModal</code>, <code className="font-mono text-[10px]">ThemeToggle</code>, <code className="font-mono text-[10px]">GlossaryInput</code>, <code className="font-mono text-[10px]">AudioPlayer</code>) for enhanced maintainability.
-                        </p>
-                      </li>
+                      {(latestRelease?.sections || []).flatMap((section) =>
+                        section.items.map((item, itemIdx) => (
+                          <li key={`${section.heading}-${itemIdx}`} className="relative">
+                            {item.lead ? (
+                              <>
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  {item.lead}:
+                                </span>
+                                {item.detail && (
+                                  <p className="text-slate-600 dark:text-slate-400 mt-0.5">
+                                    {item.detail}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-slate-600 dark:text-slate-400">{item.detail}</p>
+                            )}
+                          </li>
+                        ))
+                      )}
                     </ul>
                   </div>
 
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                      Previous Milestones
-                    </h4>
-                    <div className="space-y-2">
-                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/60">
-                        <div className="font-bold text-slate-800 dark:text-slate-200">v1.5.5 &mdash; Progressive Web App (PWA) & Offline Resilience</div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Installable PWA with standalone windowing, offline status alerts with cached transcript access, and verified 8-tier Gemini 3.8 Flash model cascade.</p>
-                      </div>
-                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/60">
-                        <div className="font-bold text-slate-800 dark:text-slate-200">v1.5.1 &mdash; RSS Feed Pagination & Duration Fallbacks</div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Enhanced RSS picker with 50/100 episode pagination, full-archive search filtering, enclosure byte duration estimation, and Dependabot supply chain setup.</p>
-                      </div>
-                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1 border border-slate-200/60 dark:border-slate-700/60">
-                        <div className="font-bold text-slate-800 dark:text-slate-200">v1.5.0 &mdash; Flagship Gemini 3.8 Flash, RSS Feeds & Custom Vocabulary</div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Multimodal Gemini 3.8 Flash, full 9-tier model cascade, RSS feed ingestion, custom glossary injection, and in-place transcript editor.</p>
-                      </div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                        <History className="w-3.5 h-3.5" />
+                        Previous Milestones
+                      </h4>
+                      <a
+                        href="https://github.com/WillPresley/scribenode-podcast-transcription/blob/main/CHANGELOG.md"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+                      >
+                        <span>CHANGELOG.md</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
                     </div>
+                    <div className="space-y-2">
+                      {(showFullChangelog ? [...recentReleases, ...olderReleases] : recentReleases).map((rel) => (
+                        <div
+                          key={rel.version}
+                          className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1.5 border border-slate-200/60 dark:border-slate-700/60"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-bold text-slate-800 dark:text-slate-200">
+                              v{rel.version}
+                              {rel.title ? ` — ${rel.title}` : ''}
+                            </div>
+                            {rel.date && (
+                              <span className="text-[9px] font-mono text-slate-400 dark:text-slate-500 shrink-0">
+                                {rel.date}
+                              </span>
+                            )}
+                          </div>
+                          <ul className="space-y-1 text-[10px] text-slate-500 dark:text-slate-400">
+                            {rel.sections.flatMap((section) =>
+                              section.items.map((item, idx) => (
+                                <li key={`${rel.version}-${section.heading}-${idx}`} className="leading-snug">
+                                  {item.lead ? (
+                                    <>
+                                      <strong className="text-slate-700 dark:text-slate-300 font-semibold">
+                                        {item.lead}:
+                                      </strong>{' '}
+                                      {item.detail}
+                                    </>
+                                  ) : (
+                                    item.detail
+                                  )}
+                                </li>
+                              ))
+                            )}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+
+                    {olderReleases.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowFullChangelog((prev) => !prev)}
+                        className="mt-2.5 w-full py-2 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        {showFullChangelog ? (
+                          <>
+                            <ChevronUp className="w-3.5 h-3.5" />
+                            <span>Hide Older Versions</span>
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="w-3.5 h-3.5" />
+                            <span>
+                              View Full Changelog ({olderReleases.length} earlier {olderReleases.length === 1 ? 'release' : 'releases'} back to v{releases[releases.length - 1]?.version || '1.0.0'})
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
 
                   {/* Open Source Repository */}

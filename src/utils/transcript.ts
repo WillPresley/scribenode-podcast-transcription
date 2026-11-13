@@ -360,8 +360,10 @@ export const convertTranscriptToSrt = (rawText: string): string => {
 };
 
 export const formatModelDisplayName = (modelId?: string): string => {
-  if (!modelId) return "Gemini 3.8 Flash";
+  if (!modelId) return "Gemini 4 Hydrogen";
   switch (modelId) {
+    case "gemini-4-hydrogen":
+      return "Gemini 4 Hydrogen";
     case "gemini-4-argon":
       return "Gemini 4 Argon";
     case "gemini-3.8-flash":

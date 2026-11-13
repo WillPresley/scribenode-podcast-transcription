@@ -130,7 +130,7 @@ export const ModelDiagnosticsPopover: React.FC<ModelDiagnosticsPopoverProps> = (
                         type="button"
                         onClick={onResetCascade}
                         className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
-                        title="Reset to default Gemini 3.8 Flash cascade"
+                        title="Reset to default Gemini 4 Hydrogen cascade"
                       >
                         <RotateCcw className="h-2.5 w-2.5" />
                         Reset to Default

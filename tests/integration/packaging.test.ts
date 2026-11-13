@@ -151,4 +151,14 @@ describe('Build, Packaging & Release Configuration Verification', () => {
     expect(gitignore).toContain('!uploads/.gitkeep');
     expect(fs.existsSync(path.join(rootDir, 'uploads/.gitkeep'))).toBe(true);
   });
+
+  it('validates CHANGELOG.md exists and documents current release back to 1.0.0', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf-8'));
+    const changelogPath = path.join(rootDir, 'CHANGELOG.md');
+    expect(fs.existsSync(changelogPath)).toBe(true);
+
+    const changelog = fs.readFileSync(changelogPath, 'utf-8');
+    expect(changelog).toContain(`[${pkg.version}]`);
+    expect(changelog).toContain('[1.0.0]');
+  });
 });

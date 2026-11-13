@@ -62,8 +62,8 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.hasGeminiKey).toBe(true);
       expect(res.body.maxUploadSizeMB).toBe(100);
       expect(res.body.modelStatus).toBeDefined();
-      expect(res.body.modelStatus.primaryModel).toBe('gemini-3.8-flash');
-      expect(res.body.modelStatus.activeModel).toBe('gemini-3.8-flash');
+      expect(res.body.modelStatus.primaryModel).toBe('gemini-4-hydrogen');
+      expect(res.body.modelStatus.activeModel).toBe('gemini-4-hydrogen');
     });
 
     it('returns custom MAX_UPLOAD_SIZE_MB in /api/config when configured', async () => {
@@ -85,9 +85,10 @@ describe('API Integration & Route Endpoints', () => {
       const app = createApp({ storage, skipVite: true });
       const res = await request(app).get('/api/model-status');
       expect(res.status).toBe(200);
-      expect(res.body.primaryModel).toBe('gemini-3.8-flash');
-      expect(res.body.activeModel).toBe('gemini-3.8-flash');
+      expect(res.body.primaryModel).toBe('gemini-4-hydrogen');
+      expect(res.body.activeModel).toBe('gemini-4-hydrogen');
       expect(res.body.status).toBe('optimal');
+      expect(res.body.fallbackModels).toContain('gemini-4-hydrogen');
       expect(res.body.fallbackModels).toContain('gemini-3.8-flash');
       expect(res.body.fallbackModels).toContain('gemini-3.7-flash');
       expect(res.body.fallbackModels).toContain('gemini-3.6-flash');
@@ -102,6 +103,7 @@ describe('API Integration & Route Endpoints', () => {
         models: {
           list: async () => [
             { name: 'models/gemini-3.8-flash', displayName: 'Gemini 3.8 Flash', supportedActions: ['generateContent'] },
+            { name: 'models/gemini-4-hydrogen', displayName: 'Gemini 4 Hydrogen', supportedActions: ['generateContent'] },
             { name: 'models/gemini-3.6-flash', displayName: 'Gemini 3.6 Flash', supportedActions: ['generateContent'] }
           ]
         }
@@ -112,7 +114,8 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.models).toBeInstanceOf(Array);
       expect(res.body.configuredCascade).toBeInstanceOf(Array);
       expect(res.body.source).toBe('live_genai_api');
-      expect(res.body.models[0].name).toBe('gemini-3.8-flash');
+      expect(res.body.models[0].name).toBe('gemini-4-hydrogen');
+      expect(res.body.models[1].name).toBe('gemini-3.8-flash');
     });
 
     it('allows manually selecting a model and re-ordering fallbacks via POST /api/model-status', async () => {
@@ -138,8 +141,8 @@ describe('API Integration & Route Endpoints', () => {
         .post('/api/model-status')
         .send({ reset: true });
       expect(resetRes.status).toBe(200);
-      expect(resetRes.body.modelStatus.activeModel).toBe('gemini-3.8-flash');
-      expect(resetRes.body.modelStatus.fallbackModels[0]).toBe('gemini-3.8-flash');
+      expect(resetRes.body.modelStatus.activeModel).toBe('gemini-4-hydrogen');
+      expect(resetRes.body.modelStatus.fallbackModels[0]).toBe('gemini-4-hydrogen');
       expect(resetRes.body.modelStatus.isCustomSelection).toBe(false);
       expect(resetRes.body.modelStatus.lastFallbackReason).toBeUndefined();
     });
@@ -161,7 +164,7 @@ describe('API Integration & Route Endpoints', () => {
         .post('/api/model-status')
         .send({ reset: true });
       expect(resetRes.status).toBe(200);
-      expect(resetRes.body.modelStatus.activeModel).toBe('gemini-3.8-flash');
+      expect(resetRes.body.modelStatus.activeModel).toBe('gemini-4-hydrogen');
       expect(resetRes.body.modelStatus.isFrontierSelection).toBe(false);
     });
 
@@ -442,7 +445,7 @@ describe('API Integration & Route Endpoints', () => {
   });
 
   describe('Downstream Analysis Generation', () => {
-    it('generates summary, key takeaways, chapters, and social media analysis using gemini-3.8-flash', async () => {
+    it('generates summary, key takeaways, chapters, and social media analysis using gemini-4-hydrogen', async () => {
       const mockGenerateContent = vi.fn().mockImplementation(async ({ model, contents }) => {
         return { text: `Generated analysis from model ${model} for query: ${JSON.stringify(contents)}` };
       });
@@ -464,12 +467,12 @@ describe('API Integration & Route Endpoints', () => {
         if (mode === 'deep_synthesis') {
           expect(res.body.modelUsed).toBe('gemini-4-argon');
         } else {
-          expect(res.body.modelUsed).toBe('gemini-3.8-flash');
+          expect(res.body.modelUsed).toBe('gemini-4-hydrogen');
         }
       }
 
-      // Check that standard analysis used gemini-3.8-flash and deep_synthesis used gemini-4-argon
-      expect(mockGenerateContent.mock.calls[0][0].model).toBe('gemini-3.8-flash');
+      // Check that standard analysis used gemini-4-hydrogen and deep_synthesis used gemini-4-argon
+      expect(mockGenerateContent.mock.calls[0][0].model).toBe('gemini-4-hydrogen');
       expect(mockGenerateContent.mock.calls[4][0].model).toBe('gemini-4-argon');
 
       const updatedJob = storage.get('sample-sarah');
@@ -491,9 +494,9 @@ describe('API Integration & Route Endpoints', () => {
       expect(res.body.error).toBe('Invalid analysis mode');
     });
 
-    it('successfully falls over to secondary analysis models (gemini-3.6-flash) during 503 high demand', async () => {
+    it('successfully falls over to secondary analysis models (gemini-3.8-flash) during 503 high demand', async () => {
       const mockGenerateContent = vi.fn().mockImplementation(async ({ model }) => {
-        if (model === 'gemini-3.8-flash') {
+        if (model === 'gemini-4-hydrogen') {
           throw new Error('503 Service Unavailable: This model is currently experiencing high demand.');
         }
         return { text: `Generated summary from fallback model ${model}` };
@@ -511,12 +514,12 @@ describe('API Integration & Route Endpoints', () => {
         .send({ mode: 'summary' });
 
       expect(res.status).toBe(200);
-      expect(res.body.result).toContain('Generated summary from fallback model gemini-3.6-flash');
-      expect(res.body.modelUsed).toBe('gemini-3.6-flash');
+      expect(res.body.result).toContain('Generated summary from fallback model gemini-3.8-flash');
+      expect(res.body.modelUsed).toBe('gemini-3.8-flash');
       expect(res.body.job).toBeDefined();
 
       const updatedJob = storage.get('sample-sarah');
-      expect(updatedJob?.summary).toContain('gemini-3.6-flash');
+      expect(updatedJob?.summary).toContain('gemini-3.8-flash');
     });
   });
 

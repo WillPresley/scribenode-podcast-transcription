@@ -110,6 +110,7 @@ const ScribeNodeLogo = ({
 );
 
 const DEFAULT_FLAGSHIP_MODELS: string[] = [
+  "gemini-4-hydrogen",
   "gemini-3.8-flash",
   "gemini-3.6-flash",
   "gemini-flash-latest",
@@ -453,9 +454,10 @@ export default function App() {
   
   // Model Orchestration & Failover status
   const [modelStatus, setModelStatus] = useState<ModelStatusInfo>({
-    primaryModel: "gemini-3.8-flash",
-    activeModel: "gemini-3.8-flash",
+    primaryModel: "gemini-4-hydrogen",
+    activeModel: "gemini-4-hydrogen",
     fallbackModels: [
+      "gemini-4-hydrogen",
       "gemini-3.8-flash",
       "gemini-3.6-flash",
       "gemini-flash-latest",
@@ -533,7 +535,7 @@ export default function App() {
       status: 'optimal',
       lastFallbackReason: isCustom
         ? isFrontier
-          ? `Frontier model prioritized (${formatModelDisplayName(modelId)}). High-reasoning deep analysis enabled; automatic fallback to Gemini 3.8 Flash cascade if unavailable.`
+          ? `Frontier model prioritized (${formatModelDisplayName(modelId)}). High-reasoning deep analysis enabled; automatic fallback to Gemini 4 Hydrogen cascade if unavailable.`
           : `Custom selection: ${formatModelDisplayName(modelId)} prioritized first with automatic fallback cascade.`
         : undefined
     }));
@@ -803,7 +805,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: modelStatus.activeModel || "gemini-3.8-flash",
+        modelUsed: modelStatus.activeModel || "gemini-4-hydrogen",
         duration: durationStr,
         glossary: glossary.trim() || undefined,
       });
@@ -855,7 +857,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: modelStatus.activeModel || "gemini-3.8-flash",
+        modelUsed: modelStatus.activeModel || "gemini-4-hydrogen",
         duration: episode.duration,
         sourceType: "rss",
         sourceUrl: episode.audioUrl,
@@ -914,7 +916,7 @@ export default function App() {
         status: "uploading",
         progress: 10,
         createdAt: Date.now(),
-        modelUsed: modelStatus.activeModel || "gemini-3.8-flash",
+        modelUsed: modelStatus.activeModel || "gemini-4-hydrogen",
         duration: "--:--",
         sourceType: "url",
         sourceUrl: directAudioUrl.trim(),
@@ -1552,7 +1554,7 @@ export default function App() {
                   className="flex items-center gap-2 hover:text-blue-300 transition-colors cursor-pointer text-slate-400 hover:text-slate-200 font-medium"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>v1.6.0 Release Notes</span>
+                  <span>v1.7.0 Release Notes</span>
                 </button>
                 {isInstallable && (
                   <button
@@ -1857,7 +1859,7 @@ export default function App() {
                                   type="button"
                                   onClick={handleResetModelCascade}
                                   className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
-                                  title="Reset to default Gemini 3.8 Flash cascade"
+                                  title="Reset to default Gemini 4 Hydrogen cascade"
                                 >
                                   <RotateCcw className="h-2.5 w-2.5" />
                                   Reset to Default
@@ -1958,7 +1960,7 @@ export default function App() {
                                 type="button"
                                 onClick={handleResetModelCascade}
                                 className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 cursor-pointer hover:underline"
-                                title="Reset cascade to standard Gemini 3.8 Flash hierarchy"
+                                title="Reset cascade to standard Gemini 4 Hydrogen hierarchy"
                               >
                                 <RotateCcw className="h-2.5 w-2.5" /> Reset Cascade
                               </button>
@@ -2721,7 +2723,7 @@ export default function App() {
                                     type="button"
                                     onClick={handleResetModelCascade}
                                     className="bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 rounded shadow-sm border border-slate-300 dark:border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:ring-1 focus-visible:ring-blue-500"
-                                    title="Reset to flagship Gemini 3.8 Flash cascade"
+                                    title="Reset to flagship Gemini 4 Hydrogen cascade"
                                   >
                                     <RotateCcw className="h-3 w-3 text-blue-500" />
                                     Reset to Flagship
@@ -2758,7 +2760,7 @@ export default function App() {
                                 </p>
                                 {activeAnalysisTab === "deep_synthesis" && (
                                   <div className="text-[10px] text-purple-800 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 p-2 rounded-lg border border-purple-200/80 dark:border-purple-800/80 max-w-xs mx-auto leading-relaxed text-left">
-                                    ⚡ <strong>Frontier Mode:</strong> Prioritizes Gemini 4 Argon with automatic failover to Gemini 3.8 Flash if rate limits or billing constraints occur.
+                                    ⚡ <strong>Frontier Mode:</strong> Prioritizes Gemini 4 Argon with automatic failover to Gemini 4 Hydrogen if rate limits or billing constraints occur.
                                   </div>
                                 )}
                               </div>
@@ -3931,7 +3933,7 @@ export default function App() {
             className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100/80 dark:bg-slate-800/80 hover:bg-blue-50/80 dark:hover:bg-slate-800 px-2.5 sm:px-3 py-1 rounded-md border border-slate-200/80 dark:border-slate-700/80 transition-all cursor-pointer shadow-2xs group"
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-500 group-hover:scale-110 transition-transform" />
-            <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-100">v1.6.0</span>
+            <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-100">v1.7.0</span>
             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal border-l border-slate-200 dark:border-slate-700 pl-1.5 sm:pl-2 hidden xs:inline">About & Release Notes</span>
           </button>
         </footer>
