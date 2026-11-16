@@ -1,6 +1,12 @@
-import { GoogleGenAI, AudioTranscriptionConfigMode, AudioTranscriptionConfig } from "@google/genai";
+import {
+  GoogleGenAI,
+  AudioTranscriptionConfigMode,
+  AudioTranscriptionConfig,
+  ThinkingLevel,
+  FinishReason
+} from "@google/genai";
 
-export { AudioTranscriptionConfigMode };
+export { AudioTranscriptionConfigMode, ThinkingLevel, FinishReason };
 export type { AudioTranscriptionConfig };
 
 /**
@@ -678,13 +684,15 @@ export function categorizeModelError(err: any): {
     };
   }
 
-  // 4. Config / Invalid Argument / 400 / Bad Request / Developer instruction
+  // 4. Config / Invalid Argument / 400 / Bad Request / Developer instruction / Missing thought signature
   if (
     lower.includes("400") ||
     lower.includes("invalid_argument") ||
     lower.includes("invalid argument") ||
     lower.includes("developer instruction is not enabled") ||
     lower.includes("not enabled for this model") ||
+    lower.includes("missing_thought_signature") ||
+    lower.includes("missing thought signature") ||
     lower.includes("bad request")
   ) {
     return {
@@ -1366,7 +1374,8 @@ export function sanitizeGenerationConfig(config?: any, model?: string): any {
     }
   }
 
-  // Model-specific optimizations: gemini-4-hydrogen and gemini-4-argon do not support "minimal" thinking level
+  // Model-specific optimizations:
+  // 1. gemini-4-hydrogen and gemini-4-argon do not support "minimal" thinking level
   if (
     (model === "gemini-4-argon" || model === "gemini-4-hydrogen") &&
     typeof sanitized.thinkingConfig?.thinkingLevel === "string" &&
@@ -1374,7 +1383,21 @@ export function sanitizeGenerationConfig(config?: any, model?: string): any {
   ) {
     sanitized.thinkingConfig = {
       ...sanitized.thinkingConfig,
-      thinkingLevel: sanitized.thinkingConfig.thinkingLevel === "MINIMAL" ? "LOW" : "low"
+      thinkingLevel: sanitized.thinkingConfig.thinkingLevel === "MINIMAL" ? ThinkingLevel.LOW : "low"
+    };
+  }
+
+  // 2. ThinkingLevel.XHIGH (@google/genai v3.3.0+) is exclusively supported on gemini-4-hydrogen.
+  // Clamp XHIGH down to HIGH on other models (gemini-4-argon, Gemini 3 series, etc.) to prevent HTTP 400 INVALID_ARGUMENT.
+  if (
+    model &&
+    model !== "gemini-4-hydrogen" &&
+    typeof sanitized.thinkingConfig?.thinkingLevel === "string" &&
+    sanitized.thinkingConfig.thinkingLevel.toLowerCase() === "xhigh"
+  ) {
+    sanitized.thinkingConfig = {
+      ...sanitized.thinkingConfig,
+      thinkingLevel: sanitized.thinkingConfig.thinkingLevel === "XHIGH" ? ThinkingLevel.HIGH : "high"
     };
   }
 

@@ -471,9 +471,10 @@ describe('API Integration & Route Endpoints', () => {
         }
       }
 
-      // Check that standard analysis used gemini-4-hydrogen and deep_synthesis used gemini-4-argon
+      // Check that standard analysis used gemini-4-hydrogen and deep_synthesis used gemini-4-argon (with XHIGH safely clamped to HIGH)
       expect(mockGenerateContent.mock.calls[0][0].model).toBe('gemini-4-hydrogen');
       expect(mockGenerateContent.mock.calls[4][0].model).toBe('gemini-4-argon');
+      expect(mockGenerateContent.mock.calls[4][0].config?.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
 
       const updatedJob = storage.get('sample-sarah');
       expect(updatedJob?.summary).toBeDefined();
@@ -482,6 +483,30 @@ describe('API Integration & Route Endpoints', () => {
       expect(updatedJob?.social_media).toBeDefined();
       expect(updatedJob?.deep_synthesis).toBeDefined();
       expect(updatedJob?.deep_synthesis_model).toBe('gemini-4-argon');
+    });
+
+    it('preserves ThinkingLevel.XHIGH when deep_synthesis fails over from gemini-4-argon to gemini-4-hydrogen', async () => {
+      const mockGenerateContent = vi.fn().mockImplementation(async ({ model }) => {
+        if (model === 'gemini-4-argon') {
+          throw new Error('403 PERMISSION_DENIED: Paid tier key required for gemini-4-argon');
+        }
+        return { text: `Deep synthesis from ${model}` };
+      });
+      const mockAiClient: any = {
+        models: {
+          generateContent: mockGenerateContent
+        }
+      };
+
+      const app = createApp({ storage, aiClient: mockAiClient, skipVite: true });
+      const res = await request(app)
+        .post('/api/jobs/sample-sarah/analyze')
+        .send({ mode: 'deep_synthesis' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.modelUsed).toBe('gemini-4-hydrogen');
+      expect(mockGenerateContent.mock.calls[0][0].config?.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+      expect(mockGenerateContent.mock.calls[1][0].config?.thinkingConfig).toEqual({ thinkingLevel: 'XHIGH' });
     });
 
     it('rejects invalid analysis mode with 400', async () => {

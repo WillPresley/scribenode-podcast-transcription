@@ -35,7 +35,8 @@ import {
   normalizeModelId,
   getTranscriptionModelsForJob,
   queryAvailableGenAIModels,
-  AvailableModelItem
+  AvailableModelItem,
+  ThinkingLevel
 } from "./transcriptionEngine";
 import { fetchRssFeed } from "./rss";
 import { downloadRemoteAudio } from "./remote";
@@ -1301,7 +1302,8 @@ export function createApp(options: CreateAppOptions = {}): Express {
           { text: prompt }
         ],
         config: {
-          systemInstruction: "You are a professional content marketing and podcast assistant. Your goal is to analyze transcripts and generate high-quality, engaging promotional material, clear documentation, and listener sharing drafts."
+          systemInstruction: "You are a professional content marketing and podcast assistant. Your goal is to analyze transcripts and generate high-quality, engaging promotional material, clear documentation, and listener sharing drafts.",
+          ...(mode === 'deep_synthesis' ? { thinkingConfig: { thinkingLevel: ThinkingLevel.XHIGH } } : {})
         },
         onModelSelected: (selectedModel) => {
           updateModelStatus(selectedModel);

@@ -36,7 +36,9 @@ import {
   FRONTIER_MODELS,
   ALLOWED_SELECTABLE_MODELS,
   normalizeModelId,
-  formatModelDisplayName
+  formatModelDisplayName,
+  ThinkingLevel,
+  FinishReason
 } from '../../server/transcriptionEngine';
 
 describe('Transcription Engine & AI Fallback Mechanics', () => {
@@ -644,11 +646,15 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(result.shortBadge).toBe('Rate limit (429)');
     });
 
-    it('categorizes 400 and configuration/developer instruction errors', () => {
+    it('categorizes 400, configuration/developer instruction, and MISSING_THOUGHT_SIGNATURE errors', () => {
       const result = categorizeModelError('400 INVALID_ARGUMENT: Developer instruction is not enabled for this model');
       expect(result.category).toBe('config_error');
       expect(result.friendlyMessage).toBe('Model not correctly configured for requested parameters');
       expect(result.shortBadge).toBe('Config error (400)');
+
+      const sigResult = categorizeModelError('Response stopped with FinishReason: MISSING_THOUGHT_SIGNATURE');
+      expect(sigResult.category).toBe('config_error');
+      expect(sigResult.shortBadge).toBe('Config error (400)');
     });
 
     it('categorizes auth, invalid api key, and permission errors', () => {
@@ -1104,12 +1110,32 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(resultFlash.thinkingConfig).toEqual({ thinkingLevel: 'minimal' });
     });
 
-    it('preserves xhigh thinking level on gemini-4-hydrogen', () => {
-      const result = sanitizeGenerationConfig({
-        thinkingConfig: { thinkingLevel: 'XHIGH' },
+    it('preserves xhigh thinking level on gemini-4-hydrogen and clamps XHIGH to HIGH on other models (@google/genai v3.3.0)', () => {
+      expect(ThinkingLevel.XHIGH).toBe('XHIGH');
+      expect(FinishReason.MALFORMED_RESPONSE).toBe('MALFORMED_RESPONSE');
+      expect(FinishReason.MISSING_THOUGHT_SIGNATURE).toBe('MISSING_THOUGHT_SIGNATURE');
+      expect(FinishReason.CONTINUATION).toBe('CONTINUATION');
+
+      const callerThinking = { thinkingLevel: ThinkingLevel.XHIGH };
+      const hydrogenResult = sanitizeGenerationConfig({
+        thinkingConfig: callerThinking,
         systemInstruction: 'Deep audio reasoning'
       }, 'gemini-4-hydrogen');
-      expect(result.thinkingConfig).toEqual({ thinkingLevel: 'XHIGH' });
+      expect(hydrogenResult.thinkingConfig).toEqual({ thinkingLevel: 'XHIGH' });
+
+      const argonResult = sanitizeGenerationConfig({
+        thinkingConfig: callerThinking,
+        systemInstruction: 'Argon synthesis'
+      }, 'gemini-4-argon');
+      expect(argonResult.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+
+      const flashResult = sanitizeGenerationConfig({
+        thinkingConfig: { thinkingLevel: 'xhigh' }
+      }, 'gemini-3.8-flash');
+      expect(flashResult.thinkingConfig).toEqual({ thinkingLevel: 'high' });
+
+      // Caller thinkingConfig object must not be mutated
+      expect(callerThinking.thinkingLevel).toBe('XHIGH');
     });
 
     it('strips unsupported candidateCount > 1 to prevent HTTP 400 on Gemini 3.5 Flash-Lite and modern models', () => {
