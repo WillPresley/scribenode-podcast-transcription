@@ -1086,7 +1086,7 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(sanitizeGenerationConfig(null)).toBeNull();
     });
 
-    it('promotes minimal thinking level to low for gemini-4-argon and gemini-4-hydrogen', () => {
+    it('promotes minimal thinking level to low across the Gemini 4 model family', () => {
       const input = {
         thinkingConfig: { thinkingLevel: 'minimal' },
         systemInstruction: 'Argon prompt'
@@ -1105,16 +1105,28 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       }, 'gemini-4-hydrogen');
       expect(resultHydrogenUpper.thinkingConfig).toEqual({ thinkingLevel: 'LOW' });
 
+      const resultNeon = sanitizeGenerationConfig({
+        thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }
+      }, 'gemini-4-neon');
+      expect(resultNeon.thinkingConfig).toEqual({ thinkingLevel: 'LOW' });
+
+      const resultCarbon = sanitizeGenerationConfig({
+        thinkingConfig: { thinkingLevel: 'minimal' }
+      }, 'gemini-4-carbon');
+      expect(resultCarbon.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+
       // Non-Gemini-4 models retain minimal
       const resultFlash = sanitizeGenerationConfig({ thinkingConfig: { thinkingLevel: 'minimal' } }, 'gemini-3.1-flash-lite');
       expect(resultFlash.thinkingConfig).toEqual({ thinkingLevel: 'minimal' });
     });
 
-    it('preserves xhigh thinking level on gemini-4-hydrogen and clamps XHIGH to HIGH on other models (@google/genai v3.3.0)', () => {
+    it('preserves XHIGH on gemini-4-hydrogen and gemini-4-neon and clamps XHIGH to HIGH on other models (@google/genai v3.6.1)', () => {
       expect(ThinkingLevel.XHIGH).toBe('XHIGH');
       expect(FinishReason.MALFORMED_RESPONSE).toBe('MALFORMED_RESPONSE');
       expect(FinishReason.MISSING_THOUGHT_SIGNATURE).toBe('MISSING_THOUGHT_SIGNATURE');
       expect(FinishReason.CONTINUATION).toBe('CONTINUATION');
+      expect(formatModelDisplayName('gemini-4-neon')).toBe('Gemini 4 Neon');
+      expect(formatModelDisplayName('gemini-4-carbon')).toBe('Gemini 4 Carbon');
 
       const callerThinking = { thinkingLevel: ThinkingLevel.XHIGH };
       const hydrogenResult = sanitizeGenerationConfig({
@@ -1123,11 +1135,22 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       }, 'gemini-4-hydrogen');
       expect(hydrogenResult.thinkingConfig).toEqual({ thinkingLevel: 'XHIGH' });
 
+      const neonResult = sanitizeGenerationConfig({
+        thinkingConfig: callerThinking,
+        systemInstruction: 'Complex synthesis'
+      }, 'gemini-4-neon');
+      expect(neonResult.thinkingConfig).toEqual({ thinkingLevel: 'XHIGH' });
+
       const argonResult = sanitizeGenerationConfig({
         thinkingConfig: callerThinking,
         systemInstruction: 'Argon synthesis'
       }, 'gemini-4-argon');
       expect(argonResult.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+
+      const carbonResult = sanitizeGenerationConfig({
+        thinkingConfig: callerThinking
+      }, 'gemini-4-carbon');
+      expect(carbonResult.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
 
       const flashResult = sanitizeGenerationConfig({
         thinkingConfig: { thinkingLevel: 'xhigh' }
@@ -1138,7 +1161,7 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(callerThinking.thinkingLevel).toBe('XHIGH');
     });
 
-    it('strips unsupported candidateCount > 1 to prevent HTTP 400 on Gemini 3.5 Flash-Lite and modern models', () => {
+    it('strips candidateCount on Gemini 4 models and candidateCount > 1 on Gemini 3.5 Flash-Lite', () => {
       const input = {
         candidateCount: 2,
         candidate_count: 3,
@@ -1148,6 +1171,15 @@ describe('Transcription Engine & AI Fallback Mechanics', () => {
       expect(result.candidateCount).toBeUndefined();
       expect(result.candidate_count).toBeUndefined();
       expect(result.systemInstruction).toBe('Clean formatting');
+
+      const g4Result = sanitizeGenerationConfig({
+        candidateCount: 1,
+        candidate_count: 1,
+        systemInstruction: 'Gemini 4 formatting'
+      }, 'gemini-4-hydrogen');
+      expect(g4Result.candidateCount).toBeUndefined();
+      expect(g4Result.candidate_count).toBeUndefined();
+      expect(g4Result.systemInstruction).toBe('Gemini 4 formatting');
     });
   });
 

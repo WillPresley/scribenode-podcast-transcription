@@ -548,8 +548,12 @@ export function formatModelDisplayName(modelId?: string): string {
   switch (modelId) {
     case "gemini-4-hydrogen":
       return "Gemini 4 Hydrogen";
+    case "gemini-4-neon":
+      return "Gemini 4 Neon";
     case "gemini-4-argon":
       return "Gemini 4 Argon";
+    case "gemini-4-carbon":
+      return "Gemini 4 Carbon";
     case "gemini-3.8-flash":
       return "Gemini 3.8 Flash";
     case "gemini-3.7-flash":
@@ -1336,11 +1340,14 @@ export function sanitizeGenerationConfig(config?: any, model?: string): any {
   delete sanitized.topK;
   delete sanitized.top_k;
 
-  // Strip candidateCount / candidate_count > 1 (Gemini 3.5 Flash-Lite and modern models return HTTP 400)
-  if (sanitized.candidate_count !== undefined && sanitized.candidate_count > 1) {
+  const isGemini4Model = Boolean(model && model.startsWith("gemini-4-"));
+
+  // Strip candidateCount / candidate_count on Gemini 4 models (unsupported parameter)
+  // and strip candidateCount > 1 on Gemini 3.5 Flash-Lite / other modern models (HTTP 400).
+  if (sanitized.candidate_count !== undefined && (isGemini4Model || sanitized.candidate_count > 1)) {
     delete sanitized.candidate_count;
   }
-  if (sanitized.candidateCount !== undefined && sanitized.candidateCount > 1) {
+  if (sanitized.candidateCount !== undefined && (isGemini4Model || sanitized.candidateCount > 1)) {
     delete sanitized.candidateCount;
   }
 
@@ -1375,9 +1382,9 @@ export function sanitizeGenerationConfig(config?: any, model?: string): any {
   }
 
   // Model-specific optimizations:
-  // 1. gemini-4-hydrogen and gemini-4-argon do not support "minimal" thinking level
+  // 1. Gemini 4 models (gemini-4-hydrogen, gemini-4-neon, gemini-4-argon, gemini-4-carbon) do not support "minimal" thinking level
   if (
-    (model === "gemini-4-argon" || model === "gemini-4-hydrogen") &&
+    isGemini4Model &&
     typeof sanitized.thinkingConfig?.thinkingLevel === "string" &&
     sanitized.thinkingConfig.thinkingLevel.toLowerCase() === "minimal"
   ) {
@@ -1387,11 +1394,12 @@ export function sanitizeGenerationConfig(config?: any, model?: string): any {
     };
   }
 
-  // 2. ThinkingLevel.XHIGH (@google/genai v3.3.0+) is exclusively supported on gemini-4-hydrogen.
-  // Clamp XHIGH down to HIGH on other models (gemini-4-argon, Gemini 3 series, etc.) to prevent HTTP 400 INVALID_ARGUMENT.
+  // 2. ThinkingLevel.XHIGH (@google/genai v3.3.0+) is exclusively supported on gemini-4-hydrogen and gemini-4-neon.
+  // Clamp XHIGH down to HIGH on other models (gemini-4-argon, gemini-4-carbon, Gemini 3 series, etc.) to prevent HTTP 400 INVALID_ARGUMENT.
   if (
     model &&
     model !== "gemini-4-hydrogen" &&
+    model !== "gemini-4-neon" &&
     typeof sanitized.thinkingConfig?.thinkingLevel === "string" &&
     sanitized.thinkingConfig.thinkingLevel.toLowerCase() === "xhigh"
   ) {

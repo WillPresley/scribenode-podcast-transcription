@@ -16,12 +16,12 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@google/genai": "^3.3.0",
+    "@google/genai": "^3.6.1",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.3",
+    "express-rate-limit": "^8.7.5",
     "jszip": "^3.10.2",
-    "lucide-react": "^1.72.0",
+    "lucide-react": "^1.77.0",
     "motion": "^14.13.0",
     "multer": "^2.5.0",
     "react": "^19.3.1",
